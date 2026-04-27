@@ -28,6 +28,64 @@ def get_object_value(obj, attributes: list[str], default: str = "Unknown") -> st
     return default
 
 
+def get_release_date(track) -> str | None:
+    """
+    Safely extracts track release date from Deezer track object.
+    Deezer may return it as a date-like object or as a string.
+    """
+    release_date = getattr(track, "release_date", None)
+
+    if not release_date:
+        return None
+
+    if hasattr(release_date, "isoformat"):
+        return release_date.isoformat()
+
+    return str(release_date)
+
+
+def get_rank(track) -> int | None:
+    """
+    Safely extracts Deezer track rank.
+    Higher rank usually means higher popularity.
+    """
+    rank = getattr(track, "rank", None)
+
+    if rank is None:
+        return None
+
+    try:
+        rank = int(rank)
+    except (TypeError, ValueError):
+        return None
+
+    if rank <= 0:
+        return None
+
+    return rank
+
+
+def get_popularity_label(rank: int | None) -> str | None:
+    """
+    Converts Deezer numeric rank into a user-friendly popularity label.
+
+    These labels are our UI interpretation, not official Deezer categories.
+    """
+    if rank is None:
+        return None
+
+    if rank >= 700_000:
+        return "Very high"
+
+    if rank >= 400_000:
+        return "High"
+
+    if rank >= 150_000:
+        return "Medium"
+
+    return "Low"
+
+
 def format_deezer_track(track) -> dict:
     """
     Converts Deezer track object to normal dictionary.
@@ -54,6 +112,9 @@ def format_deezer_track(track) -> dict:
             or getattr(track.album, "cover", None)
         )
 
+    rank = get_rank(track)
+    popularity = get_popularity_label(rank)
+
     return {
         "deezer_track_id": str(track.id),
         "title": str(track.title),
@@ -63,6 +124,9 @@ def format_deezer_track(track) -> dict:
         "duration_seconds": int(track.duration),
         "deezer_link": str(track.link),
         "cover_url": cover_url,
+        "release_date": get_release_date(track),
+        "rank": rank,
+        "popularity": popularity,
     }
 
 

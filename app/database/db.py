@@ -22,6 +22,42 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def get_table_columns(cursor: sqlite3.Cursor, table_name: str) -> set[str]:
+    """
+    Returns existing column names for selected table.
+    """
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    rows = cursor.fetchall()
+    return {row[1] for row in rows}
+
+
+def add_column_if_missing(
+    cursor: sqlite3.Cursor,
+    table_name: str,
+    column_name: str,
+    column_definition: str,
+) -> None:
+    """
+    Adds a new column to an existing SQLite table if it does not exist.
+    Used for simple local development migrations.
+    """
+    columns = get_table_columns(cursor, table_name)
+
+    if column_name not in columns:
+        cursor.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )
+
+
+def migrate_db(cursor: sqlite3.Cursor) -> None:
+    """
+    Applies simple migrations for old local databases.
+    """
+    add_column_if_missing(cursor, "tracks", "release_date", "TEXT")
+    add_column_if_missing(cursor, "tracks", "rank", "INTEGER")
+    add_column_if_missing(cursor, "tracks", "popularity", "TEXT")
+
+
 def init_db() -> None:
     """
     Creates all required tables.
@@ -65,6 +101,9 @@ def init_db() -> None:
             duration_seconds INTEGER,
             deezer_link TEXT,
             cover_url TEXT,
+            release_date TEXT,
+            rank INTEGER,
+            popularity TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -95,6 +134,8 @@ def init_db() -> None:
         )
         """
     )
+
+    migrate_db(cursor)
 
     conn.commit()
     conn.close()

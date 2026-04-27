@@ -26,7 +26,11 @@ def upsert_user(user: User) -> None:
             username = excluded.username,
             first_name = excluded.first_name
         """,
-        (user.id, user.username, user.first_name),
+        (
+            user.id,
+            user.username,
+            user.first_name,
+        ),
     )
 
     conn.commit()
@@ -98,9 +102,12 @@ def save_track(track: dict) -> int:
             duration,
             duration_seconds,
             deezer_link,
-            cover_url
+            cover_url,
+            release_date,
+            rank,
+            popularity
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(deezer_track_id)
         DO UPDATE SET
             title = excluded.title,
@@ -109,7 +116,10 @@ def save_track(track: dict) -> int:
             duration = excluded.duration,
             duration_seconds = excluded.duration_seconds,
             deezer_link = excluded.deezer_link,
-            cover_url = excluded.cover_url
+            cover_url = excluded.cover_url,
+            release_date = excluded.release_date,
+            rank = excluded.rank,
+            popularity = excluded.popularity
         """,
         (
             track.get("deezer_track_id"),
@@ -120,6 +130,9 @@ def save_track(track: dict) -> int:
             track.get("duration_seconds"),
             track.get("deezer_link"),
             track.get("cover_url"),
+            track.get("release_date"),
+            track.get("rank"),
+            track.get("popularity"),
         ),
     )
 
@@ -193,7 +206,6 @@ def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
     conn.commit()
     conn.close()
 
-
 def clear_favorites(telegram_id: int) -> None:
     """
     Removes all favorite tracks for current user.
@@ -217,7 +229,6 @@ def clear_favorites(telegram_id: int) -> None:
 
     conn.commit()
     conn.close()
-
 
 def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
     """
@@ -272,6 +283,9 @@ def get_favorite_tracks(telegram_id: int) -> list[dict]:
             tracks.duration_seconds,
             tracks.deezer_link,
             tracks.cover_url,
+            tracks.release_date,
+            tracks.rank,
+            tracks.popularity,
             favorites.created_at
         FROM favorites
         JOIN tracks ON favorites.track_id = tracks.id
@@ -320,8 +334,7 @@ def get_search_history(telegram_id: int, limit: int = 10) -> list[dict]:
     rows = cursor.fetchall()
     conn.close()
 
-    return [row_to_dict(row) for row in rows]
-
+    return [row_to_dict(row) for row in rows]   
 
 def get_search_query_by_id(telegram_id: int, search_id: int) -> str | None:
     """
@@ -355,7 +368,6 @@ def get_search_query_by_id(telegram_id: int, search_id: int) -> str | None:
 
     return str(row["query"])
 
-
 def clear_search_history(telegram_id: int) -> None:
     """
     Clears current user's search history.
@@ -378,7 +390,6 @@ def clear_search_history(telegram_id: int) -> None:
 
     conn.commit()
     conn.close()
-
 
 def save_error(
     telegram_id: int | None,

@@ -191,9 +191,15 @@ def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
         bot.send_message(
             message.chat.id,
             FAVORITES_EMPTY_TEXT,
-            reply_markup=main_menu_keyboard(),
+            reply_markup=search_mode_keyboard(),
         )
         return
+    bot.send_message(
+        message.chat.id,
+        "Favorites menu:",
+        reply_markup=search_mode_keyboard(),
+    )
+
 
     markup = favorites_keyboard(tracks)
 
@@ -219,9 +225,15 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
         bot.send_message(
             message.chat.id,
             HISTORY_EMPTY_TEXT,
-            reply_markup=main_menu_keyboard(),
+            reply_markup=search_mode_keyboard(),
         )
         return
+    bot.send_message(
+        message.chat.id,
+        "History menu:",
+        reply_markup=search_mode_keyboard(),
+    )
+
 
     markup = history_keyboard(history)
 

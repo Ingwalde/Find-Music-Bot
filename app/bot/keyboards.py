@@ -166,7 +166,7 @@ def genius_url_keyboard(url: str) -> types.InlineKeyboardMarkup:
 def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
     """
     Creates improved favorites keyboard.
-    User can open saved tracks, clear favorites or return to main menu.
+    User can open saved tracks or clear favorites. Main menu is shown as a bottom keyboard.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -188,13 +188,6 @@ def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
         types.InlineKeyboardButton(
             text="🗑 Clear favorites",
             callback_data="favorites_clear_request",
-        )
-    )
-
-    markup.add(
-        types.InlineKeyboardButton(
-            text="⬅️ Main menu",
-            callback_data="main_menu",
         )
     )
 
@@ -222,7 +215,7 @@ def confirm_clear_favorites_keyboard() -> types.InlineKeyboardMarkup:
 def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
     """
     Creates improved search history keyboard.
-    User can repeat previous search, clear history or return to main menu.
+    User can repeat previous search or clear history. Main menu is shown as a bottom keyboard.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -241,13 +234,6 @@ def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
         types.InlineKeyboardButton(
             text="🗑 Clear history",
             callback_data="history_clear_request",
-        )
-    )
-
-    markup.add(
-        types.InlineKeyboardButton(
-            text="⬅️ Main menu",
-            callback_data="main_menu",
         )
     )
 
