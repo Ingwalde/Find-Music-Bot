@@ -194,6 +194,31 @@ def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
     conn.close()
 
 
+def clear_favorites(telegram_id: int) -> None:
+    """
+    Removes all favorite tracks for current user.
+    Tracks remain saved in the tracks table.
+    """
+    user_id = get_user_id(telegram_id)
+
+    if not user_id:
+        return
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        DELETE FROM favorites
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    )
+
+    conn.commit()
+    conn.close()
+
+
 def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
     """
     Checks if selected track is already in user's favorites.

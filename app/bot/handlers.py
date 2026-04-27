@@ -181,28 +181,32 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
 
 def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
     """
-    Shows user's favorite tracks.
+    Shows user's favorite tracks with improved keyboard.
     """
     upsert_user(message.from_user)
 
     tracks = get_favorite_tracks(message.from_user.id)
 
     if not tracks:
-        bot.send_message(message.chat.id, FAVORITES_EMPTY_TEXT)
+        bot.send_message(
+            message.chat.id,
+            FAVORITES_EMPTY_TEXT,
+            reply_markup=main_menu_keyboard(),
+        )
         return
 
     markup = favorites_keyboard(tracks)
 
     bot.send_message(
         message.chat.id,
-        "⭐ Your favorite tracks:",
+        f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
         reply_markup=markup,
     )
 
 
 def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
     """
-    Shows user's recent search history as clickable buttons.
+    Shows user's recent unique search history as clickable buttons.
     """
     upsert_user(message.from_user)
 
@@ -212,14 +216,18 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
     )
 
     if not history:
-        bot.send_message(message.chat.id, HISTORY_EMPTY_TEXT)
+        bot.send_message(
+            message.chat.id,
+            HISTORY_EMPTY_TEXT,
+            reply_markup=main_menu_keyboard(),
+        )
         return
 
     markup = history_keyboard(history)
 
     bot.send_message(
         message.chat.id,
-        "🕘 Your recent searches:\n\nClick a query to search again:",
+        f"🕘 Your recent searches: {len(history)}\n\nClick a query to search again:",
         reply_markup=markup,
     )
 

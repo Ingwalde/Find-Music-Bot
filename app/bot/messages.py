@@ -45,3 +45,20 @@ MENU_BUTTONS_DISABLED_TEXT = (
     "Menu buttons are available only in the main menu.\n"
     "Press ⬅️ Main menu first."
 )
+
+BACK_TO_RESULTS_EMPTY_TEXT = (
+    "Search results are not available anymore. "
+    "Please start a new search."
+)
+
+HISTORY_CLEAR_CONFIRM_TEXT = (
+    "Are you sure you want to clear your search history?"
+)
+
+HISTORY_CLEARED_TEXT = "🗑 Search history cleared."
+
+FAVORITES_CLEAR_CONFIRM_TEXT = (
+    "Are you sure you want to remove all favorite tracks?"
+)
+
+FAVORITES_CLEARED_TEXT = "🗑 Favorites cleared."

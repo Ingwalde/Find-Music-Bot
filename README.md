@@ -2,21 +2,23 @@
 
 Telegram Music Finder Bot is a Python Telegram bot for discovering songs through Deezer.
 
-Users can search for songs, view track metadata, open Deezer links, save favorite tracks, remove tracks from favorites, use paginated search results, repeat searches from history, and open lyrics pages on Genius.
+Users can search for songs, view track metadata, open Deezer links, save favorite tracks, remove tracks from favorites, use paginated search results, return back to search results, repeat searches from history, and open lyrics pages on Genius.
 
 ## Features
 
 - Search tracks by song name
 - Paginated search results with Prev / Next buttons
+- Back to results button from a track card
 - Show title, artist, album and duration
 - Show album cover from Deezer
 - Deezer URL button instead of long link in message
 - Inline buttons for track selection
 - Add tracks to favorites
 - Remove tracks from favorites
-- Show favorite tracks
+- Improved favorites list
+- Clear favorites with confirmation
 - Improved search history with clickable previous queries
-- Clear search history button
+- Clear search history with confirmation
 - Genius lyrics page lookup
 - SQLite database
 - Environment-based configuration
@@ -110,6 +112,17 @@ python run.py
 
 ## Current Version
 
+### v1.2.0 — UX update
+
+- Back to results button from track card
+- Improved favorites list
+- Clear favorites with confirmation
+- Improved search history layout
+- Clear history with confirmation
+- Main menu button in favorites/history inline panels
+
+## Previous Version
+
 ### v1.1.0 — Pagination + Improved History
 
 - Deezer track search
@@ -118,7 +131,7 @@ python run.py
 - Favorites
 - Remove from favorites
 - Paginated search results
-- Improved clickable search history
+- Clickable search history
 - Clear history button
 - Genius lyrics page button
 - SQLite database
@@ -134,9 +147,11 @@ python run.py
 - [x] Remove from favorites
 - [x] Search history
 - [x] Pagination
+- [x] Back to results
 - [x] Improved history
+- [x] Improved favorites management
 - [x] Genius lyrics page lookup
-- [ ] Better favorites management
+- [ ] Deezer preview button
 - [ ] YouTube / YouTube Music search buttons
 - [ ] Apple Music search button
 - [ ] Spotify integration
@@ -146,6 +161,8 @@ python run.py
 - [ ] Deployment guide
 
 ## Security Notes
+
+Do not commit `.env` to GitHub.
 
 If a Telegram bot token was exposed, revoke it in BotFather and generate a new one.
 

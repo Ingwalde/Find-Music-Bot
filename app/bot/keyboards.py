@@ -6,7 +6,7 @@ from app.bot.messages import BACK_TO_MENU_TEXT
 
 def main_menu_keyboard() -> types.ReplyKeyboardMarkup:
     """
-    Creates bottom reply keyboard.
+    Creates bottom reply keyboard for main menu.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("music"))
@@ -17,15 +17,15 @@ def main_menu_keyboard() -> types.ReplyKeyboardMarkup:
     return markup
 
 
-
 def search_mode_keyboard() -> types.ReplyKeyboardMarkup:
     """
     Creates bottom keyboard for music search mode.
-    Only main menu button is visible here.
+    Only Main menu button is visible here.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(BACK_TO_MENU_TEXT))
     return markup
+
 
 def remove_keyboard() -> types.ReplyKeyboardRemove:
     """
@@ -92,6 +92,7 @@ def search_results_keyboard(
 def track_actions_keyboard(
     track: dict,
     is_favorite: bool = False,
+    show_back_to_results: bool = False,
 ) -> types.InlineKeyboardMarkup:
     """
     Creates inline keyboard under selected track card.
@@ -108,6 +109,14 @@ def track_actions_keyboard(
             types.InlineKeyboardButton(
                 text="🎧 Deezer",
                 url=deezer_link,
+            )
+        )
+
+    if show_back_to_results:
+        markup.add(
+            types.InlineKeyboardButton(
+                text="⬅️ Back to results",
+                callback_data="back_results",
             )
         )
 
@@ -156,7 +165,8 @@ def genius_url_keyboard(url: str) -> types.InlineKeyboardMarkup:
 
 def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
     """
-    Creates inline keyboard with user's favorite tracks.
+    Creates improved favorites keyboard.
+    User can open saved tracks, clear favorites or return to main menu.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -174,13 +184,45 @@ def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
             )
         )
 
+    markup.add(
+        types.InlineKeyboardButton(
+            text="🗑 Clear favorites",
+            callback_data="favorites_clear_request",
+        )
+    )
+
+    markup.add(
+        types.InlineKeyboardButton(
+            text="⬅️ Main menu",
+            callback_data="main_menu",
+        )
+    )
+
+    return markup
+
+
+def confirm_clear_favorites_keyboard() -> types.InlineKeyboardMarkup:
+    """
+    Confirmation keyboard for clearing all favorites.
+    """
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton(
+            text="✅ Yes, clear",
+            callback_data="favorites_clear_confirm",
+        ),
+        types.InlineKeyboardButton(
+            text="❌ Cancel",
+            callback_data="favorites_clear_cancel",
+        ),
+    )
     return markup
 
 
 def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
     """
-    Creates interactive search history keyboard.
-    User can repeat a previous search or clear history.
+    Creates improved search history keyboard.
+    User can repeat previous search, clear history or return to main menu.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -198,8 +240,33 @@ def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
     markup.add(
         types.InlineKeyboardButton(
             text="🗑 Clear history",
-            callback_data="history_clear",
+            callback_data="history_clear_request",
         )
     )
 
+    markup.add(
+        types.InlineKeyboardButton(
+            text="⬅️ Main menu",
+            callback_data="main_menu",
+        )
+    )
+
+    return markup
+
+
+def confirm_clear_history_keyboard() -> types.InlineKeyboardMarkup:
+    """
+    Confirmation keyboard for clearing search history.
+    """
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton(
+            text="✅ Yes, clear",
+            callback_data="history_clear_confirm",
+        ),
+        types.InlineKeyboardButton(
+            text="❌ Cancel",
+            callback_data="history_clear_cancel",
+        ),
+    )
     return markup
