@@ -140,8 +140,6 @@ python run.py
 
 ## Security Notes
 
-Do not commit `.env` to GitHub.
-
 If a Telegram bot token was exposed, revoke it in BotFather and generate a new one.
 
 ## License
