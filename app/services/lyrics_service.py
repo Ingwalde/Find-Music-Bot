@@ -9,7 +9,7 @@ logger = setup_logger(__name__)
 
 def create_genius_client():
     """
-    Creates Genius client if token exists.
+    Creates Genius client only if token exists.
     Compatible with different lyricsgenius versions.
     """
     if not settings.GENIUS_TOKEN:
@@ -22,8 +22,6 @@ def create_genius_client():
             timeout=10,
         )
 
-        # These attributes exist in many lyricsgenius versions,
-        # but not all constructor versions accept them as arguments.
         if hasattr(genius_client, "verbose"):
             genius_client.verbose = False
 
@@ -46,6 +44,7 @@ genius = create_genius_client()
 def find_lyrics_url(title: str, artist: str | None = None) -> str | None:
     """
     Finds Genius song page URL.
+    Full lyrics are not sent automatically; the bot provides a link instead.
     """
     if genius is None:
         return None
@@ -55,7 +54,7 @@ def find_lyrics_url(title: str, artist: str | None = None) -> str | None:
 
         song = genius.search_song(
             title=title,
-            artist=artist
+            artist=artist,
         )
 
         if not song:

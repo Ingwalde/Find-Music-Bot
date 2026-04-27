@@ -2,11 +2,12 @@
 
 Telegram Music Finder Bot is a Python Telegram bot for discovering songs through Deezer.
 
-Users can search for songs, view track metadata, open Deezer links, save favorite tracks, remove tracks from favorites, check search history and open lyrics pages on Genius.
+Users can search for songs, view track metadata, open Deezer links, save favorite tracks, remove tracks from favorites, use paginated search results, repeat searches from history, and open lyrics pages on Genius.
 
 ## Features
 
 - Search tracks by song name
+- Paginated search results with Prev / Next buttons
 - Show title, artist, album and duration
 - Show album cover from Deezer
 - Deezer URL button instead of long link in message
@@ -14,7 +15,8 @@ Users can search for songs, view track metadata, open Deezer links, save favorit
 - Add tracks to favorites
 - Remove tracks from favorites
 - Show favorite tracks
-- Show search history
+- Improved search history with clickable previous queries
+- Clear search history button
 - Genius lyrics page lookup
 - SQLite database
 - Environment-based configuration
@@ -84,7 +86,9 @@ BOT_TOKEN=your_telegram_bot_token_here
 GENIUS_TOKEN=your_genius_token_here
 
 DATABASE_PATH=data/music_bot.db
-MAX_SEARCH_RESULTS=10
+MAX_SEARCH_RESULTS=30
+RESULTS_PER_PAGE=5
+HISTORY_LIMIT=10
 ```
 
 `GENIUS_TOKEN` is optional for the main Deezer search. If it is missing, lyrics lookup will be disabled.
@@ -101,19 +105,21 @@ python run.py
 /start - Start bot
 /help - Show help
 /favorites - Show favorite tracks
-/history - Show search history
+/history - Show clickable search history
 ```
 
 ## Current Version
 
-### v1.0.0 — Deezer MVP
+### v1.1.0 — Pagination + Improved History
 
 - Deezer track search
 - Track cards with album covers
 - Deezer button
 - Favorites
 - Remove from favorites
-- Search history
+- Paginated search results
+- Improved clickable search history
+- Clear history button
 - Genius lyrics page button
 - SQLite database
 
@@ -127,8 +133,9 @@ python run.py
 - [x] Favorites
 - [x] Remove from favorites
 - [x] Search history
+- [x] Pagination
+- [x] Improved history
 - [x] Genius lyrics page lookup
-- [ ] Pagination
 - [ ] Better favorites management
 - [ ] YouTube / YouTube Music search buttons
 - [ ] Apple Music search button

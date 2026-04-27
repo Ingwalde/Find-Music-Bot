@@ -26,11 +26,7 @@ def upsert_user(user: User) -> None:
             username = excluded.username,
             first_name = excluded.first_name
         """,
-        (
-            user.id,
-            user.username,
-            user.first_name,
-        ),
+        (user.id, user.username, user.first_name),
     )
 
     conn.commit()
@@ -268,7 +264,8 @@ def get_favorite_tracks(telegram_id: int) -> list[dict]:
 
 def get_search_history(telegram_id: int, limit: int = 10) -> list[dict]:
     """
-    Returns user's search history.
+    Returns recent unique search queries for user.
+    The latest duplicate query is kept and older duplicates are hidden.
     """
     user_id = get_user_id(telegram_id)
 
@@ -280,19 +277,82 @@ def get_search_history(telegram_id: int, limit: int = 10) -> list[dict]:
 
     cursor.execute(
         """
-        SELECT query, created_at
-        FROM searches
-        WHERE user_id = ?
-        ORDER BY created_at DESC
+        SELECT s.id, s.query, s.created_at
+        FROM searches s
+        JOIN (
+            SELECT LOWER(TRIM(query)) AS normalized_query, MAX(id) AS latest_id
+            FROM searches
+            WHERE user_id = ?
+            GROUP BY LOWER(TRIM(query))
+        ) latest ON s.id = latest.latest_id
+        WHERE s.user_id = ?
+        ORDER BY s.id DESC
         LIMIT ?
         """,
-        (user_id, limit),
+        (user_id, user_id, limit),
     )
 
     rows = cursor.fetchall()
     conn.close()
 
     return [row_to_dict(row) for row in rows]
+
+
+def get_search_query_by_id(telegram_id: int, search_id: int) -> str | None:
+    """
+    Returns search query by history ID.
+    Checks that the history item belongs to the current user.
+    """
+    user_id = get_user_id(telegram_id)
+
+    if not user_id:
+        return None
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT query
+        FROM searches
+        WHERE id = ?
+        AND user_id = ?
+        LIMIT 1
+        """,
+        (search_id, user_id),
+    )
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return str(row["query"])
+
+
+def clear_search_history(telegram_id: int) -> None:
+    """
+    Clears current user's search history.
+    """
+    user_id = get_user_id(telegram_id)
+
+    if not user_id:
+        return
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        DELETE FROM searches
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    )
+
+    conn.commit()
+    conn.close()
 
 
 def save_error(

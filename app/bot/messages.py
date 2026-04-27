@@ -13,20 +13,6 @@ HELP_TEXT = (
     "You can also send a song name directly."
 )
 
-BACK_TO_MENU_TEXT = "⬅️ Main menu"
-
-MAIN_MENU_TEXT = "Main menu:"
-
-SEARCH_MODE_TEXT = (
-    "You are now in music search mode.\n"
-    "Send a song name or press ⬅️ Main menu."
-)
-
-MENU_BUTTONS_DISABLED_TEXT = (
-    "These menu buttons are available only in the main menu.\n"
-    "Press ⬅️ Main menu first."
-)
-
 ASK_MUSIC_TEXT = "Please, send name of music:"
 
 NO_RESULTS_TEXT = "No results found. Please, try another name."
@@ -44,4 +30,18 @@ LYRICS_NOT_FOUND_TEXT = "Lyrics page was not found."
 GENIUS_ERROR_TEXT = (
     "Could not get lyrics information right now. "
     "Please try again later."
+)
+
+BACK_TO_MENU_TEXT = "⬅️ Main menu"
+
+MAIN_MENU_TEXT = "Main menu:"
+
+SEARCH_MODE_TEXT = (
+    "You are now in music search mode.\n"
+    "Send a song name or press ⬅️ Main menu."
+)
+
+MENU_BUTTONS_DISABLED_TEXT = (
+    "Menu buttons are available only in the main menu.\n"
+    "Press ⬅️ Main menu first."
 )

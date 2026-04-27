@@ -1,6 +1,7 @@
 from telebot import types
-from app.bot.messages import BACK_TO_MENU_TEXT
+
 from app.utils.text import truncate_text
+from app.bot.messages import BACK_TO_MENU_TEXT
 
 
 def main_menu_keyboard() -> types.ReplyKeyboardMarkup:
@@ -15,10 +16,12 @@ def main_menu_keyboard() -> types.ReplyKeyboardMarkup:
     )
     return markup
 
+
+
 def search_mode_keyboard() -> types.ReplyKeyboardMarkup:
     """
-    Keyboard shown during music search.
-    Main menu buttons are hidden here.
+    Creates bottom keyboard for music search mode.
+    Only main menu button is visible here.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(BACK_TO_MENU_TEXT))
@@ -31,9 +34,13 @@ def remove_keyboard() -> types.ReplyKeyboardRemove:
     return types.ReplyKeyboardRemove()
 
 
-def search_results_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
+def search_results_keyboard(
+    tracks: list[dict],
+    page: int = 0,
+    total_pages: int = 1,
+) -> types.InlineKeyboardMarkup:
     """
-    Creates inline keyboard with Deezer search results.
+    Creates paginated inline keyboard with Deezer search results.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -50,6 +57,34 @@ def search_results_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
                 callback_data=f"track:{track_id}",
             )
         )
+
+    if total_pages > 1:
+        navigation_buttons = []
+
+        if page > 0:
+            navigation_buttons.append(
+                types.InlineKeyboardButton(
+                    text="⬅️ Prev",
+                    callback_data=f"page:{page - 1}",
+                )
+            )
+
+        navigation_buttons.append(
+            types.InlineKeyboardButton(
+                text=f"📄 {page + 1}/{total_pages}",
+                callback_data="noop",
+            )
+        )
+
+        if page < total_pages - 1:
+            navigation_buttons.append(
+                types.InlineKeyboardButton(
+                    text="Next ➡️",
+                    callback_data=f"page:{page + 1}",
+                )
+            )
+
+        markup.row(*navigation_buttons)
 
     return markup
 
@@ -138,5 +173,33 @@ def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
                 callback_data=f"track:{track_id}",
             )
         )
+
+    return markup
+
+
+def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
+    """
+    Creates interactive search history keyboard.
+    User can repeat a previous search or clear history.
+    """
+    markup = types.InlineKeyboardMarkup(row_width=1)
+
+    for item in history:
+        search_id = item.get("id")
+        query = item.get("query", "Unknown query")
+
+        markup.add(
+            types.InlineKeyboardButton(
+                text=truncate_text(f"🔎 {query}", 64),
+                callback_data=f"hist:{search_id}",
+            )
+        )
+
+    markup.add(
+        types.InlineKeyboardButton(
+            text="🗑 Clear history",
+            callback_data="history_clear",
+        )
+    )
 
     return markup
