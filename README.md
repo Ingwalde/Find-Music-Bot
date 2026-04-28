@@ -110,32 +110,6 @@ python run.py
 /history - Show clickable search history
 ```
 
-## Current Version
-
-### v1.2.0 — UX update
-
-- Back to results button from track card
-- Improved favorites list
-- Clear favorites with confirmation
-- Improved search history layout
-- Clear history with confirmation
-- Main menu button in favorites/history inline panels
-
-## Previous Version
-
-### v1.1.0 — Pagination + Improved History
-
-- Deezer track search
-- Track cards with album covers
-- Deezer button
-- Favorites
-- Remove from favorites
-- Paginated search results
-- Clickable search history
-- Clear history button
-- Genius lyrics page button
-- SQLite database
-
 ## Roadmap
 
 - [x] Deezer search
