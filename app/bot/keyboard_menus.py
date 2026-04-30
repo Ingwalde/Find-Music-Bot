@@ -13,12 +13,14 @@ def main_menu_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
         types.KeyboardButton(t("btn_favorites", language)),
         types.KeyboardButton(t("btn_history", language)),
     )
+    markup.add(types.KeyboardButton(t("btn_language", language)))
     return markup
 
 
 def back_to_main_menu_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
     """
     Creates bottom keyboard with only Main menu button.
+    Used in search, favorites and history screens.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(t("btn_main_menu", language)))

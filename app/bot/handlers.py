@@ -60,6 +60,21 @@ def format_recent_errors(language: str = "en") -> str:
     return "\n".join(lines)
 
 
+def show_language_menu(bot: telebot.TeleBot, message: types.Message) -> None:
+    """
+    Shows language selection menu.
+    Can be opened by /language or by the Language button in main menu.
+    """
+    upsert_user(message.from_user)
+    language = get_user_language(message.from_user.id)
+
+    bot.send_message(
+        message.chat.id,
+        t("choose_language", language),
+        reply_markup=language_keyboard(),
+    )
+
+
 def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Processes user's song search query.
@@ -79,15 +94,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         show_main_menu(bot, message.chat.id, message.from_user.id)
         return
 
-    if text == "/start":
-        bot.send_message(
-            message.chat.id,
-            t("welcome", language),
-            reply_markup=main_menu_keyboard(language),
-        )
-        return
-
-    if action in ["music", "favorites", "history"]:
+    if action in ["music", "favorites", "history", "language"]:
         bot.send_message(
             message.chat.id,
             t("menu_buttons_disabled", language),
@@ -97,6 +104,14 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         bot.register_next_step_handler(
             sent_msg,
             lambda next_message: process_music_search(bot, next_message),
+        )
+        return
+
+    if text == "/start":
+        bot.send_message(
+            message.chat.id,
+            t("welcome", language),
+            reply_markup=main_menu_keyboard(language),
         )
         return
 
@@ -227,14 +242,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["language"])
     def language_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
-
-        bot.send_message(
-            message.chat.id,
-            t("choose_language", language),
-            reply_markup=language_keyboard(),
-        )
+        show_language_menu(bot, message)
 
     @bot.message_handler(commands=["version"])
     def version_handler(message: types.Message) -> None:
@@ -277,6 +285,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     @bot.message_handler(content_types=["text"])
     def text_handler(message: types.Message) -> None:
         upsert_user(message.from_user)
+
         action = get_menu_action_by_text(message.text)
 
         if action == "main_menu":
@@ -293,6 +302,10 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
         if action == "history":
             show_history(bot, message)
+            return
+
+        if action == "language":
+            show_language_menu(bot, message)
             return
 
         process_music_search(bot, message)

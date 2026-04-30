@@ -12,111 +12,36 @@ The bot allows users to search for tracks, view track cards with album covers an
 
 ## Current Version
 
-**v1.9.0 — Multi-Language Update**
+**v1.9.1 — Language Menu Fix**
 
 Latest updates:
-- Added multi-language interface support
-- Added `/language` command
-- Added language selection keyboard
-- Added English as default/fallback language
-- Added Ukrainian, Norwegian, German, French, Spanish, Italian and Polish interface support
-- Added user language storage in SQLite
-- Added localization layer for bot messages and visible buttons
+- Fixed translated Music button in the main menu
+- Fixed translated Language button in the main menu
+- Language button is now generated from localization keys
+- Menu action detection now supports translated Language button
 
-## Supported Languages
+## Main Menu Examples
 
-```text
-🇬🇧 English
-🇺🇦 Ukrainian
-🇳🇴 Norwegian
-🇩🇪 German
-🇫🇷 French
-🇪🇸 Spanish
-🇮🇹 Italian
-🇵🇱 Polish
-```
-
-## Features
-
-- Search tracks by song name through Deezer
-- Paginated search results with Prev / Next buttons
-- Back to results button from track cards
-- Track cards with title, artist, album, duration, release date, popularity and album cover
-- Deezer URL as a clean inline button
-- Add and remove favorite tracks
-- Improved favorites list
-- Clickable search history
-- Genius lyrics page lookup
-- Multi-language interface
-- SQLite database with cached track metadata
-- File logging to `logs/bot.log`
-- Admin-only error commands
-- Automated tests with pytest
-
-## Bot Commands
+English:
 
 ```text
-/start - Start bot
-/help - Show help
-/language - Change language
-/version - Show bot version
-/favorites - Show favorite tracks
-/history - Show search history
-/errors - Show recent saved errors (admin only)
-/clear_errors - Clear saved errors (admin only)
+🎵 Music
+⭐ Favorites | 🕘 History
+🌐 Language
 ```
 
-## Run
-
-```bash
-python run.py
-```
-
-## Run Tests
-
-```bash
-python -m pytest
-```
-
-## Roadmap
-
-See full roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)
-
-Short version:
-
-- [x] Deezer search
-- [x] Album cover
-- [x] Favorites
-- [x] Search history
-- [x] Pagination
-- [x] Back to results
-- [x] Release date and popularity
-- [x] Logging
-- [x] Tests
-- [x] Database optimization
-- [x] GitHub documentation polish
-- [x] Multi-language interface
-- [ ] Spotify API integration
-- [ ] Multi-platform search links
-- [ ] Docker
-- [ ] Deployment guide
-- [ ] CI / GitHub Actions
-
-## GitHub Safety
-
-Do not publish local/private files:
+Ukrainian:
 
 ```text
-.env
-data/
-logs/
-.git/
-__pycache__/
-.vscode/
+🎵 Музика
+⭐ Улюблені | 🕘 Історія
+🌐 Мова
 ```
 
-Use `.env.example` for public configuration examples.
+Norwegian:
 
-## License
-
-MIT
+```text
+🎵 Musikk
+⭐ Favoritter | 🕘 Historikk
+🌐 Språk
+```

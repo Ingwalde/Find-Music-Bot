@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.9.1] - 2026-04-28
+
+### Fixed
+- Fixed main menu `Music` button translation.
+- Fixed main menu `Language` button translation.
+- Replaced hardcoded `🌐 Language` with localization key `btn_language`.
+- Updated menu action detection to support translated language button.
+
+---
+
 ## [v1.9.0] - 2026-04-30
 
 ### Added
@@ -103,3 +113,4 @@ English is used as the default fallback language if a translation is missing.
 
 ### Added
 - Initial Deezer MVP.
+

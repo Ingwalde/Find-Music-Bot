@@ -1,12 +1,19 @@
 """
 Centralized Telegram button texts and callback constants.
+
+Keeping these values in one file prevents typos and duplicated strings
+across handlers, callbacks and keyboard builders.
 """
 
 # Technical actions
 ACTION_MUSIC = "music"
 ACTION_FAVORITES = "favorites"
 ACTION_HISTORY = "history"
+ACTION_LANGUAGE = "language"
 ACTION_MAIN_MENU_TEXT = "main_menu"
+
+# Universal bottom keyboard button
+BTN_LANGUAGE = "🌐 Language"
 
 # Callback prefixes
 CB_TRACK = "track"
