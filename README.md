@@ -123,31 +123,16 @@ python run.py
 
 ## Current Version
 
-### v1.4.0 — Logging Update
-
-- File logging to `logs/bot.log`
-- Configurable log level and log file path
-- Saved error history in SQLite
-- Admin-only `/errors` command
-- Admin-only `/clear_errors` command
-- Main menu button remains as a bottom keyboard in history/favorites screens
-
-## Previous Versions
-
-### v1.3.0 — Track Metadata Update
-
-- Release date in track cards
-- Deezer rank in track cards
-- User-friendly popularity label
-- SQLite metadata fields for release date, rank and popularity
-
-### v1.2.0 — UX Update
+### v1.2.0 — UX update
 
 - Back to results button from track card
 - Improved favorites list
 - Clear favorites with confirmation
 - Improved search history layout
 - Clear history with confirmation
+- Main menu button in favorites/history inline panels
+
+## Previous Version
 
 ### v1.1.0 — Pagination + Improved History
 
