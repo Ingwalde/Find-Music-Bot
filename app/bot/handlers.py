@@ -1,40 +1,29 @@
 import telebot
 from telebot import types
 
-from app.bot.context import (
-    get_page_tracks,
-    get_total_pages,
-    save_search_context,
-)
+from app.bot.actions import ask_for_music, send_search_results, show_main_menu
+from app.bot.constants import BTN_FAVORITES, BTN_HISTORY, BTN_MAIN_MENU, BTN_MUSIC
 from app.bot.keyboards import (
-    main_menu_keyboard,
-    search_mode_keyboard,
-    search_results_keyboard,
     favorites_keyboard,
     history_keyboard,
+    main_menu_keyboard,
+    search_mode_keyboard,
 )
 from app.bot.messages import (
-    WELCOME_TEXT,
-    HELP_TEXT,
-    ASK_MUSIC_TEXT,
-    NO_RESULTS_TEXT,
     FAVORITES_EMPTY_TEXT,
+    HELP_TEXT,
     HISTORY_EMPTY_TEXT,
-    BACK_TO_MENU_TEXT,
-    MAIN_MENU_TEXT,
-    SEARCH_MODE_TEXT,
     MENU_BUTTONS_DISABLED_TEXT,
+    WELCOME_TEXT,
 )
 from app.config.settings import settings
 from app.database.repositories import (
-    upsert_user,
-    save_search,
-    get_favorite_tracks,
-    get_search_history,
-    get_recent_errors,
     clear_errors,
+    get_favorite_tracks,
+    get_recent_errors,
+    get_search_history,
+    upsert_user,
 )
-from app.services.deezer_service import search_tracks
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.version import __version__
@@ -76,91 +65,6 @@ def format_recent_errors() -> str:
     return "\n".join(lines)
 
 
-def show_main_menu(bot: telebot.TeleBot, chat_id: int) -> None:
-    """
-    Shows main menu and restores main bottom keyboard.
-    """
-    bot.send_message(
-        chat_id,
-        MAIN_MENU_TEXT,
-        reply_markup=main_menu_keyboard(),
-    )
-
-
-def ask_for_music(bot: telebot.TeleBot, chat_id: int) -> None:
-    """
-    Asks user to send a song name and shows only Main menu button.
-    """
-    bot.send_message(
-        chat_id,
-        SEARCH_MODE_TEXT,
-        reply_markup=search_mode_keyboard(),
-    )
-
-    sent_msg = bot.send_message(chat_id, ASK_MUSIC_TEXT)
-    bot.register_next_step_handler(
-        sent_msg,
-        lambda message: process_music_search(bot, message),
-    )
-
-
-def send_search_results(
-    bot: telebot.TeleBot,
-    chat_id: int,
-    user_id: int,
-    query: str,
-    save_to_history: bool = True,
-) -> None:
-    """
-    Searches tracks, stores results in user context and sends first page.
-    Used by direct search and history callbacks.
-    """
-    query = query.strip()
-
-    if not query:
-        bot.send_message(chat_id, "Search query cannot be empty.")
-        ask_for_music(bot, chat_id)
-        return
-
-    if save_to_history:
-        save_search(user_id, query)
-
-    tracks = search_tracks(
-        query=query,
-        limit=settings.MAX_SEARCH_RESULTS,
-    )
-
-    if not tracks:
-        bot.send_message(chat_id, NO_RESULTS_TEXT)
-        ask_for_music(bot, chat_id)
-        return
-
-    save_search_context(user_id=user_id, query=query, tracks=tracks)
-
-    total_pages = get_total_pages(
-        user_id=user_id,
-        page_size=settings.RESULTS_PER_PAGE,
-    )
-
-    page_tracks = get_page_tracks(
-        user_id=user_id,
-        page_size=settings.RESULTS_PER_PAGE,
-        page=0,
-    )
-
-    markup = search_results_keyboard(
-        tracks=page_tracks,
-        page=0,
-        total_pages=total_pages,
-    )
-
-    bot.send_message(
-        chat_id,
-        f"Found {len(tracks)} tracks for: {query}",
-        reply_markup=markup,
-    )
-
-
 def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Processes user's song search query.
@@ -173,7 +77,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     text = message.text.strip()
     text_lower = text.lower()
 
-    if text == BACK_TO_MENU_TEXT:
+    if text == BTN_MAIN_MENU:
         show_main_menu(bot, message.chat.id)
         return
 
@@ -185,13 +89,13 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         )
         return
 
-    if text_lower in ["music", "favorites", "history"]:
+    if text_lower in [BTN_MUSIC, BTN_FAVORITES, BTN_HISTORY]:
         bot.send_message(
             message.chat.id,
             MENU_BUTTONS_DISABLED_TEXT,
             reply_markup=search_mode_keyboard(),
         )
-        sent_msg = bot.send_message(message.chat.id, ASK_MUSIC_TEXT)
+        sent_msg = bot.send_message(message.chat.id, "Please, send name of music:")
         bot.register_next_step_handler(
             sent_msg,
             lambda next_message: process_music_search(bot, next_message),
@@ -200,6 +104,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
 
     try:
         upsert_user(message.from_user)
+
         send_search_results(
             bot=bot,
             chat_id=message.chat.id,
@@ -362,19 +267,19 @@ def register_handlers(bot: telebot.TeleBot) -> None:
         text = message.text.strip()
         text_lower = text.lower()
 
-        if text == BACK_TO_MENU_TEXT:
+        if text == BTN_MAIN_MENU:
             show_main_menu(bot, message.chat.id)
             return
 
-        if text_lower == "music":
+        if text_lower == BTN_MUSIC:
             ask_for_music(bot, message.chat.id)
             return
 
-        if text_lower == "favorites":
+        if text_lower == BTN_FAVORITES:
             show_favorites(bot, message)
             return
 
-        if text_lower == "history":
+        if text_lower == BTN_HISTORY:
             show_history(bot, message)
             return
 

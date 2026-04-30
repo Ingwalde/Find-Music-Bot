@@ -1,3 +1,6 @@
+from app.bot.constants import BTN_MAIN_MENU
+
+
 WELCOME_TEXT = (
     "🎧 Welcome to Music Finder Bot!\n\n"
     "I can help you find songs, artists, albums and Deezer links.\n\n"
@@ -8,8 +11,11 @@ HELP_TEXT = (
     "Available commands:\n\n"
     "/start - Start bot\n"
     "/help - Show help\n"
+    "/version - Show bot version\n"
     "/favorites - Show saved tracks\n"
-    "/history - Show search history\n\n"
+    "/history - Show search history\n"
+    "/errors - Show recent saved errors (admin only)\n"
+    "/clear_errors - Clear saved errors (admin only)\n\n"
     "You can also send a song name directly."
 )
 
@@ -32,7 +38,7 @@ GENIUS_ERROR_TEXT = (
     "Please try again later."
 )
 
-BACK_TO_MENU_TEXT = "⬅️ Main menu"
+BACK_TO_MENU_TEXT = BTN_MAIN_MENU
 
 MAIN_MENU_TEXT = "Main menu:"
 

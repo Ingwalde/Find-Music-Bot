@@ -1,666 +1,127 @@
 import telebot
 from telebot import types
 
-from app.bot.context import (
-    get_current_page,
-    get_page_tracks,
-    get_search_context,
-    get_total_pages,
-    set_search_page,
+from app.bot.actions import ask_for_music, show_main_menu
+from app.bot.constants import (
+    ACTION_BACK_RESULTS,
+    ACTION_FAVORITES_CLEAR_CANCEL,
+    ACTION_FAVORITES_CLEAR_CONFIRM,
+    ACTION_FAVORITES_CLEAR_REQUEST,
+    ACTION_HISTORY_CLEAR_CANCEL,
+    ACTION_HISTORY_CLEAR_CONFIRM,
+    ACTION_HISTORY_CLEAR_REQUEST,
+    ACTION_MAIN_MENU,
+    ACTION_NOOP,
+    ACTION_SEARCH_AGAIN,
+    CB_FAVORITE,
+    CB_HISTORY,
+    CB_LYRICS,
+    CB_PAGE,
+    CB_TRACK,
+    CB_UNFAVORITE,
 )
-from app.bot.handlers import ask_for_music, send_search_results, show_main_menu
-from app.bot.keyboards import (
-    track_actions_keyboard,
-    genius_url_keyboard,
-    search_results_keyboard,
-    history_keyboard,
-    favorites_keyboard,
-    confirm_clear_history_keyboard,
-    confirm_clear_favorites_keyboard,
-    main_menu_keyboard,
+from app.bot.favorites_callbacks import (
+    handle_clear_favorites_cancel_callback,
+    handle_clear_favorites_confirm_callback,
+    handle_clear_favorites_request_callback,
+    handle_favorite_callback,
+    handle_remove_favorite_callback,
 )
-from app.bot.messages import (
-    FAVORITE_ADDED_TEXT,
-    FAVORITE_REMOVED_TEXT,
-    LYRICS_NOT_FOUND_TEXT,
-    GENIUS_ERROR_TEXT,
-    HISTORY_EMPTY_TEXT,
-    FAVORITES_EMPTY_TEXT,
-    BACK_TO_RESULTS_EMPTY_TEXT,
-    HISTORY_CLEAR_CONFIRM_TEXT,
-    HISTORY_CLEARED_TEXT,
-    FAVORITES_CLEAR_CONFIRM_TEXT,
-    FAVORITES_CLEARED_TEXT,
+from app.bot.history_callbacks import (
+    handle_clear_history_cancel_callback,
+    handle_clear_history_confirm_callback,
+    handle_clear_history_request_callback,
+    handle_history_search_callback,
 )
-from app.config.settings import settings
-from app.database.repositories import (
-    upsert_user,
-    save_track,
-    add_favorite,
-    remove_favorite,
-    clear_favorites,
-    is_track_favorite,
-    get_favorite_tracks,
-    get_search_history,
-    get_search_query_by_id,
-    clear_search_history,
+from app.bot.lyrics_callbacks import handle_lyrics_callback
+from app.bot.pagination_callbacks import (
+    handle_back_to_results_callback,
+    handle_page_callback,
 )
-from app.services.deezer_service import get_track
-from app.services.lyrics_service import find_lyrics_url
-from app.services.track_formatter import format_track_card
-from app.utils.error_logger import log_and_save_error
-from app.utils.logger import setup_logger
-
-
-logger = setup_logger(__name__)
-
-
-def user_has_search_context(user_id: int) -> bool:
-    """
-    Checks if user has stored search results.
-    """
-    context = get_search_context(user_id)
-    return bool(context and context.get("tracks"))
-
-
-def send_track_card(
-    bot: telebot.TeleBot,
-    chat_id: int,
-    telegram_id: int,
-    track: dict,
-) -> None:
-    """
-    Sends selected track information with album cover and action buttons.
-    """
-    text = format_track_card(track)
-
-    is_favorite = is_track_favorite(
-        telegram_id=telegram_id,
-        deezer_track_id=track["deezer_track_id"],
-    )
-
-    markup = track_actions_keyboard(
-        track,
-        is_favorite=is_favorite,
-        show_back_to_results=user_has_search_context(telegram_id),
-    )
-
-    cover_url = track.get("cover_url")
-
-    if cover_url:
-        try:
-            bot.send_photo(
-                chat_id=chat_id,
-                photo=cover_url,
-                caption=text,
-                reply_markup=markup,
-            )
-            return
-        except Exception as error:
-            logger.warning("Could not send cover image: %s", error)
-
-    bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        reply_markup=markup,
-    )
-
-
-def send_current_results_page(
-    bot: telebot.TeleBot,
-    chat_id: int,
-    user_id: int,
-) -> None:
-    """
-    Sends current saved search results page as a new message.
-    Used by Back to results.
-    """
-    context = get_search_context(user_id)
-
-    if not context:
-        bot.send_message(chat_id, BACK_TO_RESULTS_EMPTY_TEXT)
-        return
-
-    page = get_current_page(user_id)
-    total_pages = get_total_pages(
-        user_id=user_id,
-        page_size=settings.RESULTS_PER_PAGE,
-    )
-    page_tracks = get_page_tracks(
-        user_id=user_id,
-        page_size=settings.RESULTS_PER_PAGE,
-        page=page,
-    )
-
-    if not page_tracks:
-        bot.send_message(chat_id, BACK_TO_RESULTS_EMPTY_TEXT)
-        return
-
-    markup = search_results_keyboard(
-        tracks=page_tracks,
-        page=page,
-        total_pages=total_pages,
-    )
-
-    query = context.get("query", "")
-    total_tracks = len(context.get("tracks", []))
-
-    bot.send_message(
-        chat_id,
-        f"Found {total_tracks} tracks for: {query}",
-        reply_markup=markup,
-    )
-
-
-def handle_track_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    track_id: str,
-) -> None:
-    """
-    Handles selected track button.
-    """
-    try:
-        bot.answer_callback_query(call.id)
-
-        track = get_track(track_id)
-        save_track(track)
-
-        send_track_card(
-            bot=bot,
-            chat_id=call.message.chat.id,
-            telegram_id=call.from_user.id,
-            track=track,
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "track_callback", error)
-        bot.send_message(
-            call.message.chat.id,
-            "Could not load track information.",
-        )
-
-
-def handle_page_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    page: int,
-) -> None:
-    """
-    Changes current search results page without calling Deezer API again.
-    """
-    try:
-        context = get_search_context(call.from_user.id)
-
-        if not context:
-            bot.answer_callback_query(
-                call.id,
-                "Search session expired. Please search again.",
-                show_alert=True,
-            )
-            return
-
-        normalized_page = set_search_page(
-            user_id=call.from_user.id,
-            page=page,
-            page_size=settings.RESULTS_PER_PAGE,
-        )
-
-        total_pages = get_total_pages(
-            user_id=call.from_user.id,
-            page_size=settings.RESULTS_PER_PAGE,
-        )
-        page_tracks = get_page_tracks(
-            user_id=call.from_user.id,
-            page_size=settings.RESULTS_PER_PAGE,
-            page=normalized_page,
-        )
-
-        markup = search_results_keyboard(
-            tracks=page_tracks,
-            page=normalized_page,
-            total_pages=total_pages,
-        )
-
-        query = context.get("query", "")
-        total_tracks = len(context.get("tracks", []))
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=f"Found {total_tracks} tracks for: {query}",
-            reply_markup=markup,
-        )
-
-        bot.answer_callback_query(call.id)
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "pagination_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not change page.",
-            show_alert=True,
-        )
-
-
-def handle_back_to_results_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Returns user to current saved search results page.
-    """
-    try:
-        bot.answer_callback_query(call.id)
-        send_current_results_page(
-            bot=bot,
-            chat_id=call.message.chat.id,
-            user_id=call.from_user.id,
-        )
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "back_to_results_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not return to results.",
-            show_alert=True,
-        )
-
-
-def handle_history_search_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    search_id: str,
-) -> None:
-    """
-    Repeats selected search query from history.
-    """
-    try:
-        query = get_search_query_by_id(
-            telegram_id=call.from_user.id,
-            search_id=int(search_id),
-        )
-
-        if not query:
-            bot.answer_callback_query(
-                call.id,
-                "History item was not found.",
-                show_alert=True,
-            )
-            return
-
-        bot.answer_callback_query(call.id, "Searching again...")
-        upsert_user(call.from_user)
-
-        send_search_results(
-            bot=bot,
-            chat_id=call.message.chat.id,
-            user_id=call.from_user.id,
-            query=query,
-            save_to_history=True,
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "history_search_callback", error)
-        bot.send_message(
-            call.message.chat.id,
-            "Could not repeat this search.",
-        )
-
-
-def handle_clear_history_request_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Asks user to confirm history clearing.
-    """
-    try:
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=HISTORY_CLEAR_CONFIRM_TEXT,
-            reply_markup=confirm_clear_history_keyboard(),
-        )
-        bot.answer_callback_query(call.id)
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_history_request", error)
-        bot.answer_callback_query(call.id, "Could not open confirmation.", show_alert=True)
-
-
-def handle_clear_history_confirm_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Clears current user's search history after confirmation.
-    """
-    try:
-        clear_search_history(call.from_user.id)
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=HISTORY_CLEARED_TEXT,
-        )
-
-        bot.answer_callback_query(
-            call.id,
-            "History cleared.",
-            show_alert=False,
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_history_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not clear history.",
-            show_alert=True,
-        )
-
-
-def handle_clear_history_cancel_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Cancels history clearing and returns to history list.
-    """
-    try:
-        history = get_search_history(
-            call.from_user.id,
-            limit=settings.HISTORY_LIMIT,
-        )
-
-        if not history:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=HISTORY_EMPTY_TEXT,
-            )
-            bot.answer_callback_query(call.id)
-            return
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=f"🕘 Your recent searches: {len(history)}\n\nClick a query to search again:",
-            reply_markup=history_keyboard(history),
-        )
-        bot.answer_callback_query(call.id, "Cancelled.")
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_history_cancel", error)
-        bot.answer_callback_query(call.id, "Could not cancel.", show_alert=True)
-
-
-def handle_favorite_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    track_id: str,
-) -> None:
-    """
-    Adds track to favorites and updates inline button.
-    """
-    try:
-        upsert_user(call.from_user)
-
-        track = get_track(track_id)
-        save_track(track)
-        add_favorite(call.from_user.id, track)
-
-        updated_markup = track_actions_keyboard(
-            track,
-            is_favorite=True,
-            show_back_to_results=user_has_search_context(call.from_user.id),
-        )
-
-        bot.edit_message_reply_markup(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            reply_markup=updated_markup,
-        )
-
-        bot.answer_callback_query(
-            call.id,
-            FAVORITE_ADDED_TEXT,
-            show_alert=False,
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "favorite_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not add to favorites.",
-            show_alert=True,
-        )
-
-
-def handle_remove_favorite_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    track_id: str,
-) -> None:
-    """
-    Removes track from favorites and updates inline button.
-    """
-    try:
-        track = get_track(track_id)
-        save_track(track)
-
-        remove_favorite(
-            telegram_id=call.from_user.id,
-            deezer_track_id=track_id,
-        )
-
-        updated_markup = track_actions_keyboard(
-            track,
-            is_favorite=False,
-            show_back_to_results=user_has_search_context(call.from_user.id),
-        )
-
-        bot.edit_message_reply_markup(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            reply_markup=updated_markup,
-        )
-
-        bot.answer_callback_query(
-            call.id,
-            FAVORITE_REMOVED_TEXT,
-            show_alert=False,
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "remove_favorite_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not remove from favorites.",
-            show_alert=True,
-        )
-
-
-def handle_clear_favorites_request_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Asks user to confirm favorites clearing.
-    """
-    try:
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=FAVORITES_CLEAR_CONFIRM_TEXT,
-            reply_markup=confirm_clear_favorites_keyboard(),
-        )
-        bot.answer_callback_query(call.id)
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_request", error)
-        bot.answer_callback_query(call.id, "Could not open confirmation.", show_alert=True)
-
-
-def handle_clear_favorites_confirm_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Clears all user favorites after confirmation.
-    """
-    try:
-        clear_favorites(call.from_user.id)
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=FAVORITES_CLEARED_TEXT,
-        )
-        bot.answer_callback_query(call.id, "Favorites cleared.")
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_confirm", error)
-        bot.answer_callback_query(call.id, "Could not clear favorites.", show_alert=True)
-
-
-def handle_clear_favorites_cancel_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-) -> None:
-    """
-    Cancels favorites clearing and returns to favorites list.
-    """
-    try:
-        tracks = get_favorite_tracks(call.from_user.id)
-
-        if not tracks:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text=FAVORITES_EMPTY_TEXT,
-            )
-            bot.answer_callback_query(call.id)
-            return
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
-            reply_markup=favorites_keyboard(tracks),
-        )
-        bot.answer_callback_query(call.id, "Cancelled.")
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_cancel", error)
-        bot.answer_callback_query(call.id, "Could not cancel.", show_alert=True)
-
-
-def handle_lyrics_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
-    track_id: str,
-) -> None:
-    """
-    Finds Genius lyrics page for selected track.
-    """
-    try:
-        bot.answer_callback_query(call.id, "Searching lyrics...")
-
-        track = get_track(track_id)
-
-        lyrics_url = find_lyrics_url(
-            title=track["title"],
-            artist=track["artist"],
-        )
-
-        if not lyrics_url:
-            bot.send_message(call.message.chat.id, LYRICS_NOT_FOUND_TEXT)
-            return
-
-        bot.send_message(
-            call.message.chat.id,
-            "Lyrics page found:",
-            reply_markup=genius_url_keyboard(lyrics_url),
-        )
-
-    except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
-        bot.send_message(call.message.chat.id, GENIUS_ERROR_TEXT)
+from app.bot.track_callbacks import handle_track_callback
 
 
 def register_callbacks(bot: telebot.TeleBot) -> None:
     """
     Registers all callback query handlers.
+
+    This file is now only a router. Feature-specific callback logic lives
+    in separate modules.
     """
 
     @bot.callback_query_handler(func=lambda call: True)
     def callback_router(call: types.CallbackQuery) -> None:
         data = call.data or ""
 
-        if data.startswith("track:"):
+        if data.startswith(f"{CB_TRACK}:"):
             track_id = data.split(":", 1)[1]
             handle_track_callback(bot, call, track_id)
             return
 
-        if data.startswith("page:"):
+        if data.startswith(f"{CB_PAGE}:"):
             page = int(data.split(":", 1)[1])
             handle_page_callback(bot, call, page)
             return
 
-        if data == "back_results":
+        if data == ACTION_BACK_RESULTS:
             handle_back_to_results_callback(bot, call)
             return
 
-        if data.startswith("fav:"):
+        if data.startswith(f"{CB_FAVORITE}:"):
             track_id = data.split(":", 1)[1]
             handle_favorite_callback(bot, call, track_id)
             return
 
-        if data.startswith("unfav:"):
+        if data.startswith(f"{CB_UNFAVORITE}:"):
             track_id = data.split(":", 1)[1]
             handle_remove_favorite_callback(bot, call, track_id)
             return
 
-        if data == "favorites_clear_request":
+        if data == ACTION_FAVORITES_CLEAR_REQUEST:
             handle_clear_favorites_request_callback(bot, call)
             return
 
-        if data == "favorites_clear_confirm":
+        if data == ACTION_FAVORITES_CLEAR_CONFIRM:
             handle_clear_favorites_confirm_callback(bot, call)
             return
 
-        if data == "favorites_clear_cancel":
+        if data == ACTION_FAVORITES_CLEAR_CANCEL:
             handle_clear_favorites_cancel_callback(bot, call)
             return
 
-        if data.startswith("lyrics:"):
+        if data.startswith(f"{CB_LYRICS}:"):
             track_id = data.split(":", 1)[1]
             handle_lyrics_callback(bot, call, track_id)
             return
 
-        if data.startswith("hist:"):
+        if data.startswith(f"{CB_HISTORY}:"):
             search_id = data.split(":", 1)[1]
             handle_history_search_callback(bot, call, search_id)
             return
 
-        if data == "history_clear_request":
+        if data == ACTION_HISTORY_CLEAR_REQUEST:
             handle_clear_history_request_callback(bot, call)
             return
 
-        if data == "history_clear_confirm":
+        if data == ACTION_HISTORY_CLEAR_CONFIRM:
             handle_clear_history_confirm_callback(bot, call)
             return
 
-        if data == "history_clear_cancel":
+        if data == ACTION_HISTORY_CLEAR_CANCEL:
             handle_clear_history_cancel_callback(bot, call)
             return
 
-        if data == "main_menu":
+        if data == ACTION_MAIN_MENU:
             bot.answer_callback_query(call.id)
             show_main_menu(bot, call.message.chat.id)
             return
 
-        if data == "search_again":
+        if data == ACTION_SEARCH_AGAIN:
             bot.answer_callback_query(call.id)
             ask_for_music(bot, call.message.chat.id)
             return
 
-        if data == "noop":
+        if data == ACTION_NOOP:
             bot.answer_callback_query(call.id)
             return
 

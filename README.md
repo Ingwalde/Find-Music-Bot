@@ -4,12 +4,24 @@ Telegram Music Finder Bot is a Python Telegram bot for discovering songs through
 
 Users can search for songs, view track metadata, open Deezer links, save favorite tracks, remove tracks from favorites, use paginated search results, return back to search results, repeat searches from history, and open lyrics pages on Genius.
 
+## Current Version
+
+**v1.5.0 — Project Refactoring Update**
+
+Latest updates:
+- Split large callback logic into feature-based modules
+- Split keyboard builders into smaller files
+- Added centralized button and callback constants
+- Added shared bot actions module
+- Removed duplicated callback strings and menu labels
+- Prepared project structure for future platform integrations
+
 ## Features
 
 - Search tracks by song name
 - Paginated search results with Prev / Next buttons
 - Back to results button from a track card
-- Show title, artist, album and duration
+- Show title, artist, album, duration, release date and popularity
 - Show album cover from Deezer
 - Deezer URL button instead of long link in message
 - Inline buttons for track selection
@@ -25,7 +37,7 @@ Users can search for songs, view track metadata, open Deezer links, save favorit
 - File logging to `logs/bot.log`
 - SQLite error history
 - Admin-only error commands
-- Clean project structure for GitHub
+- Refactored project structure for maintainability
 
 ## Tech Stack
 
@@ -46,11 +58,30 @@ telegram-music-finder-bot/
 ├── .env.example
 ├── .gitignore
 ├── README.md
+├── CHANGELOG.md
 │
 └── app/
     ├── main.py
+    ├── version.py
     ├── config/
     ├── bot/
+    │   ├── actions.py
+    │   ├── constants.py
+    │   ├── handlers.py
+    │   ├── callbacks.py
+    │   ├── track_callbacks.py
+    │   ├── pagination_callbacks.py
+    │   ├── favorites_callbacks.py
+    │   ├── history_callbacks.py
+    │   ├── lyrics_callbacks.py
+    │   ├── keyboard_menus.py
+    │   ├── keyboard_search.py
+    │   ├── keyboard_track.py
+    │   ├── keyboard_favorites.py
+    │   ├── keyboard_history.py
+    │   ├── keyboards.py
+    │   ├── messages.py
+    │   └── context.py
     ├── services/
     ├── database/
     └── utils/
@@ -84,7 +115,7 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-Create `.env` file in the project root:
+Create `.env` file:
 
 ```env
 BOT_TOKEN=your_telegram_bot_token_here
@@ -101,8 +132,6 @@ ERROR_HISTORY_LIMIT=10
 ADMIN_ID=your_telegram_user_id
 ```
 
-`GENIUS_TOKEN` is optional for the main Deezer search. If it is missing, lyrics lookup will be disabled.
-
 ## Run
 
 ```bash
@@ -116,42 +145,29 @@ python run.py
 /help - Show help
 /version - Show bot version
 /favorites - Show favorite tracks
-/history - Show clickable search history
-/errors - Show recent saved errors, admin only
-/clear_errors - Clear saved errors, admin only
+/history - Show search history
+/errors - Show recent saved errors (admin only)
+/clear_errors - Clear saved errors (admin only)
 ```
 
-## Current Version
+## GitHub Safety
 
-### v1.2.0 — UX update
+Do not publish local/private files:
 
-- Back to results button from track card
-- Improved favorites list
-- Clear favorites with confirmation
-- Improved search history layout
-- Clear history with confirmation
-- Main menu button in favorites/history inline panels
+```text
+.env
+data/
+logs/
+.git/
+__pycache__/
+.vscode/
+```
 
-## Previous Version
-
-### v1.1.0 — Pagination + Improved History
-
-- Deezer track search
-- Track cards with album covers
-- Deezer button
-- Favorites
-- Remove from favorites
-- Paginated search results
-- Clickable search history
-- Clear history button
-- Genius lyrics page button
-- SQLite database
+Use `.env.example` for public configuration examples.
 
 ## Roadmap
 
 - [x] Deezer search
-- [x] Inline result buttons
-- [x] Track details
 - [x] Album cover
 - [x] Deezer button
 - [x] Favorites
@@ -160,25 +176,18 @@ python run.py
 - [x] Pagination
 - [x] Back to results
 - [x] Improved history
-- [x] Improved favorites management
-- [x] Genius lyrics page lookup
-- [ ] Deezer preview button
-- [ ] YouTube / YouTube Music search buttons
-- [ ] Apple Music search button
-- [ ] Spotify integration
-- [x] Logging to file
+- [x] Improved favorites
+- [x] Release date
+- [x] Popularity / rank
+- [x] File logging
 - [x] Admin error commands
-- [ ] Admin statistics
-- [ ] Docker support
+- [x] Project refactoring
+- [ ] Database optimization
 - [ ] Tests
+- [ ] Screenshots
+- [ ] YouTube / YouTube Music buttons
+- [ ] Apple Music button
+- [ ] Spotify integration
+- [ ] Docker
 - [ ] Deployment guide
 
-## Security Notes
-
-Do not commit `.env` to GitHub.
-
-If a Telegram bot token was exposed, revoke it in BotFather and generate a new one.
-
-## License
-
-MIT

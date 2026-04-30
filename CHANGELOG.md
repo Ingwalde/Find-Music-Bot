@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.5.0] - 2026-04-28
+
+### Added
+- Added `app/bot/constants.py` for shared button texts and callback prefixes.
+- Added `app/bot/actions.py` for shared bot actions.
+- Added feature-based callback modules:
+  - `track_callbacks.py`
+  - `pagination_callbacks.py`
+  - `favorites_callbacks.py`
+  - `history_callbacks.py`
+  - `lyrics_callbacks.py`
+- Added feature-based keyboard modules:
+  - `keyboard_menus.py`
+  - `keyboard_search.py`
+  - `keyboard_track.py`
+  - `keyboard_favorites.py`
+  - `keyboard_history.py`
+
+### Changed
+- Refactored `callbacks.py` into a lightweight callback router.
+- Refactored `keyboards.py` into a compatibility import module.
+- Moved shared actions out of `handlers.py`.
+- Reduced duplicated callback strings and menu labels.
+- Updated README to `v1.5.0`.
+- Updated bot version to `v1.5.0`.
+
+### Removed
+- `app/bot/states.py` is no longer needed and should be removed from the project.
+
+### Notes
+This release focuses on internal project structure and maintainability. It does not significantly change the Telegram user experience.
+
+---
+
 ## [v1.4.0] - 2026-04-27
 
 ### Added
