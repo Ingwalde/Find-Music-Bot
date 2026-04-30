@@ -7,21 +7,16 @@ from app.bot.keyboards import (
     favorites_keyboard,
     track_actions_keyboard,
 )
-from app.bot.messages import (
-    FAVORITE_ADDED_TEXT,
-    FAVORITE_REMOVED_TEXT,
-    FAVORITES_CLEAR_CONFIRM_TEXT,
-    FAVORITES_CLEARED_TEXT,
-    FAVORITES_EMPTY_TEXT,
-)
 from app.database.repositories import (
     add_favorite,
     clear_favorites,
     get_favorite_tracks,
+    get_user_language,
     remove_favorite,
     save_track,
     upsert_user,
 )
+from app.localization.translations import t
 from app.services.deezer_service import get_track
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
@@ -38,6 +33,8 @@ def handle_favorite_callback(
     """
     Adds track to favorites and updates inline button.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         upsert_user(call.from_user)
 
@@ -49,6 +46,7 @@ def handle_favorite_callback(
             track,
             is_favorite=True,
             show_back_to_results=user_has_search_context(call.from_user.id),
+            language=language,
         )
 
         bot.edit_message_reply_markup(
@@ -57,19 +55,11 @@ def handle_favorite_callback(
             reply_markup=updated_markup,
         )
 
-        bot.answer_callback_query(
-            call.id,
-            FAVORITE_ADDED_TEXT,
-            show_alert=False,
-        )
+        bot.answer_callback_query(call.id, t("favorite_added", language), show_alert=False)
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "favorite_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not add to favorites.",
-            show_alert=True,
-        )
+        bot.answer_callback_query(call.id, "Could not add to favorites.", show_alert=True)
 
 
 def handle_remove_favorite_callback(
@@ -80,6 +70,8 @@ def handle_remove_favorite_callback(
     """
     Removes track from favorites and updates inline button.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         track = get_track(track_id)
         save_track(track)
@@ -93,6 +85,7 @@ def handle_remove_favorite_callback(
             track,
             is_favorite=False,
             show_back_to_results=user_has_search_context(call.from_user.id),
+            language=language,
         )
 
         bot.edit_message_reply_markup(
@@ -101,19 +94,11 @@ def handle_remove_favorite_callback(
             reply_markup=updated_markup,
         )
 
-        bot.answer_callback_query(
-            call.id,
-            FAVORITE_REMOVED_TEXT,
-            show_alert=False,
-        )
+        bot.answer_callback_query(call.id, t("favorite_removed", language), show_alert=False)
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "remove_favorite_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not remove from favorites.",
-            show_alert=True,
-        )
+        bot.answer_callback_query(call.id, "Could not remove from favorites.", show_alert=True)
 
 
 def handle_clear_favorites_request_callback(
@@ -123,17 +108,19 @@ def handle_clear_favorites_request_callback(
     """
     Asks user to confirm favorites clearing.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=FAVORITES_CLEAR_CONFIRM_TEXT,
-            reply_markup=confirm_clear_favorites_keyboard(),
+            text=t("favorites_clear_confirm", language),
+            reply_markup=confirm_clear_favorites_keyboard(language),
         )
         bot.answer_callback_query(call.id)
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "clear_favorites_request", error)
-        bot.answer_callback_query(call.id, "Could not open confirmation.", show_alert=True)
+        bot.answer_callback_query(call.id, t("could_not_open_confirmation", language), show_alert=True)
 
 
 def handle_clear_favorites_confirm_callback(
@@ -143,18 +130,20 @@ def handle_clear_favorites_confirm_callback(
     """
     Clears all user favorites after confirmation.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         clear_favorites(call.from_user.id)
 
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=FAVORITES_CLEARED_TEXT,
+            text=t("favorites_cleared", language),
         )
-        bot.answer_callback_query(call.id, "Favorites cleared.")
+        bot.answer_callback_query(call.id, t("favorites_cleared", language))
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "clear_favorites_confirm", error)
-        bot.answer_callback_query(call.id, "Could not clear favorites.", show_alert=True)
+        bot.answer_callback_query(call.id, t("could_not_clear_favorites", language), show_alert=True)
 
 
 def handle_clear_favorites_cancel_callback(
@@ -164,6 +153,8 @@ def handle_clear_favorites_cancel_callback(
     """
     Cancels favorites clearing and returns to favorites list.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         tracks = get_favorite_tracks(call.from_user.id)
 
@@ -171,7 +162,7 @@ def handle_clear_favorites_cancel_callback(
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text=FAVORITES_EMPTY_TEXT,
+                text=t("favorites_empty", language),
             )
             bot.answer_callback_query(call.id)
             return
@@ -179,10 +170,10 @@ def handle_clear_favorites_cancel_callback(
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
-            reply_markup=favorites_keyboard(tracks),
+            text=t("favorites_title", language, count=len(tracks)),
+            reply_markup=favorites_keyboard(tracks, language),
         )
-        bot.answer_callback_query(call.id, "Cancelled.")
+        bot.answer_callback_query(call.id, t("cancelled", language))
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "clear_favorites_cancel", error)
-        bot.answer_callback_query(call.id, "Could not cancel.", show_alert=True)
+        bot.answer_callback_query(call.id, t("could_not_cancel", language), show_alert=True)

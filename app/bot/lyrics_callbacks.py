@@ -2,7 +2,8 @@ import telebot
 from telebot import types
 
 from app.bot.keyboards import genius_url_keyboard
-from app.bot.messages import GENIUS_ERROR_TEXT, LYRICS_NOT_FOUND_TEXT
+from app.database.repositories import get_user_language
+from app.localization.translations import t
 from app.services.deezer_service import get_track
 from app.services.lyrics_service import find_lyrics_url
 from app.utils.error_logger import log_and_save_error
@@ -20,8 +21,10 @@ def handle_lyrics_callback(
     """
     Finds Genius lyrics page for selected track.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
-        bot.answer_callback_query(call.id, "Searching lyrics...")
+        bot.answer_callback_query(call.id, t("searching_lyrics", language))
 
         track = get_track(track_id)
 
@@ -31,15 +34,15 @@ def handle_lyrics_callback(
         )
 
         if not lyrics_url:
-            bot.send_message(call.message.chat.id, LYRICS_NOT_FOUND_TEXT)
+            bot.send_message(call.message.chat.id, t("lyrics_not_found", language))
             return
 
         bot.send_message(
             call.message.chat.id,
-            "Lyrics page found:",
+            t("lyrics_page_found", language),
             reply_markup=genius_url_keyboard(lyrics_url),
         )
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
-        bot.send_message(call.message.chat.id, GENIUS_ERROR_TEXT)
+        bot.send_message(call.message.chat.id, t("genius_error", language))

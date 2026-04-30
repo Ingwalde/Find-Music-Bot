@@ -7,13 +7,16 @@ from app.bot.constants import (
     CB_TRACK,
     make_callback,
 )
+from app.localization.translations import t
 from app.utils.text import truncate_text
 
 
-def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
+def favorites_keyboard(
+    tracks: list[dict],
+    language: str = "en",
+) -> types.InlineKeyboardMarkup:
     """
     Creates improved favorites keyboard.
-    User can open saved tracks or clear favorites.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -32,7 +35,7 @@ def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
 
     markup.add(
         types.InlineKeyboardButton(
-            text="🗑 Clear favorites",
+            text=t("btn_clear_favorites", language),
             callback_data=ACTION_FAVORITES_CLEAR_REQUEST,
         )
     )
@@ -40,18 +43,18 @@ def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
     return markup
 
 
-def confirm_clear_favorites_keyboard() -> types.InlineKeyboardMarkup:
+def confirm_clear_favorites_keyboard(language: str = "en") -> types.InlineKeyboardMarkup:
     """
     Confirmation keyboard for clearing all favorites.
     """
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton(
-            text="✅ Yes, clear",
+            text=t("btn_yes_clear", language),
             callback_data=ACTION_FAVORITES_CLEAR_CONFIRM,
         ),
         types.InlineKeyboardButton(
-            text="❌ Cancel",
+            text=t("btn_cancel", language),
             callback_data=ACTION_FAVORITES_CLEAR_CANCEL,
         ),
     )

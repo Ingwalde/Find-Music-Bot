@@ -2,6 +2,7 @@ from telebot.types import User
 
 from app.config.settings import settings
 from app.database.db import get_connection
+from app.localization.languages import DEFAULT_LANGUAGE, is_supported_language
 
 
 def row_to_dict(row) -> dict:
@@ -14,6 +15,7 @@ def row_to_dict(row) -> dict:
 def upsert_user(user: User) -> None:
     """
     Saves Telegram user or updates existing one.
+    Existing language is preserved.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -27,11 +29,7 @@ def upsert_user(user: User) -> None:
             username = excluded.username,
             first_name = excluded.first_name
         """,
-        (
-            user.id,
-            user.username,
-            user.first_name,
-        ),
+        (user.id, user.username, user.first_name),
     )
 
     conn.commit()
@@ -62,10 +60,64 @@ def get_user_id(telegram_id: int) -> int | None:
     return int(row["id"])
 
 
+def get_user_language(telegram_id: int) -> str:
+    """
+    Returns user's selected language.
+    English is used as default/fallback.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT language
+        FROM users
+        WHERE telegram_id = ?
+        LIMIT 1
+        """,
+        (telegram_id,),
+    )
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return DEFAULT_LANGUAGE
+
+    language = row["language"] or DEFAULT_LANGUAGE
+
+    if not is_supported_language(language):
+        return DEFAULT_LANGUAGE
+
+    return language
+
+
+def set_user_language(telegram_id: int, language: str) -> None:
+    """
+    Saves user's selected language.
+    """
+    if not is_supported_language(language):
+        language = DEFAULT_LANGUAGE
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        UPDATE users
+        SET language = ?
+        WHERE telegram_id = ?
+        """,
+        (language, telegram_id),
+    )
+
+    conn.commit()
+    conn.close()
+
+
 def trim_search_history(telegram_id: int) -> None:
     """
     Keeps only newest MAX_HISTORY_PER_USER search rows for current user.
-    This prevents unlimited local database growth.
     """
     user_id = get_user_id(telegram_id)
 
@@ -290,7 +342,6 @@ def save_track(track: dict) -> int:
 def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
     """
     Returns cached track by Deezer ID from SQLite.
-    Used to reduce unnecessary Deezer API calls.
     """
     conn = get_connection()
     cursor = conn.cursor()

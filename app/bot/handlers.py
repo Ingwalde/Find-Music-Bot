@@ -2,19 +2,12 @@ import telebot
 from telebot import types
 
 from app.bot.actions import ask_for_music, send_search_results, show_main_menu
-from app.bot.constants import BTN_FAVORITES, BTN_HISTORY, BTN_MAIN_MENU, BTN_MUSIC
 from app.bot.keyboards import (
     favorites_keyboard,
     history_keyboard,
+    language_keyboard,
     main_menu_keyboard,
     search_mode_keyboard,
-)
-from app.bot.messages import (
-    FAVORITES_EMPTY_TEXT,
-    HELP_TEXT,
-    HISTORY_EMPTY_TEXT,
-    MENU_BUTTONS_DISABLED_TEXT,
-    WELCOME_TEXT,
 )
 from app.config.settings import settings
 from app.database.repositories import (
@@ -22,8 +15,10 @@ from app.database.repositories import (
     get_favorite_tracks,
     get_recent_errors,
     get_search_history,
+    get_user_language,
     upsert_user,
 )
+from app.localization.translations import get_menu_action_by_text, t
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.version import __version__
@@ -39,16 +34,16 @@ def is_admin(user_id: int) -> bool:
     return settings.ADMIN_ID is not None and user_id == settings.ADMIN_ID
 
 
-def format_recent_errors() -> str:
+def format_recent_errors(language: str = "en") -> str:
     """
     Builds readable message with recent saved errors.
     """
     errors = get_recent_errors(limit=settings.ERROR_HISTORY_LIMIT)
 
     if not errors:
-        return "✅ No saved errors."
+        return t("errors_empty", language)
 
-    lines = ["⚠️ Recent errors:\n"]
+    lines = [t("errors_header", language)]
 
     for index, item in enumerate(errors, start=1):
         source = item.get("source", "unknown")
@@ -69,33 +64,36 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Processes user's song search query.
     """
+    upsert_user(message.from_user)
+    language = get_user_language(message.from_user.id)
+
     if not message.text:
-        bot.send_message(message.chat.id, "Please send text.")
-        ask_for_music(bot, message.chat.id)
+        bot.send_message(message.chat.id, t("please_send_text", language))
+        ask_for_music(bot, message.chat.id, message.from_user.id)
         return
 
     text = message.text.strip()
-    text_lower = text.lower()
+    action = get_menu_action_by_text(text)
 
-    if text == BTN_MAIN_MENU:
-        show_main_menu(bot, message.chat.id)
+    if action == "main_menu":
+        show_main_menu(bot, message.chat.id, message.from_user.id)
         return
 
     if text == "/start":
         bot.send_message(
             message.chat.id,
-            WELCOME_TEXT,
-            reply_markup=main_menu_keyboard(),
+            t("welcome", language),
+            reply_markup=main_menu_keyboard(language),
         )
         return
 
-    if text_lower in [BTN_MUSIC, BTN_FAVORITES, BTN_HISTORY]:
+    if action in ["music", "favorites", "history"]:
         bot.send_message(
             message.chat.id,
-            MENU_BUTTONS_DISABLED_TEXT,
-            reply_markup=search_mode_keyboard(),
+            t("menu_buttons_disabled", language),
+            reply_markup=search_mode_keyboard(language),
         )
-        sent_msg = bot.send_message(message.chat.id, "Please, send name of music:")
+        sent_msg = bot.send_message(message.chat.id, t("ask_music", language))
         bot.register_next_step_handler(
             sent_msg,
             lambda next_message: process_music_search(bot, next_message),
@@ -103,8 +101,6 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         return
 
     try:
-        upsert_user(message.from_user)
-
         send_search_results(
             bot=bot,
             chat_id=message.chat.id,
@@ -120,10 +116,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
             source="music_search",
             error=error,
         )
-        bot.send_message(
-            message.chat.id,
-            "Something went wrong while searching. Please try again.",
-        )
+        bot.send_message(message.chat.id, t("something_wrong_searching", language))
 
 
 def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
@@ -133,24 +126,25 @@ def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     try:
         upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
 
         bot.send_message(
             message.chat.id,
-            "Favorites menu:",
-            reply_markup=search_mode_keyboard(),
+            t("favorites_menu", language),
+            reply_markup=search_mode_keyboard(language),
         )
 
         tracks = get_favorite_tracks(message.from_user.id)
 
         if not tracks:
-            bot.send_message(message.chat.id, FAVORITES_EMPTY_TEXT)
+            bot.send_message(message.chat.id, t("favorites_empty", language))
             return
 
-        markup = favorites_keyboard(tracks)
+        markup = favorites_keyboard(tracks, language)
 
         bot.send_message(
             message.chat.id,
-            f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
+            t("favorites_title", language, count=len(tracks)),
             reply_markup=markup,
         )
 
@@ -161,7 +155,8 @@ def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
             source="favorites",
             error=error,
         )
-        bot.send_message(message.chat.id, "Could not load favorites.")
+        language = get_user_language(message.from_user.id)
+        bot.send_message(message.chat.id, t("could_not_load_favorites", language))
 
 
 def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
@@ -171,11 +166,12 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     try:
         upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
 
         bot.send_message(
             message.chat.id,
-            "History menu:",
-            reply_markup=search_mode_keyboard(),
+            t("history_menu", language),
+            reply_markup=search_mode_keyboard(language),
         )
 
         history = get_search_history(
@@ -184,14 +180,14 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
         )
 
         if not history:
-            bot.send_message(message.chat.id, HISTORY_EMPTY_TEXT)
+            bot.send_message(message.chat.id, t("history_empty", language))
             return
 
-        markup = history_keyboard(history)
+        markup = history_keyboard(history, language)
 
         bot.send_message(
             message.chat.id,
-            f"🕘 Your recent searches: {len(history)}\n\nClick a query to search again:",
+            t("history_title", language, count=len(history)),
             reply_markup=markup,
         )
 
@@ -202,7 +198,8 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
             source="history",
             error=error,
         )
-        bot.send_message(message.chat.id, "Could not load history.")
+        language = get_user_language(message.from_user.id)
+        bot.send_message(message.chat.id, t("could_not_load_history", language))
 
 
 def register_handlers(bot: telebot.TeleBot) -> None:
@@ -213,16 +210,31 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     @bot.message_handler(commands=["start"])
     def start_handler(message: types.Message) -> None:
         upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
 
         bot.send_message(
             message.chat.id,
-            WELCOME_TEXT,
-            reply_markup=main_menu_keyboard(),
+            t("welcome", language),
+            reply_markup=main_menu_keyboard(language),
         )
 
     @bot.message_handler(commands=["help"])
     def help_handler(message: types.Message) -> None:
-        bot.send_message(message.chat.id, HELP_TEXT)
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        bot.send_message(message.chat.id, t("help", language))
+
+    @bot.message_handler(commands=["language"])
+    def language_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        bot.send_message(
+            message.chat.id,
+            t("choose_language", language),
+            reply_markup=language_keyboard(),
+        )
 
     @bot.message_handler(commands=["version"])
     def version_handler(message: types.Message) -> None:
@@ -233,26 +245,26 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["errors"])
     def errors_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
         if not is_admin(message.from_user.id):
-            bot.send_message(
-                message.chat.id,
-                "This command is available only for the bot admin.",
-            )
+            bot.send_message(message.chat.id, t("admin_only", language))
             return
 
-        bot.send_message(message.chat.id, format_recent_errors())
+        bot.send_message(message.chat.id, format_recent_errors(language))
 
     @bot.message_handler(commands=["clear_errors"])
     def clear_errors_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
         if not is_admin(message.from_user.id):
-            bot.send_message(
-                message.chat.id,
-                "This command is available only for the bot admin.",
-            )
+            bot.send_message(message.chat.id, t("admin_only", language))
             return
 
         clear_errors()
-        bot.send_message(message.chat.id, "✅ Saved errors cleared.")
+        bot.send_message(message.chat.id, t("errors_cleared", language))
 
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:
@@ -264,22 +276,22 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(content_types=["text"])
     def text_handler(message: types.Message) -> None:
-        text = message.text.strip()
-        text_lower = text.lower()
+        upsert_user(message.from_user)
+        action = get_menu_action_by_text(message.text)
 
-        if text == BTN_MAIN_MENU:
-            show_main_menu(bot, message.chat.id)
+        if action == "main_menu":
+            show_main_menu(bot, message.chat.id, message.from_user.id)
             return
 
-        if text_lower == BTN_MUSIC:
-            ask_for_music(bot, message.chat.id)
+        if action == "music":
+            ask_for_music(bot, message.chat.id, message.from_user.id)
             return
 
-        if text_lower == BTN_FAVORITES:
+        if action == "favorites":
             show_favorites(bot, message)
             return
 
-        if text_lower == BTN_HISTORY:
+        if action == "history":
             show_history(bot, message)
             return
 

@@ -15,6 +15,7 @@ from app.bot.constants import (
     ACTION_SEARCH_AGAIN,
     CB_FAVORITE,
     CB_HISTORY,
+    CB_LANGUAGE,
     CB_LYRICS,
     CB_PAGE,
     CB_TRACK,
@@ -33,25 +34,31 @@ from app.bot.history_callbacks import (
     handle_clear_history_request_callback,
     handle_history_search_callback,
 )
+from app.bot.language_callbacks import handle_language_callback
 from app.bot.lyrics_callbacks import handle_lyrics_callback
 from app.bot.pagination_callbacks import (
     handle_back_to_results_callback,
     handle_page_callback,
 )
 from app.bot.track_callbacks import handle_track_callback
+from app.database.repositories import get_user_language
+from app.localization.translations import t
 
 
 def register_callbacks(bot: telebot.TeleBot) -> None:
     """
     Registers all callback query handlers.
-
-    This file is now only a router. Feature-specific callback logic lives
-    in separate modules.
     """
 
     @bot.callback_query_handler(func=lambda call: True)
     def callback_router(call: types.CallbackQuery) -> None:
         data = call.data or ""
+        language = get_user_language(call.from_user.id)
+
+        if data.startswith(f"{CB_LANGUAGE}:"):
+            language_code = data.split(":", 1)[1]
+            handle_language_callback(bot, call, language_code)
+            return
 
         if data.startswith(f"{CB_TRACK}:"):
             track_id = data.split(":", 1)[1]
@@ -113,12 +120,12 @@ def register_callbacks(bot: telebot.TeleBot) -> None:
 
         if data == ACTION_MAIN_MENU:
             bot.answer_callback_query(call.id)
-            show_main_menu(bot, call.message.chat.id)
+            show_main_menu(bot, call.message.chat.id, call.from_user.id)
             return
 
         if data == ACTION_SEARCH_AGAIN:
             bot.answer_callback_query(call.id)
-            ask_for_music(bot, call.message.chat.id)
+            ask_for_music(bot, call.message.chat.id, call.from_user.id)
             return
 
         if data == ACTION_NOOP:
@@ -127,6 +134,6 @@ def register_callbacks(bot: telebot.TeleBot) -> None:
 
         bot.answer_callback_query(
             call.id,
-            "Unknown action.",
+            t("unknown_action", language),
             show_alert=False,
         )

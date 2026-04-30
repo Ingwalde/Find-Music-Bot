@@ -13,18 +13,13 @@ from app.bot.keyboards import (
     search_results_keyboard,
     track_actions_keyboard,
 )
-from app.bot.messages import (
-    ASK_MUSIC_TEXT,
-    BACK_TO_RESULTS_EMPTY_TEXT,
-    MAIN_MENU_TEXT,
-    NO_RESULTS_TEXT,
-    SEARCH_MODE_TEXT,
-)
 from app.config.settings import settings
 from app.database.repositories import (
+    get_user_language,
     is_track_favorite,
     save_search,
 )
+from app.localization.translations import t
 from app.services.deezer_service import search_tracks
 from app.services.track_formatter import format_track_card
 from app.utils.logger import setup_logger
@@ -41,28 +36,40 @@ def user_has_search_context(user_id: int) -> bool:
     return bool(context and context.get("tracks"))
 
 
-def show_main_menu(bot: telebot.TeleBot, chat_id: int) -> None:
+def show_main_menu(
+    bot: telebot.TeleBot,
+    chat_id: int,
+    user_id: int | None = None,
+) -> None:
     """
     Shows main menu and restores main bottom keyboard.
     """
+    language = get_user_language(user_id) if user_id else "en"
+
     bot.send_message(
         chat_id,
-        MAIN_MENU_TEXT,
-        reply_markup=main_menu_keyboard(),
+        t("main_menu", language),
+        reply_markup=main_menu_keyboard(language),
     )
 
 
-def ask_for_music(bot: telebot.TeleBot, chat_id: int) -> None:
+def ask_for_music(
+    bot: telebot.TeleBot,
+    chat_id: int,
+    user_id: int | None = None,
+) -> None:
     """
     Asks user to send a song name and shows only Main menu button.
     """
+    language = get_user_language(user_id) if user_id else "en"
+
     bot.send_message(
         chat_id,
-        SEARCH_MODE_TEXT,
-        reply_markup=search_mode_keyboard(),
+        t("search_mode", language),
+        reply_markup=search_mode_keyboard(language),
     )
 
-    sent_msg = bot.send_message(chat_id, ASK_MUSIC_TEXT)
+    sent_msg = bot.send_message(chat_id, t("ask_music", language))
 
     from app.bot.handlers import process_music_search
 
@@ -81,13 +88,13 @@ def send_search_results(
 ) -> None:
     """
     Searches tracks, stores results in user context and sends first page.
-    Used by direct search and history callbacks.
     """
+    language = get_user_language(user_id)
     query = query.strip()
 
     if not query:
-        bot.send_message(chat_id, "Search query cannot be empty.")
-        ask_for_music(bot, chat_id)
+        bot.send_message(chat_id, t("search_query_empty", language))
+        ask_for_music(bot, chat_id, user_id)
         return
 
     if save_to_history:
@@ -99,8 +106,8 @@ def send_search_results(
     )
 
     if not tracks:
-        bot.send_message(chat_id, NO_RESULTS_TEXT)
-        ask_for_music(bot, chat_id)
+        bot.send_message(chat_id, t("no_results", language))
+        ask_for_music(bot, chat_id, user_id)
         return
 
     save_search_context(user_id=user_id, query=query, tracks=tracks)
@@ -124,7 +131,7 @@ def send_search_results(
 
     bot.send_message(
         chat_id,
-        f"Found {len(tracks)} tracks for: {query}",
+        t("search_found", language, count=len(tracks), query=query),
         reply_markup=markup,
     )
 
@@ -136,12 +143,12 @@ def send_current_results_page(
 ) -> None:
     """
     Sends current saved search results page as a new message.
-    Used by Back to results.
     """
+    language = get_user_language(user_id)
     context = get_search_context(user_id)
 
     if not context:
-        bot.send_message(chat_id, BACK_TO_RESULTS_EMPTY_TEXT)
+        bot.send_message(chat_id, t("back_to_results_empty", language))
         return
 
     page = get_current_page(user_id)
@@ -158,7 +165,7 @@ def send_current_results_page(
     )
 
     if not page_tracks:
-        bot.send_message(chat_id, BACK_TO_RESULTS_EMPTY_TEXT)
+        bot.send_message(chat_id, t("back_to_results_empty", language))
         return
 
     markup = search_results_keyboard(
@@ -172,7 +179,7 @@ def send_current_results_page(
 
     bot.send_message(
         chat_id,
-        f"Found {total_tracks} tracks for: {query}",
+        t("search_found", language, count=total_tracks, query=query),
         reply_markup=markup,
     )
 
@@ -186,6 +193,7 @@ def send_track_card(
     """
     Sends selected track information with album cover and action buttons.
     """
+    language = get_user_language(telegram_id)
     text = format_track_card(track)
 
     is_favorite = is_track_favorite(
@@ -197,6 +205,7 @@ def send_track_card(
         track,
         is_favorite=is_favorite,
         show_back_to_results=user_has_search_context(telegram_id),
+        language=language,
     )
 
     cover_url = track.get("cover_url")

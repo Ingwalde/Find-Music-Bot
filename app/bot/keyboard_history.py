@@ -7,13 +7,16 @@ from app.bot.constants import (
     CB_HISTORY,
     make_callback,
 )
+from app.localization.translations import t
 from app.utils.text import truncate_text
 
 
-def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
+def history_keyboard(
+    history: list[dict],
+    language: str = "en",
+) -> types.InlineKeyboardMarkup:
     """
     Creates improved search history keyboard.
-    User can repeat previous search or clear history.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -30,7 +33,7 @@ def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
 
     markup.add(
         types.InlineKeyboardButton(
-            text="🗑 Clear history",
+            text=t("btn_clear_history", language),
             callback_data=ACTION_HISTORY_CLEAR_REQUEST,
         )
     )
@@ -38,18 +41,18 @@ def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
     return markup
 
 
-def confirm_clear_history_keyboard() -> types.InlineKeyboardMarkup:
+def confirm_clear_history_keyboard(language: str = "en") -> types.InlineKeyboardMarkup:
     """
     Confirmation keyboard for clearing search history.
     """
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton(
-            text="✅ Yes, clear",
+            text=t("btn_yes_clear", language),
             callback_data=ACTION_HISTORY_CLEAR_CONFIRM,
         ),
         types.InlineKeyboardButton(
-            text="❌ Cancel",
+            text=t("btn_cancel", language),
             callback_data=ACTION_HISTORY_CLEAR_CANCEL,
         ),
     )

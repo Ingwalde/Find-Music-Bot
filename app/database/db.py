@@ -39,7 +39,6 @@ def add_column_if_missing(
 ) -> None:
     """
     Adds a column to an existing SQLite table if it does not exist.
-    Used for lightweight local migrations.
     """
     columns = get_table_columns(cursor, table_name)
 
@@ -53,6 +52,7 @@ def migrate_db(cursor: sqlite3.Cursor) -> None:
     """
     Applies lightweight migrations for existing local databases.
     """
+    add_column_if_missing(cursor, "users", "language", "TEXT DEFAULT 'en'")
     add_column_if_missing(cursor, "tracks", "release_date", "TEXT")
     add_column_if_missing(cursor, "tracks", "rank", "INTEGER")
     add_column_if_missing(cursor, "tracks", "popularity", "TEXT")
@@ -100,6 +100,7 @@ def init_db() -> None:
             telegram_id INTEGER NOT NULL UNIQUE,
             username TEXT,
             first_name TEXT,
+            language TEXT DEFAULT 'en',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """

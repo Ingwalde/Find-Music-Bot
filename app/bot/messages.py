@@ -1,70 +1,29 @@
-from app.bot.constants import BTN_MAIN_MENU
+"""
+Backward-compatible message constants.
+
+New multi-language code should use:
+    from app.localization.translations import t
+"""
+
+from app.localization.translations import t
 
 
-WELCOME_TEXT = (
-    "🎧 Welcome to Music Finder Bot!\n\n"
-    "I can help you find songs, artists, albums and Deezer links.\n\n"
-    "Press music or just send me a song name."
-)
-
-HELP_TEXT = (
-    "Available commands:\n\n"
-    "/start - Start bot\n"
-    "/help - Show help\n"
-    "/version - Show bot version\n"
-    "/favorites - Show saved tracks\n"
-    "/history - Show search history\n"
-    "/errors - Show recent saved errors (admin only)\n"
-    "/clear_errors - Clear saved errors (admin only)\n\n"
-    "You can also send a song name directly."
-)
-
-ASK_MUSIC_TEXT = "Please, send name of music:"
-
-NO_RESULTS_TEXT = "No results found. Please, try another name."
-
-FAVORITES_EMPTY_TEXT = "You do not have favorite tracks yet."
-
-HISTORY_EMPTY_TEXT = "Your search history is empty."
-
-FAVORITE_ADDED_TEXT = "⭐ Track added to favorites."
-
-FAVORITE_REMOVED_TEXT = "❌ Track removed from favorites."
-
-LYRICS_NOT_FOUND_TEXT = "Lyrics page was not found."
-
-GENIUS_ERROR_TEXT = (
-    "Could not get lyrics information right now. "
-    "Please try again later."
-)
-
-BACK_TO_MENU_TEXT = BTN_MAIN_MENU
-
-MAIN_MENU_TEXT = "Main menu:"
-
-SEARCH_MODE_TEXT = (
-    "You are now in music search mode.\n"
-    "Send a song name or press ⬅️ Main menu."
-)
-
-MENU_BUTTONS_DISABLED_TEXT = (
-    "Menu buttons are available only in the main menu.\n"
-    "Press ⬅️ Main menu first."
-)
-
-BACK_TO_RESULTS_EMPTY_TEXT = (
-    "Search results are not available anymore. "
-    "Please start a new search."
-)
-
-HISTORY_CLEAR_CONFIRM_TEXT = (
-    "Are you sure you want to clear your search history?"
-)
-
-HISTORY_CLEARED_TEXT = "🗑 Search history cleared."
-
-FAVORITES_CLEAR_CONFIRM_TEXT = (
-    "Are you sure you want to remove all favorite tracks?"
-)
-
-FAVORITES_CLEARED_TEXT = "🗑 Favorites cleared."
+WELCOME_TEXT = t("welcome", "en")
+HELP_TEXT = t("help", "en")
+ASK_MUSIC_TEXT = t("ask_music", "en")
+NO_RESULTS_TEXT = t("no_results", "en")
+FAVORITES_EMPTY_TEXT = t("favorites_empty", "en")
+HISTORY_EMPTY_TEXT = t("history_empty", "en")
+FAVORITE_ADDED_TEXT = t("favorite_added", "en")
+FAVORITE_REMOVED_TEXT = t("favorite_removed", "en")
+LYRICS_NOT_FOUND_TEXT = t("lyrics_not_found", "en")
+GENIUS_ERROR_TEXT = t("genius_error", "en")
+BACK_TO_MENU_TEXT = t("btn_main_menu", "en")
+MAIN_MENU_TEXT = t("main_menu", "en")
+SEARCH_MODE_TEXT = t("search_mode", "en")
+MENU_BUTTONS_DISABLED_TEXT = t("menu_buttons_disabled", "en")
+BACK_TO_RESULTS_EMPTY_TEXT = t("back_to_results_empty", "en")
+HISTORY_CLEAR_CONFIRM_TEXT = t("history_clear_confirm", "en")
+HISTORY_CLEARED_TEXT = t("history_cleared", "en")
+FAVORITES_CLEAR_CONFIRM_TEXT = t("favorites_clear_confirm", "en")
+FAVORITES_CLEARED_TEXT = t("favorites_cleared", "en")

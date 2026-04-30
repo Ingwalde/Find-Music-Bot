@@ -9,6 +9,8 @@ from app.bot.context import (
 )
 from app.bot.keyboards import search_results_keyboard
 from app.config.settings import settings
+from app.database.repositories import get_user_language
+from app.localization.translations import t
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 
@@ -24,13 +26,15 @@ def handle_page_callback(
     """
     Changes current search results page without calling Deezer API again.
     """
+    language = get_user_language(call.from_user.id)
+
     try:
         context = get_search_context(call.from_user.id)
 
         if not context:
             bot.answer_callback_query(
                 call.id,
-                "Search session expired. Please search again.",
+                t("search_session_expired", language),
                 show_alert=True,
             )
             return
@@ -64,7 +68,7 @@ def handle_page_callback(
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
-            text=f"Found {total_tracks} tracks for: {query}",
+            text=t("search_found", language, count=total_tracks, query=query),
             reply_markup=markup,
         )
 
@@ -72,11 +76,7 @@ def handle_page_callback(
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "pagination_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not change page.",
-            show_alert=True,
-        )
+        bot.answer_callback_query(call.id, t("could_not_change_page", language), show_alert=True)
 
 
 def handle_back_to_results_callback(
@@ -87,6 +87,8 @@ def handle_back_to_results_callback(
     Returns user to current saved search results page.
     """
     from app.bot.actions import send_current_results_page
+
+    language = get_user_language(call.from_user.id)
 
     try:
         bot.answer_callback_query(call.id)
@@ -99,8 +101,4 @@ def handle_back_to_results_callback(
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "back_to_results_callback", error)
-        bot.answer_callback_query(
-            call.id,
-            "Could not return to results.",
-            show_alert=True,
-        )
+        bot.answer_callback_query(call.id, t("could_not_return_results", language), show_alert=True)
