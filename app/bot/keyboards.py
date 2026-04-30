@@ -17,14 +17,21 @@ def main_menu_keyboard() -> types.ReplyKeyboardMarkup:
     return markup
 
 
-def search_mode_keyboard() -> types.ReplyKeyboardMarkup:
+def back_to_main_menu_keyboard() -> types.ReplyKeyboardMarkup:
     """
-    Creates bottom keyboard for music search mode.
-    Only Main menu button is visible here.
+    Creates bottom keyboard with only Main menu button.
+    Used in search, favorites and history screens.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(BACK_TO_MENU_TEXT))
     return markup
+
+
+def search_mode_keyboard() -> types.ReplyKeyboardMarkup:
+    """
+    Creates bottom keyboard for music search mode.
+    """
+    return back_to_main_menu_keyboard()
 
 
 def remove_keyboard() -> types.ReplyKeyboardRemove:
@@ -166,7 +173,7 @@ def genius_url_keyboard(url: str) -> types.InlineKeyboardMarkup:
 def favorites_keyboard(tracks: list[dict]) -> types.InlineKeyboardMarkup:
     """
     Creates improved favorites keyboard.
-    User can open saved tracks or clear favorites. Main menu is shown as a bottom keyboard.
+    User can open saved tracks, clear favorites or return to main menu.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 
@@ -215,7 +222,7 @@ def confirm_clear_favorites_keyboard() -> types.InlineKeyboardMarkup:
 def history_keyboard(history: list[dict]) -> types.InlineKeyboardMarkup:
     """
     Creates improved search history keyboard.
-    User can repeat previous search or clear history. Main menu is shown as a bottom keyboard.
+    User can repeat previous search, clear history or return to main menu.
     """
     markup = types.InlineKeyboardMarkup(row_width=1)
 

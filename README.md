@@ -22,6 +22,9 @@ Users can search for songs, view track metadata, open Deezer links, save favorit
 - Genius lyrics page lookup
 - SQLite database
 - Environment-based configuration
+- File logging to `logs/bot.log`
+- SQLite error history
+- Admin-only error commands
 - Clean project structure for GitHub
 
 ## Tech Stack
@@ -91,6 +94,11 @@ DATABASE_PATH=data/music_bot.db
 MAX_SEARCH_RESULTS=30
 RESULTS_PER_PAGE=5
 HISTORY_LIMIT=10
+
+LOG_LEVEL=INFO
+LOG_FILE_PATH=logs/bot.log
+ERROR_HISTORY_LIMIT=10
+ADMIN_ID=your_telegram_user_id
 ```
 
 `GENIUS_TOKEN` is optional for the main Deezer search. If it is missing, lyrics lookup will be disabled.
@@ -106,22 +114,40 @@ python run.py
 ```text
 /start - Start bot
 /help - Show help
+/version - Show bot version
 /favorites - Show favorite tracks
 /history - Show clickable search history
+/errors - Show recent saved errors, admin only
+/clear_errors - Clear saved errors, admin only
 ```
 
 ## Current Version
 
-### v1.2.0 — UX update
+### v1.4.0 — Logging Update
+
+- File logging to `logs/bot.log`
+- Configurable log level and log file path
+- Saved error history in SQLite
+- Admin-only `/errors` command
+- Admin-only `/clear_errors` command
+- Main menu button remains as a bottom keyboard in history/favorites screens
+
+## Previous Versions
+
+### v1.3.0 — Track Metadata Update
+
+- Release date in track cards
+- Deezer rank in track cards
+- User-friendly popularity label
+- SQLite metadata fields for release date, rank and popularity
+
+### v1.2.0 — UX Update
 
 - Back to results button from track card
 - Improved favorites list
 - Clear favorites with confirmation
 - Improved search history layout
 - Clear history with confirmation
-- Main menu button in favorites/history inline panels
-
-## Previous Version
 
 ### v1.1.0 — Pagination + Improved History
 
@@ -155,6 +181,8 @@ python run.py
 - [ ] YouTube / YouTube Music search buttons
 - [ ] Apple Music search button
 - [ ] Spotify integration
+- [x] Logging to file
+- [x] Admin error commands
 - [ ] Admin statistics
 - [ ] Docker support
 - [ ] Tests

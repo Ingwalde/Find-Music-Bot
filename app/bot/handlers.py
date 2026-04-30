@@ -31,12 +31,49 @@ from app.database.repositories import (
     save_search,
     get_favorite_tracks,
     get_search_history,
+    get_recent_errors,
+    clear_errors,
 )
 from app.services.deezer_service import search_tracks
+from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
+from app.version import __version__
 
 
 logger = setup_logger(__name__)
+
+
+def is_admin(user_id: int) -> bool:
+    """
+    Checks whether user can access admin-only commands.
+    """
+    return settings.ADMIN_ID is not None and user_id == settings.ADMIN_ID
+
+
+def format_recent_errors() -> str:
+    """
+    Builds readable message with recent saved errors.
+    """
+    errors = get_recent_errors(limit=settings.ERROR_HISTORY_LIMIT)
+
+    if not errors:
+        return "✅ No saved errors."
+
+    lines = ["⚠️ Recent errors:\n"]
+
+    for index, item in enumerate(errors, start=1):
+        source = item.get("source", "unknown")
+        created_at = item.get("created_at", "unknown time")
+        error_message = item.get("error_message", "Unknown error")
+        telegram_id = item.get("telegram_id")
+
+        user_part = f" | user: {telegram_id}" if telegram_id else ""
+        lines.append(
+            f"{index}. [{created_at}] {source}{user_part}\n"
+            f"   {error_message}"
+        )
+
+    return "\n".join(lines)
 
 
 def show_main_menu(bot: telebot.TeleBot, chat_id: int) -> None:
@@ -172,7 +209,12 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         )
 
     except Exception as error:
-        logger.exception("Search error: %s", error)
+        log_and_save_error(
+            logger=logger,
+            telegram_id=message.from_user.id,
+            source="music_search",
+            error=error,
+        )
         bot.send_message(
             message.chat.id,
             "Something went wrong while searching. Please try again.",
@@ -181,67 +223,81 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
 
 def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
     """
-    Shows user's favorite tracks with improved keyboard.
+    Shows user's favorite tracks.
+    Main menu button is shown as bottom keyboard.
     """
-    upsert_user(message.from_user)
+    try:
+        upsert_user(message.from_user)
 
-    tracks = get_favorite_tracks(message.from_user.id)
-
-    if not tracks:
         bot.send_message(
             message.chat.id,
-            FAVORITES_EMPTY_TEXT,
+            "Favorites menu:",
             reply_markup=search_mode_keyboard(),
         )
-        return
-    bot.send_message(
-        message.chat.id,
-        "Favorites menu:",
-        reply_markup=search_mode_keyboard(),
-    )
 
+        tracks = get_favorite_tracks(message.from_user.id)
 
-    markup = favorites_keyboard(tracks)
+        if not tracks:
+            bot.send_message(message.chat.id, FAVORITES_EMPTY_TEXT)
+            return
 
-    bot.send_message(
-        message.chat.id,
-        f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
-        reply_markup=markup,
-    )
+        markup = favorites_keyboard(tracks)
+
+        bot.send_message(
+            message.chat.id,
+            f"⭐ Your favorite tracks: {len(tracks)}\n\nClick a track to open its card:",
+            reply_markup=markup,
+        )
+
+    except Exception as error:
+        log_and_save_error(
+            logger=logger,
+            telegram_id=message.from_user.id,
+            source="favorites",
+            error=error,
+        )
+        bot.send_message(message.chat.id, "Could not load favorites.")
 
 
 def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Shows user's recent unique search history as clickable buttons.
+    Main menu button is shown as bottom keyboard.
     """
-    upsert_user(message.from_user)
+    try:
+        upsert_user(message.from_user)
 
-    history = get_search_history(
-        message.from_user.id,
-        limit=settings.HISTORY_LIMIT,
-    )
-
-    if not history:
         bot.send_message(
             message.chat.id,
-            HISTORY_EMPTY_TEXT,
+            "History menu:",
             reply_markup=search_mode_keyboard(),
         )
-        return
-    bot.send_message(
-        message.chat.id,
-        "History menu:",
-        reply_markup=search_mode_keyboard(),
-    )
 
+        history = get_search_history(
+            message.from_user.id,
+            limit=settings.HISTORY_LIMIT,
+        )
 
-    markup = history_keyboard(history)
+        if not history:
+            bot.send_message(message.chat.id, HISTORY_EMPTY_TEXT)
+            return
 
-    bot.send_message(
-        message.chat.id,
-        f"🕘 Your recent searches: {len(history)}\n\nClick a query to search again:",
-        reply_markup=markup,
-    )
+        markup = history_keyboard(history)
+
+        bot.send_message(
+            message.chat.id,
+            f"🕘 Your recent searches: {len(history)}\n\nClick a query to search again:",
+            reply_markup=markup,
+        )
+
+    except Exception as error:
+        log_and_save_error(
+            logger=logger,
+            telegram_id=message.from_user.id,
+            source="history",
+            error=error,
+        )
+        bot.send_message(message.chat.id, "Could not load history.")
 
 
 def register_handlers(bot: telebot.TeleBot) -> None:
@@ -262,6 +318,36 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     @bot.message_handler(commands=["help"])
     def help_handler(message: types.Message) -> None:
         bot.send_message(message.chat.id, HELP_TEXT)
+
+    @bot.message_handler(commands=["version"])
+    def version_handler(message: types.Message) -> None:
+        bot.send_message(
+            message.chat.id,
+            f"🎧 Find Music Bot\nVersion: v{__version__}",
+        )
+
+    @bot.message_handler(commands=["errors"])
+    def errors_handler(message: types.Message) -> None:
+        if not is_admin(message.from_user.id):
+            bot.send_message(
+                message.chat.id,
+                "This command is available only for the bot admin.",
+            )
+            return
+
+        bot.send_message(message.chat.id, format_recent_errors())
+
+    @bot.message_handler(commands=["clear_errors"])
+    def clear_errors_handler(message: types.Message) -> None:
+        if not is_admin(message.from_user.id):
+            bot.send_message(
+                message.chat.id,
+                "This command is available only for the bot admin.",
+            )
+            return
+
+        clear_errors()
+        bot.send_message(message.chat.id, "✅ Saved errors cleared.")
 
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:

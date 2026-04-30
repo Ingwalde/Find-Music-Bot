@@ -22,6 +22,20 @@ class Settings:
     # Number of recent unique history items shown to user.
     HISTORY_LIMIT: int = int(os.getenv("HISTORY_LIMIT", "10"))
 
+    # Logging settings.
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+    LOG_FILE_PATH: str = os.getenv("LOG_FILE_PATH", "logs/bot.log")
+
+    # Optional admin Telegram ID for admin-only commands like /errors.
+    ADMIN_ID: int | None = (
+        int(os.getenv("ADMIN_ID"))
+        if os.getenv("ADMIN_ID") and os.getenv("ADMIN_ID", "").isdigit()
+        else None
+    )
+
+    # Number of recent errors shown with /errors.
+    ERROR_HISTORY_LIMIT: int = int(os.getenv("ERROR_HISTORY_LIMIT", "10"))
+
     def validate(self) -> None:
         if not self.BOT_TOKEN:
             raise ValueError("BOT_TOKEN is not set. Add it to your .env file.")
@@ -43,6 +57,19 @@ class Settings:
 
         if self.HISTORY_LIMIT > 30:
             raise ValueError("HISTORY_LIMIT should not be greater than 30.")
+
+        valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
+        if self.LOG_LEVEL not in valid_log_levels:
+            raise ValueError(
+                "LOG_LEVEL must be one of: DEBUG, INFO, WARNING, ERROR, CRITICAL."
+            )
+
+        if self.ERROR_HISTORY_LIMIT < 1:
+            raise ValueError("ERROR_HISTORY_LIMIT must be greater than 0.")
+
+        if self.ERROR_HISTORY_LIMIT > 50:
+            raise ValueError("ERROR_HISTORY_LIMIT should not be greater than 50.")
 
 
 settings = Settings()

@@ -48,6 +48,7 @@ from app.database.repositories import (
 from app.services.deezer_service import get_track
 from app.services.lyrics_service import find_lyrics_url
 from app.services.track_formatter import format_track_card
+from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 
 
@@ -173,7 +174,7 @@ def handle_track_callback(
         )
 
     except Exception as error:
-        logger.exception("Track callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "track_callback", error)
         bot.send_message(
             call.message.chat.id,
             "Could not load track information.",
@@ -234,7 +235,7 @@ def handle_page_callback(
         bot.answer_callback_query(call.id)
 
     except Exception as error:
-        logger.exception("Pagination callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "pagination_callback", error)
         bot.answer_callback_query(
             call.id,
             "Could not change page.",
@@ -257,7 +258,7 @@ def handle_back_to_results_callback(
             user_id=call.from_user.id,
         )
     except Exception as error:
-        logger.exception("Back to results callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "back_to_results_callback", error)
         bot.answer_callback_query(
             call.id,
             "Could not return to results.",
@@ -299,7 +300,7 @@ def handle_history_search_callback(
         )
 
     except Exception as error:
-        logger.exception("History search callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "history_search_callback", error)
         bot.send_message(
             call.message.chat.id,
             "Could not repeat this search.",
@@ -322,7 +323,7 @@ def handle_clear_history_request_callback(
         )
         bot.answer_callback_query(call.id)
     except Exception as error:
-        logger.exception("Clear history request error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_history_request", error)
         bot.answer_callback_query(call.id, "Could not open confirmation.", show_alert=True)
 
 
@@ -349,7 +350,7 @@ def handle_clear_history_confirm_callback(
         )
 
     except Exception as error:
-        logger.exception("Clear history callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_history_callback", error)
         bot.answer_callback_query(
             call.id,
             "Could not clear history.",
@@ -387,7 +388,7 @@ def handle_clear_history_cancel_callback(
         )
         bot.answer_callback_query(call.id, "Cancelled.")
     except Exception as error:
-        logger.exception("Clear history cancel error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_history_cancel", error)
         bot.answer_callback_query(call.id, "Could not cancel.", show_alert=True)
 
 
@@ -425,7 +426,7 @@ def handle_favorite_callback(
         )
 
     except Exception as error:
-        logger.exception("Favorite callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "favorite_callback", error)
         bot.answer_callback_query(
             call.id,
             "Could not add to favorites.",
@@ -469,7 +470,7 @@ def handle_remove_favorite_callback(
         )
 
     except Exception as error:
-        logger.exception("Remove favorite callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "remove_favorite_callback", error)
         bot.answer_callback_query(
             call.id,
             "Could not remove from favorites.",
@@ -493,7 +494,7 @@ def handle_clear_favorites_request_callback(
         )
         bot.answer_callback_query(call.id)
     except Exception as error:
-        logger.exception("Clear favorites request error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_favorites_request", error)
         bot.answer_callback_query(call.id, "Could not open confirmation.", show_alert=True)
 
 
@@ -514,7 +515,7 @@ def handle_clear_favorites_confirm_callback(
         )
         bot.answer_callback_query(call.id, "Favorites cleared.")
     except Exception as error:
-        logger.exception("Clear favorites confirm error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_favorites_confirm", error)
         bot.answer_callback_query(call.id, "Could not clear favorites.", show_alert=True)
 
 
@@ -545,7 +546,7 @@ def handle_clear_favorites_cancel_callback(
         )
         bot.answer_callback_query(call.id, "Cancelled.")
     except Exception as error:
-        logger.exception("Clear favorites cancel error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "clear_favorites_cancel", error)
         bot.answer_callback_query(call.id, "Could not cancel.", show_alert=True)
 
 
@@ -578,7 +579,7 @@ def handle_lyrics_callback(
         )
 
     except Exception as error:
-        logger.exception("Lyrics callback error: %s", error)
+        log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
         bot.send_message(call.message.chat.id, GENIUS_ERROR_TEXT)
 
 

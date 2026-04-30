@@ -412,3 +412,40 @@ def save_error(
 
     conn.commit()
     conn.close()
+
+
+def get_recent_errors(limit: int = 10) -> list[dict]:
+    """
+    Returns recent errors saved in SQLite.
+    Used by admin command /errors.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT telegram_id, source, error_message, created_at
+        FROM errors
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row_to_dict(row) for row in rows]
+
+
+def clear_errors() -> None:
+    """
+    Clears saved errors from SQLite.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM errors")
+
+    conn.commit()
+    conn.close()
