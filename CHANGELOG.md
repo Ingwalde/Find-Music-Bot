@@ -4,38 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.8.0] - 2026-04-28
+
+### Added
+- Added improved GitHub-ready README structure.
+- Added `docs/ARCHITECTURE.md`.
+- Added `docs/ROADMAP.md`.
+- Added `docs/RELEASE_WORKFLOW.md`.
+- Added `screenshots/README.md`.
+- Added badges section to README.
+- Added architecture overview to README.
+- Added screenshots guide for portfolio presentation.
+
+### Changed
+- Updated README to `v1.8.0`.
+- Updated bot version to `v1.8.0`.
+- Improved project presentation for GitHub and portfolio use.
+- Improved roadmap organization.
+
+### Notes
+This release does not change bot runtime behavior. It focuses on documentation, GitHub presentation and portfolio quality.
+
+---
+
 ## [v1.7.0] - 2026-04-28
 
 ### Added
 - Added pytest as a testing dependency.
 - Added `pytest.ini`.
-- Added test suite for utility functions:
-  - duration formatting
-  - text truncation
-  - long message splitting
+- Added test suite for utility functions.
 - Added tests for track card formatting.
 - Added tests for Deezer track data normalization.
-- Added tests for popularity label logic.
 - Added tests for pagination/search context.
 - Added tests for Telegram keyboard builders.
-- Added tests for SQLite repository logic:
-  - users
-  - searches
-  - search history trimming
-  - tracks
-  - cached track lookup
-  - favorites
-  - errors
-  - indexes
-- Added isolated temporary SQLite database fixture for tests.
-
-### Changed
-- Updated README to `v1.7.0`.
-- Updated bot version to `v1.7.0`.
-- Added test running instructions to README.
+- Added tests for SQLite repository logic.
 
 ### Notes
-External APIs are not called during tests. Deezer data is tested through fake objects, and database logic is tested with a temporary SQLite database.
+External APIs are not called during tests.
 
 ---
 
@@ -53,10 +58,6 @@ External APIs are not called during tests. Deezer data is tested through fake ob
 - Favorites can open cached track metadata faster.
 - Search history storage is limited to prevent unlimited database growth.
 
-### Fixed
-- Reduced unnecessary Deezer API requests for already cached tracks.
-- Improved local database performance.
-
 ---
 
 ## [v1.5.0] - 2026-04-28
@@ -73,7 +74,7 @@ External APIs are not called during tests. Deezer data is tested through fake ob
 - Moved shared actions out of `handlers.py`.
 
 ### Removed
-- `app/bot/states.py` is no longer needed and should be removed from the project.
+- Removed unused `app/bot/states.py`.
 
 ---
 
@@ -84,6 +85,7 @@ External APIs are not called during tests. Deezer data is tested through fake ob
 - Added admin-only `/errors` command.
 - Added admin-only `/clear_errors` command.
 - Added SQLite error history reader.
+- Added centralized error logging helper.
 
 ---
 
