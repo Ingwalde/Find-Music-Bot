@@ -76,14 +76,31 @@ This roadmap describes planned development after `v1.8.0`.
 
 ## Planned
 
-### v1.9.0 — Multi-Platform Search Links
+### v1.9.0 — Multi-Language Update
 
-- YouTube search button
-- YouTube Music search button
-- Apple Music search button
-- Platform search links generated from track title and artist
-- No additional API keys required
-- No real YouTube / Apple Music API calls
+- Add interface language selection
+- Add Ukrainian language support
+- Add Norwegian language support
+- Add German language support
+- Add French language support
+- Add Spanish language support
+- Add Italian language support
+- Add Polish language support
+- Store selected user language in SQLite
+- Add `/language` command
+- Add language selection keyboard
+- Translate bot messages, buttons and menu texts
+
+Supported languages:
+
+```text
+🇺🇦 Ukrainian
+🇳🇴 Norwegian
+🇩🇪 German
+🇫🇷 French
+🇪🇸 Spanish
+🇮🇹 Italian
+🇵🇱 Polish
 
 ### v2.0.0 — Spotify API Integration
 
