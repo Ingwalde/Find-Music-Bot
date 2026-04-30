@@ -24,7 +24,7 @@ def get_connection() -> sqlite3.Connection:
 
 def get_table_columns(cursor: sqlite3.Cursor, table_name: str) -> set[str]:
     """
-    Returns existing column names for selected table.
+    Returns existing table columns.
     """
     cursor.execute(f"PRAGMA table_info({table_name})")
     rows = cursor.fetchall()
@@ -38,8 +38,8 @@ def add_column_if_missing(
     column_definition: str,
 ) -> None:
     """
-    Adds a new column to an existing SQLite table if it does not exist.
-    Used for simple local development migrations.
+    Adds a column to an existing SQLite table if it does not exist.
+    Used for lightweight local migrations.
     """
     columns = get_table_columns(cursor, table_name)
 
@@ -51,16 +51,44 @@ def add_column_if_missing(
 
 def migrate_db(cursor: sqlite3.Cursor) -> None:
     """
-    Applies simple migrations for old local databases.
+    Applies lightweight migrations for existing local databases.
     """
     add_column_if_missing(cursor, "tracks", "release_date", "TEXT")
     add_column_if_missing(cursor, "tracks", "rank", "INTEGER")
     add_column_if_missing(cursor, "tracks", "popularity", "TEXT")
+    add_column_if_missing(cursor, "tracks", "updated_at", "TIMESTAMP")
+
+
+def create_indexes(cursor: sqlite3.Cursor) -> None:
+    """
+    Creates indexes for faster common queries.
+    """
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_searches_user_id ON searches(user_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_searches_user_id_id ON searches(user_id, id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_deezer_track_id ON tracks(deezer_track_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_favorites_track_id ON favorites(track_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_errors_created_at ON errors(created_at)"
+    )
 
 
 def init_db() -> None:
     """
-    Creates all required tables.
+    Creates all required tables, applies migrations and creates indexes.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -104,7 +132,8 @@ def init_db() -> None:
             release_date TEXT,
             rank INTEGER,
             popularity TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
@@ -136,6 +165,7 @@ def init_db() -> None:
     )
 
     migrate_db(cursor)
+    create_indexes(cursor)
 
     conn.commit()
     conn.close()

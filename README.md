@@ -6,15 +6,15 @@ Users can search for songs, view track metadata, open Deezer links, save favorit
 
 ## Current Version
 
-**v1.5.0 — Project Refactoring Update**
+**v1.6.0 — Database Optimization Update**
 
 Latest updates:
-- Split large callback logic into feature-based modules
-- Split keyboard builders into smaller files
-- Added centralized button and callback constants
-- Added shared bot actions module
-- Removed duplicated callback strings and menu labels
-- Prepared project structure for future platform integrations
+- Added SQLite indexes for faster queries
+- Added `updated_at` cache timestamp for tracks
+- Added cached track lookup by Deezer ID
+- Reduced unnecessary Deezer API calls when opening cached tracks
+- Added configurable search history storage limit
+- Improved local database performance
 
 ## Features
 
@@ -33,6 +33,7 @@ Latest updates:
 - Clear search history with confirmation
 - Genius lyrics page lookup
 - SQLite database
+- Cached track metadata
 - Environment-based configuration
 - File logging to `logs/bot.log`
 - SQLite error history
@@ -48,71 +49,6 @@ Latest updates:
 - SQLite
 - python-dotenv
 
-## Project Structure
-
-```text
-telegram-music-finder-bot/
-│
-├── run.py
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── README.md
-├── CHANGELOG.md
-│
-└── app/
-    ├── main.py
-    ├── version.py
-    ├── config/
-    ├── bot/
-    │   ├── actions.py
-    │   ├── constants.py
-    │   ├── handlers.py
-    │   ├── callbacks.py
-    │   ├── track_callbacks.py
-    │   ├── pagination_callbacks.py
-    │   ├── favorites_callbacks.py
-    │   ├── history_callbacks.py
-    │   ├── lyrics_callbacks.py
-    │   ├── keyboard_menus.py
-    │   ├── keyboard_search.py
-    │   ├── keyboard_track.py
-    │   ├── keyboard_favorites.py
-    │   ├── keyboard_history.py
-    │   ├── keyboards.py
-    │   ├── messages.py
-    │   └── context.py
-    ├── services/
-    ├── database/
-    └── utils/
-```
-
-## Installation
-
-```bash
-git clone https://github.com/yourusername/telegram-music-finder-bot.git
-cd telegram-music-finder-bot
-python -m venv venv
-```
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### macOS / Linux
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
 ## Environment Variables
 
 Create `.env` file:
@@ -125,6 +61,7 @@ DATABASE_PATH=data/music_bot.db
 MAX_SEARCH_RESULTS=30
 RESULTS_PER_PAGE=5
 HISTORY_LIMIT=10
+MAX_HISTORY_PER_USER=100
 
 LOG_LEVEL=INFO
 LOG_FILE_PATH=logs/bot.log
@@ -182,7 +119,7 @@ Use `.env.example` for public configuration examples.
 - [x] File logging
 - [x] Admin error commands
 - [x] Project refactoring
-- [ ] Database optimization
+- [x] Database optimization
 - [ ] Tests
 - [ ] Screenshots
 - [ ] YouTube / YouTube Music buttons
@@ -190,4 +127,3 @@ Use `.env.example` for public configuration examples.
 - [ ] Spotify integration
 - [ ] Docker
 - [ ] Deployment guide
-
