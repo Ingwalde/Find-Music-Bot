@@ -6,15 +6,17 @@ Users can search for songs, view track metadata, open Deezer links, save favorit
 
 ## Current Version
 
-**v1.6.0 — Database Optimization Update**
+**v1.7.0 — Tests Update**
 
 Latest updates:
-- Added SQLite indexes for faster queries
-- Added `updated_at` cache timestamp for tracks
-- Added cached track lookup by Deezer ID
-- Reduced unnecessary Deezer API calls when opening cached tracks
-- Added configurable search history storage limit
-- Improved local database performance
+- Added pytest test suite
+- Added tests for utility functions
+- Added tests for track card formatting
+- Added tests for Deezer data normalization
+- Added tests for pagination/search context
+- Added tests for keyboard builders
+- Added tests for SQLite repository logic
+- Added isolated temporary SQLite database for tests
 
 ## Features
 
@@ -39,6 +41,7 @@ Latest updates:
 - SQLite error history
 - Admin-only error commands
 - Refactored project structure for maintainability
+- Automated tests with pytest
 
 ## Tech Stack
 
@@ -48,6 +51,7 @@ Latest updates:
 - LyricsGenius
 - SQLite
 - python-dotenv
+- pytest
 
 ## Environment Variables
 
@@ -74,6 +78,22 @@ ADMIN_ID=your_telegram_user_id
 ```bash
 python run.py
 ```
+
+## Run Tests
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run tests:
+
+```bash
+python -m pytest
+```
+
+The test suite uses a temporary SQLite database and does not call real Deezer, Genius or Telegram APIs.
 
 ## Bot Commands
 
@@ -120,10 +140,14 @@ Use `.env.example` for public configuration examples.
 - [x] Admin error commands
 - [x] Project refactoring
 - [x] Database optimization
-- [ ] Tests
+- [x] Tests
 - [ ] Screenshots
 - [ ] YouTube / YouTube Music buttons
 - [ ] Apple Music button
 - [ ] Spotify integration
 - [ ] Docker
 - [ ] Deployment guide
+
+## License
+
+MIT

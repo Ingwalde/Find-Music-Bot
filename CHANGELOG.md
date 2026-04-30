@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.7.0] - 2026-04-28
+
+### Added
+- Added pytest as a testing dependency.
+- Added `pytest.ini`.
+- Added test suite for utility functions:
+  - duration formatting
+  - text truncation
+  - long message splitting
+- Added tests for track card formatting.
+- Added tests for Deezer track data normalization.
+- Added tests for popularity label logic.
+- Added tests for pagination/search context.
+- Added tests for Telegram keyboard builders.
+- Added tests for SQLite repository logic:
+  - users
+  - searches
+  - search history trimming
+  - tracks
+  - cached track lookup
+  - favorites
+  - errors
+  - indexes
+- Added isolated temporary SQLite database fixture for tests.
+
+### Changed
+- Updated README to `v1.7.0`.
+- Updated bot version to `v1.7.0`.
+- Added test running instructions to README.
+
+### Notes
+External APIs are not called during tests. Deezer data is tested through fake objects, and database logic is tested with a temporary SQLite database.
+
+---
+
 ## [v1.6.0] - 2026-04-28
 
 ### Added
@@ -17,12 +52,10 @@ All notable changes to this project will be documented in this file.
 - Track card opening now checks SQLite cache before calling Deezer API.
 - Favorites can open cached track metadata faster.
 - Search history storage is limited to prevent unlimited database growth.
-- README updated to `v1.6.0`.
-- Bot version updated to `v1.6.0`.
 
 ### Fixed
 - Reduced unnecessary Deezer API requests for already cached tracks.
-- Improved local database performance for users, tracks, searches, favorites and errors.
+- Improved local database performance.
 
 ---
 
@@ -38,7 +71,6 @@ All notable changes to this project will be documented in this file.
 - Refactored `callbacks.py` into a lightweight callback router.
 - Refactored `keyboards.py` into a compatibility import module.
 - Moved shared actions out of `handlers.py`.
-- Reduced duplicated callback strings and menu labels.
 
 ### Removed
 - `app/bot/states.py` is no longer needed and should be removed from the project.
@@ -52,7 +84,6 @@ All notable changes to this project will be documented in this file.
 - Added admin-only `/errors` command.
 - Added admin-only `/clear_errors` command.
 - Added SQLite error history reader.
-- Added centralized error logging helper.
 
 ---
 
