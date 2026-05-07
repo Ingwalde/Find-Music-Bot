@@ -1,47 +1,64 @@
 # Telegram Music Finder Bot
 
-Telegram Music Finder Bot is a Python Telegram bot for discovering songs through Deezer.
-
-The bot allows users to search for tracks, view track cards with album covers and metadata, open Deezer links, save favorite tracks, reuse search history, choose interface language, and open Genius lyrics pages.
-
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue)
-![SQLite](https://img.shields.io/badge/Database-SQLite-lightgrey)
-![Deezer](https://img.shields.io/badge/API-Deezer-purple)
-![Tests](https://img.shields.io/badge/Tests-pytest-green)
-
 ## Current Version
 
-**v1.9.1 — Language Menu Fix**
+**v2.0.1 — Spotify Stability Patch**
 
-Latest updates:
-- Fixed translated Music button in the main menu
-- Fixed translated Language button in the main menu
-- Language button is now generated from localization keys
-- Menu action detection now supports translated Language button
+This patch improves the Spotify API integration added in `v2.0.0`.
 
-## Main Menu Examples
+## What changed
 
-English:
+- Spotify `403 Forbidden` is now handled more clearly.
+- Spotify lookups are temporarily paused after access errors to avoid repeated warnings and delays.
+- Added `SPOTIFY_ENABLED` toggle.
+- Added `SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS` setting.
+- Improved Spotify search query fallback.
+- Added Spotify troubleshooting documentation.
 
-```text
-🎵 Music
-⭐ Favorites | 🕘 History
-🌐 Language
+## Spotify Environment Variables
+
+```env
+SPOTIFY_ENABLED=true
+SPOTIFY_CLIENT_ID=your_spotify_client_id_here
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
+SPOTIFY_MARKET=NO
+SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS=3600
 ```
 
-Ukrainian:
+If Spotify returns `403 Forbidden`, the bot will continue working with Deezer only and will skip Spotify requests for the cooldown period.
+
+## Track Card Buttons
+
+When Spotify is available:
 
 ```text
-🎵 Музика
-⭐ Улюблені | 🕘 Історія
-🌐 Мова
+[🎧 Deezer] [🟢 Spotify]
+[⬅️ Back to results]
+[📖 Lyrics] [⭐ Add to favorites]
+[🔎 Search again]
 ```
 
-Norwegian:
+When Spotify is unavailable:
 
 ```text
-🎵 Musikk
-⭐ Favoritter | 🕘 Historikk
-🌐 Språk
+[🎧 Deezer]
+[⬅️ Back to results]
+[📖 Lyrics] [⭐ Add to favorites]
+[🔎 Search again]
+```
+
+## Troubleshooting
+
+See: [`docs/SPOTIFY_TROUBLESHOOTING.md`](docs/SPOTIFY_TROUBLESHOOTING.md)
+
+## Run
+
+```bash
+python run.py
+```
+
+## Run Tests
+
+```bash
+python -m pytest
 ```

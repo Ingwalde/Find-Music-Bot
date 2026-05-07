@@ -4,113 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v1.9.1] - 2026-04-28
-
-### Fixed
-- Fixed main menu `Music` button translation.
-- Fixed main menu `Language` button translation.
-- Replaced hardcoded `🌐 Language` with localization key `btn_language`.
-- Updated menu action detection to support translated language button.
-
----
-
-## [v1.9.0] - 2026-04-30
+## [v2.0.1] - 2026-04-30
 
 ### Added
-- Added multi-language interface support.
-- Added English as default and fallback language.
-- Added Ukrainian language support.
-- Added Norwegian language support.
-- Added German language support.
-- Added French language support.
-- Added Spanish language support.
-- Added Italian language support.
-- Added Polish language support.
-- Added `/language` command.
-- Added language selection keyboard.
-- Added `app/localization/` package.
-- Added user language storage in SQLite.
-- Added language migration for existing local databases.
+- Added `SPOTIFY_ENABLED` environment toggle.
+- Added `SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS` setting.
+- Added Spotify access cooldown after `403 Forbidden` responses.
+- Added clearer Spotify access error handling.
+- Added broad Spotify search fallback query.
+- Added `docs/SPOTIFY_TROUBLESHOOTING.md`.
+- Added tests for Spotify query building and temporary access block state.
 
 ### Changed
-- Bot messages are now loaded through localization keys.
-- Main menu buttons are generated based on selected language.
-- History and favorites menus support selected language.
-- Track action buttons support selected language.
-- Callback data remains language-independent.
+- Spotify lookup no longer repeatedly calls the API after access is forbidden.
+- Spotify errors are now handled as optional integration errors, not bot-breaking errors.
+- README updated to `v2.0.1`.
+- Bot version updated to `v2.0.1`.
 
 ### Notes
-English is used as the default fallback language if a translation is missing.
+If Spotify credentials are missing, invalid, or restricted, the bot continues working with Deezer only.
 
 ---
 
-## [v1.8.0] - 2026-04-28
+## [v2.0.0] - 2026-04-30
 
 ### Added
-- Added improved GitHub-ready README structure.
-- Added `docs/ARCHITECTURE.md`.
-- Added `docs/ROADMAP.md`.
-- Added `docs/RELEASE_WORKFLOW.md`.
-- Added `screenshots/README.md`.
-
----
-
-## [v1.7.0] - 2026-04-28
-
-### Added
-- Added pytest test suite.
-
----
-
-## [v1.6.0] - 2026-04-28
-
-### Added
-- Added SQLite indexes.
-- Added cached track lookup by Deezer ID.
-- Added automatic search history trimming.
-
----
-
-## [v1.5.0] - 2026-04-28
-
-### Added
-- Added feature-based callback modules.
-- Added feature-based keyboard modules.
-
----
-
-## [v1.4.0] - 2026-04-27
-
-### Added
-- Added file logging.
-- Added admin-only error commands.
-
----
-
-## [v1.3.0] - 2026-04-27
-
-### Added
-- Added release date and popularity/rank.
-
----
-
-## [v1.2.0] - 2026-04-27
-
-### Added
-- Added Back to results.
-- Improved history and favorites.
-
----
-
-## [v1.1.0] - 2026-04-26
-
-### Added
-- Added pagination.
-
----
-
-## [v1.0.0] - 2026-04-26
-
-### Added
-- Initial Deezer MVP.
-
+- Added Spotify Web API integration.
+- Added Spotify Client Credentials Flow.
+- Added Spotify access token caching.
+- Added Spotify track search by title and artist.
+- Added Spotify button to track cards.
+- Added Spotify metadata cache in SQLite.
+- Added `spotify_track_id`, `spotify_link`, and `spotify_updated_at` fields to `tracks`.
+- Added `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_MARKET` environment variables.
+- Added tests for Spotify service helpers.

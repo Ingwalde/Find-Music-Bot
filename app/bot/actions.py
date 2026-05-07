@@ -22,6 +22,7 @@ from app.database.repositories import (
 from app.localization.translations import t
 from app.services.deezer_service import search_tracks
 from app.services.track_formatter import format_track_card
+from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.logger import setup_logger
 
 
@@ -194,6 +195,9 @@ def send_track_card(
     Sends selected track information with album cover and action buttons.
     """
     language = get_user_language(telegram_id)
+
+    track = enrich_track_with_spotify_link(track)
+
     text = format_track_card(track)
 
     is_favorite = is_track_favorite(

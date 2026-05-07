@@ -19,6 +19,16 @@ def parse_optional_int(value: str | None) -> int | None:
         return None
 
 
+def parse_bool(value: str | None, default: bool = True) -> bool:
+    """
+    Parses boolean values from environment variables.
+    """
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass
 class Settings:
     BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
@@ -35,6 +45,25 @@ class Settings:
     LOG_FILE_PATH: str = os.getenv("LOG_FILE_PATH", "logs/bot.log")
     ERROR_HISTORY_LIMIT: int = int(os.getenv("ERROR_HISTORY_LIMIT", "10"))
     ADMIN_ID: int | None = parse_optional_int(os.getenv("ADMIN_ID"))
+
+    SPOTIFY_ENABLED: bool = parse_bool(os.getenv("SPOTIFY_ENABLED"), default=True)
+    SPOTIFY_CLIENT_ID: str | None = os.getenv("SPOTIFY_CLIENT_ID")
+    SPOTIFY_CLIENT_SECRET: str | None = os.getenv("SPOTIFY_CLIENT_SECRET")
+    SPOTIFY_MARKET: str | None = os.getenv("SPOTIFY_MARKET", "NO")
+    SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS: int = int(
+        os.getenv("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS", "3600")
+    )
+
+    @property
+    def spotify_enabled(self) -> bool:
+        """
+        Spotify integration is enabled only when explicitly enabled and credentials are set.
+        """
+        return bool(
+            self.SPOTIFY_ENABLED
+            and self.SPOTIFY_CLIENT_ID
+            and self.SPOTIFY_CLIENT_SECRET
+        )
 
     def validate(self) -> None:
         """
@@ -76,6 +105,9 @@ class Settings:
 
         if self.ERROR_HISTORY_LIMIT > 50:
             raise ValueError("ERROR_HISTORY_LIMIT should not be greater than 50.")
+
+        if self.SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS < 60:
+            raise ValueError("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS should be at least 60.")
 
 
 settings = Settings()

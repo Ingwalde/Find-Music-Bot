@@ -19,19 +19,35 @@ def track_actions_keyboard(
 ) -> types.InlineKeyboardMarkup:
     """
     Creates inline keyboard under selected track card.
+    Deezer and Spotify are displayed as URL buttons.
+    Favorite button changes depending on current status.
     """
     markup = types.InlineKeyboardMarkup(row_width=2)
 
     deezer_link = track.get("deezer_link")
+    spotify_link = track.get("spotify_link")
     track_id = track.get("deezer_track_id")
 
+    platform_buttons = []
+
     if deezer_link:
-        markup.add(
+        platform_buttons.append(
             types.InlineKeyboardButton(
                 text=t("btn_deezer", language),
                 url=deezer_link,
             )
         )
+
+    if spotify_link:
+        platform_buttons.append(
+            types.InlineKeyboardButton(
+                text=t("btn_spotify", language),
+                url=spotify_link,
+            )
+        )
+
+    if platform_buttons:
+        markup.row(*platform_buttons)
 
     if show_back_to_results:
         markup.add(

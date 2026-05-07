@@ -39,6 +39,7 @@ def add_column_if_missing(
 ) -> None:
     """
     Adds a column to an existing SQLite table if it does not exist.
+    Used for lightweight local migrations.
     """
     columns = get_table_columns(cursor, table_name)
 
@@ -53,10 +54,15 @@ def migrate_db(cursor: sqlite3.Cursor) -> None:
     Applies lightweight migrations for existing local databases.
     """
     add_column_if_missing(cursor, "users", "language", "TEXT DEFAULT 'en'")
+
     add_column_if_missing(cursor, "tracks", "release_date", "TEXT")
     add_column_if_missing(cursor, "tracks", "rank", "INTEGER")
     add_column_if_missing(cursor, "tracks", "popularity", "TEXT")
     add_column_if_missing(cursor, "tracks", "updated_at", "TIMESTAMP")
+
+    add_column_if_missing(cursor, "tracks", "spotify_track_id", "TEXT")
+    add_column_if_missing(cursor, "tracks", "spotify_link", "TEXT")
+    add_column_if_missing(cursor, "tracks", "spotify_updated_at", "TIMESTAMP")
 
 
 def create_indexes(cursor: sqlite3.Cursor) -> None:
@@ -74,6 +80,9 @@ def create_indexes(cursor: sqlite3.Cursor) -> None:
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_tracks_deezer_track_id ON tracks(deezer_track_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tracks_spotify_track_id ON tracks(spotify_track_id)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)"
@@ -133,6 +142,9 @@ def init_db() -> None:
             release_date TEXT,
             rank INTEGER,
             popularity TEXT,
+            spotify_track_id TEXT,
+            spotify_link TEXT,
+            spotify_updated_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
