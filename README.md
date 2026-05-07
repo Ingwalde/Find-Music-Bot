@@ -2,54 +2,57 @@
 
 ## Current Version
 
-**v2.0.1 — Spotify Stability Patch**
+**v2.1.0 — Architecture Cleanup Update**
 
-This patch improves the Spotify API integration added in `v2.0.0`.
+This release improves the internal project structure after the large Spotify API integration.
 
-## What changed
+## What Changed
 
-- Spotify `403 Forbidden` is now handled more clearly.
-- Spotify lookups are temporarily paused after access errors to avoid repeated warnings and delays.
-- Added `SPOTIFY_ENABLED` toggle.
-- Added `SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS` setting.
-- Improved Spotify search query fallback.
-- Added Spotify troubleshooting documentation.
+- Database schema, migrations and indexes are split into separate modules.
+- Database repositories are split by domain.
+- Localization is split into `translator.py` and separate locale files.
+- Spotify integration is split into platform modules: auth, matcher and client.
+- Compatibility facades keep old imports working.
 
-## Spotify Environment Variables
+## Important
 
-```env
-SPOTIFY_ENABLED=true
-SPOTIFY_CLIENT_ID=your_spotify_client_id_here
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
-SPOTIFY_MARKET=NO
-SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS=3600
-```
+This update does not add major user-facing features. It focuses on maintainability and cleaner architecture.
 
-If Spotify returns `403 Forbidden`, the bot will continue working with Deezer only and will skip Spotify requests for the cooldown period.
-
-## Track Card Buttons
-
-When Spotify is available:
+## New Structure Highlights
 
 ```text
-[🎧 Deezer] [🟢 Spotify]
-[⬅️ Back to results]
-[📖 Lyrics] [⭐ Add to favorites]
-[🔎 Search again]
+app/database/
+├── db.py
+├── schema.py
+├── migrations.py
+├── indexes.py
+└── repository_modules/
+    ├── users.py
+    ├── searches.py
+    ├── tracks.py
+    ├── favorites.py
+    ├── errors.py
+    └── spotify.py
+
+app/localization/
+├── translator.py
+└── locales/
+    ├── en.py
+    ├── uk.py
+    ├── no.py
+    ├── de.py
+    ├── fr.py
+    ├── es.py
+    ├── it.py
+    └── pl.py
+
+app/platforms/
+├── aggregator.py
+└── spotify/
+    ├── auth.py
+    ├── client.py
+    └── matcher.py
 ```
-
-When Spotify is unavailable:
-
-```text
-[🎧 Deezer]
-[⬅️ Back to results]
-[📖 Lyrics] [⭐ Add to favorites]
-[🔎 Search again]
-```
-
-## Troubleshooting
-
-See: [`docs/SPOTIFY_TROUBLESHOOTING.md`](docs/SPOTIFY_TROUBLESHOOTING.md)
 
 ## Run
 
@@ -61,4 +64,18 @@ python run.py
 
 ```bash
 python -m pytest
+```
+
+## GitHub Safety
+
+Do not publish local/private files:
+
+```text
+.env
+data/
+logs/
+.git/
+__pycache__/
+.pytest_cache/
+.vscode/
 ```
