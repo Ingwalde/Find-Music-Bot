@@ -2,32 +2,44 @@ name: Tests
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
+      - master
 
 jobs:
   tests:
+    name: Ruff and Pytest
     runs-on: ubuntu-latest
+
+    env:
+      TELEGRAM_BOT_TOKEN: test-token
+      GENIUS_ACCESS_TOKEN: test-token
+      SPOTIFY_CLIENT_ID: test-client-id
+      SPOTIFY_CLIENT_SECRET: test-client-secret
+      ADMIN_IDS: "123456789"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run Ruff
+        run: python -m ruff check .
 
       - name: Run tests
-        env:
-          BOT_TOKEN: test-token
-          GENIUS_TOKEN: test-token
-          SPOTIFY_ENABLED: "false"
-          DATABASE_PATH: data/test_music_bot.db
         run: python -m pytest
