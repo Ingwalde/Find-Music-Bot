@@ -25,7 +25,6 @@ from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.logger import setup_logger
 
-
 logger = setup_logger(__name__)
 
 

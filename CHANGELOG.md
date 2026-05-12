@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.2.0] - 2026-05-12
+
+### Added
+- Added `.github/workflows/tests.yml` for GitHub Actions test automation.
+- Added `pyproject.toml` with pytest and Ruff configuration.
+- Added `requirements-dev.txt` for development tooling.
+- Added `app/health.py` with bot, database, Deezer, Spotify and Genius diagnostics.
+- Added admin `/health` command.
+- Added tests for health report formatting.
+- Added tests for Spotify fallback behavior in the platform aggregator.
+
+### Changed
+- Updated project version to `2.2.0`.
+- Improved Deezer search error handling.
+- Improved Deezer track loading error handling.
+- Updated README for the v2.2.0 release.
+- Updated roadmap and release workflow documentation.
+
+### Fixed
+- Fixed duplicated `admin_only` response in the `/errors` command.
+- Ensured Spotify failures do not break track cards or Deezer-based results.
+
+### Security
+- Release package should not include `.env`, `.git`, `data/`, `logs/`, `.pytest_cache`, `.vscode` or `__pycache__` files.
+
+---
+
 ## [v2.1.0] - 2026-04-30
 
 ### Added

@@ -2,7 +2,12 @@ import requests
 from requests import HTTPError
 
 from app.config.settings import settings
-from app.platforms.spotify.auth import get_spotify_access_token, handle_spotify_http_error
+from app.platforms.spotify.auth import (
+    SpotifyCredentialsError,
+    SpotifyForbiddenError,
+    get_spotify_access_token,
+    handle_spotify_http_error,
+)
 from app.platforms.spotify.matcher import (
     build_spotify_queries,
     format_spotify_track,
@@ -42,7 +47,11 @@ def request_spotify_search(
         )
         response.raise_for_status()
     except HTTPError as error:
-        handle_spotify_http_error(error, "track search")
+        try:
+            handle_spotify_http_error(error, "track search")
+        except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
+            logger.warning("Spotify search skipped: %s", spotify_error)
+            return []
         return []
     except requests.RequestException as error:
         logger.warning("Spotify search request failed: %s", error)

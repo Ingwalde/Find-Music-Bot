@@ -1,5 +1,5 @@
 def test_repository_facade_imports():
-    from app.database.repositories import get_user_language, save_track, save_search
+    from app.database.repositories import get_user_language, save_search, save_track
 
     assert callable(get_user_language)
     assert callable(save_track)

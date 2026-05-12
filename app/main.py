@@ -1,12 +1,11 @@
 import telebot
 
+from app.bot.callbacks import register_callbacks
+from app.bot.handlers import register_handlers
 from app.config.settings import settings
 from app.database.db import init_db
-from app.bot.handlers import register_handlers
-from app.bot.callbacks import register_callbacks
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
-
 
 logger = setup_logger(__name__)
 

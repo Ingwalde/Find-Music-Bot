@@ -92,3 +92,30 @@ app/localization/translations.py
 app/services/spotify_service.py
 app/services/track_platform_service.py
 ```
+
+
+## Health Diagnostics
+
+```text
+app/health.py
+```
+
+The health module provides admin diagnostics for:
+
+- bot runtime status;
+- SQLite database connectivity;
+- Deezer service import availability;
+- Spotify configuration and temporary cooldown state;
+- Genius token configuration.
+
+The Telegram `/health` command is admin-only and is designed for quick operational checks without exposing secrets.
+
+## CI Layer
+
+```text
+.github/workflows/tests.yml
+pyproject.toml
+requirements-dev.txt
+```
+
+GitHub Actions runs automated tests on pushes and pull requests to `main`. The project also includes Ruff configuration for local code quality checks.

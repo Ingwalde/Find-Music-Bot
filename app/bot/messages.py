@@ -7,7 +7,6 @@ New multi-language code should use:
 
 from app.localization.translations import t
 
-
 WELCOME_TEXT = t("welcome", "en")
 HELP_TEXT = t("help", "en")
 ASK_MUSIC_TEXT = t("ask_music", "en")

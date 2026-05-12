@@ -1,6 +1,5 @@
 from math import ceil
 
-
 search_contexts: dict[int, dict] = {}
 
 

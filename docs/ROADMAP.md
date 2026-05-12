@@ -14,22 +14,32 @@
 - `v1.9.0` — Multi-Language Update
 - `v2.0.0` — Spotify API Integration
 - `v2.1.0` — Architecture Cleanup Update
+- `v2.2.0` — Stability, Testing & GitHub CI Update
 
 ## Planned
-
-### v2.2.0 — Multi-Platform Search Links
-
-- YouTube search button
-- YouTube Music search button
-- Apple Music search button
 
 ### v2.3.0 — Docker and Deployment
 
 - Dockerfile
 - docker-compose.yml
+- local production-like startup
 - deployment guide
 
-### v2.4.0 — CI Update
+### v2.4.0 — Backend Diagnostics Update
 
-- GitHub Actions test workflow
-- automatic pytest run on push
+- Extended `/stats` command
+- better admin diagnostics
+- optional JSON export for error/search statistics
+
+### v2.5.0 — Database Upgrade Preparation
+
+- repository abstraction cleanup
+- optional PostgreSQL-ready configuration
+- migration documentation
+
+## Not Planned for v2.2
+
+- Additional music platforms
+- Web dashboard
+- PostgreSQL migration
+- Complex deployment automation

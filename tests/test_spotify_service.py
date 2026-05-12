@@ -1,8 +1,9 @@
 import pytest
+from requests import HTTPError
 
+from app.platforms.spotify import client as spotify_client
 from app.services import spotify_service
 from app.services.spotify_service import (
-    SpotifyForbiddenError,
     build_spotify_queries,
     disable_spotify_temporarily,
     format_spotify_track,
@@ -78,6 +79,45 @@ def test_disable_spotify_temporarily(monkeypatch):
 
 
 def test_search_spotify_track_skips_when_temporarily_blocked(monkeypatch):
-    monkeypatch.setattr(spotify_service, "get_spotify_access_token", lambda: None)
+    monkeypatch.setattr(spotify_client, "get_spotify_access_token", lambda: None)
 
     assert spotify_service.search_spotify_track("SOS", "ABBA") is None
+
+
+def test_request_spotify_search_returns_empty_on_403(monkeypatch):
+    class FakeResponse:
+        status_code = 403
+
+        def raise_for_status(self):
+            error = HTTPError("403 Client Error: Forbidden")
+            error.response = self
+            raise error
+
+    monkeypatch.setattr(spotify_client.requests, "get", lambda *args, **kwargs: FakeResponse())
+
+    result = spotify_service.request_spotify_search(
+        token="test-token",
+        query='track:"SOS" artist:"ABBA"',
+        limit=5,
+        market="NO",
+    )
+
+    assert result == []
+    assert spotify_service.is_spotify_temporarily_blocked() is True
+    assert "403 Forbidden" in spotify_service.get_spotify_block_reason()
+
+
+def test_search_spotify_track_returns_none_on_403(monkeypatch):
+    class FakeResponse:
+        status_code = 403
+
+        def raise_for_status(self):
+            error = HTTPError("403 Client Error: Forbidden")
+            error.response = self
+            raise error
+
+    monkeypatch.setattr(spotify_client, "get_spotify_access_token", lambda: "test-token")
+    monkeypatch.setattr(spotify_client.requests, "get", lambda *args, **kwargs: FakeResponse())
+
+    assert spotify_service.search_spotify_track("SOS", "ABBA") is None
+    assert spotify_service.is_spotify_temporarily_blocked() is True

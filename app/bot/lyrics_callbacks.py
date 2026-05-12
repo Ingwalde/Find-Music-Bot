@@ -9,7 +9,6 @@ from app.services.lyrics_service import find_lyrics_url
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 
-
 logger = setup_logger(__name__)
 
 

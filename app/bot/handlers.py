@@ -18,11 +18,11 @@ from app.database.repositories import (
     get_user_language,
     upsert_user,
 )
+from app.health import format_health_report
 from app.localization.translations import get_menu_action_by_text, t
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.version import __version__
-
 
 logger = setup_logger(__name__)
 
@@ -273,6 +273,17 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
         clear_errors()
         bot.send_message(message.chat.id, t("errors_cleared", language))
+
+    @bot.message_handler(commands=["health"])
+    def health_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, format_health_report())
 
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:

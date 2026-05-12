@@ -4,7 +4,6 @@ from pathlib import Path
 
 from app.config.settings import settings
 
-
 _LOGGING_CONFIGURED = False
 
 

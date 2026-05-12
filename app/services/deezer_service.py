@@ -1,8 +1,7 @@
 import deezer
 
-from app.utils.time import convert_duration
 from app.utils.logger import setup_logger
-
+from app.utils.time import convert_duration
 
 logger = setup_logger(__name__)
 
@@ -133,6 +132,9 @@ def format_deezer_track(track) -> dict:
 def search_tracks(query: str, limit: int = 10) -> list[dict]:
     """
     Searches tracks in Deezer.
+
+    Deezer is the primary data source. If the external service fails, the bot
+    returns an empty result list instead of crashing in the Telegram handler.
     """
     query = query.strip()
 
@@ -141,7 +143,11 @@ def search_tracks(query: str, limit: int = 10) -> list[dict]:
 
     logger.info("Searching Deezer tracks for query: %s", query)
 
-    results = client.search(query)
+    try:
+        results = client.search(query)
+    except Exception as error:
+        logger.warning("Deezer search failed for %r: %s", query, error)
+        return []
 
     if not results:
         return []
@@ -149,7 +155,10 @@ def search_tracks(query: str, limit: int = 10) -> list[dict]:
     tracks = []
 
     for track in results[:limit]:
-        tracks.append(format_deezer_track(track))
+        try:
+            tracks.append(format_deezer_track(track))
+        except Exception as error:
+            logger.warning("Could not format Deezer track from %r: %s", query, error)
 
     return tracks
 
@@ -157,9 +166,14 @@ def search_tracks(query: str, limit: int = 10) -> list[dict]:
 def get_track(track_id: str | int) -> dict:
     """
     Gets single track by Deezer track ID.
+
+    The caller can catch exceptions and show a localized friendly message.
     """
     logger.info("Getting Deezer track by ID: %s", track_id)
 
-    track = client.get_track(int(track_id))
-
-    return format_deezer_track(track)
+    try:
+        track = client.get_track(int(track_id))
+        return format_deezer_track(track)
+    except Exception as error:
+        logger.warning("Deezer get_track failed for %s: %s", track_id, error)
+        raise RuntimeError(f"Could not load Deezer track {track_id}") from error

@@ -129,7 +129,11 @@ def get_spotify_access_token() -> str | None:
         )
         response.raise_for_status()
     except HTTPError as error:
-        handle_spotify_http_error(error, "token request")
+        try:
+            handle_spotify_http_error(error, "token request")
+        except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
+            logger.warning("Spotify token request skipped: %s", spotify_error)
+            return None
         return None
     except requests.RequestException as error:
         logger.warning("Spotify token request failed: %s", error)
