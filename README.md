@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.4.0 — Quality, Coverage & Release Cleanup Update`
+**Current version:** `v2.4.1 — Coverage Expansion Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for finding music through Deezer, opening Spotify links when available, saving favorite tracks, viewing search history and opening Genius lyrics pages.
 
@@ -32,6 +32,17 @@ The project is built as a backend-style portfolio project: modular architecture,
 
 ---
 
+## What Changed in v2.4.1
+
+- Expanded coverage-focused tests for runtime startup, database repositories, Deezer service and Spotify client/auth modules.
+- Increased test coverage beyond the v2.4.0 baseline.
+- Updated project version to `2.4.1`.
+- Kept release notes in GitHub Releases and version history in `CHANGELOG.md`.
+
+This patch release focuses only on test coverage and quality confidence. It does not change user-facing bot behavior.
+
+---
+
 ## What Changed in v2.4.0
 
 - Added pytest coverage reporting through `pytest-cov`.
@@ -40,6 +51,7 @@ The project is built as a backend-style portfolio project: modular architecture,
 - Added release cleanup validation to GitHub Actions.
 - Updated `.gitignore` and `.dockerignore` for coverage artifacts and local archives.
 - Updated project version to `2.4.0`.
+- Expanded the test suite and introduced an 85% coverage baseline.
 
 This release focuses on code quality, CI confidence and clean release packaging. It does not add new music platforms or change the main bot behavior.
 

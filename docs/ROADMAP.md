@@ -18,6 +18,7 @@
 - `v2.2.1` — GitHub Actions Runtime Update
 - `v2.3.0` — Docker & Deployment Update
 - `v2.4.0` — Quality, Coverage & Release Cleanup Update
+- `v2.4.1` — Coverage Expansion Update
 
 ## Planned
 

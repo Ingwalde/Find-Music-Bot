@@ -146,7 +146,7 @@ Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as l
 
 ## Quality and Release Safety
 
-Version `v2.4.0` adds a release cleanup layer around the existing CI pipeline.
+Version `v2.4.0` adds a release cleanup layer around the existing CI pipeline. Version `v2.4.1` expands test coverage around runtime startup, repositories, Deezer service and Spotify auth/client behavior without changing production behavior.
 
 ```text
 scripts/

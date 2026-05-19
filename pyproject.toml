@@ -10,6 +10,7 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 85
 skip_covered = true
 exclude_lines = [
     "pragma: no cover",

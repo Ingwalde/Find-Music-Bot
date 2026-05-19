@@ -14,7 +14,7 @@ v2.1.0
 v2.2.0
 v2.2.1
 v2.3.0
-v2.4.0
+v2.4.1
 ```
 
 ## Before Creating a Release
@@ -71,20 +71,20 @@ htmlcov/
 Use clear release commits:
 
 ```text
-Release v2.4.0: add coverage and release cleanup checks
+Release v2.4.1: expand coverage-focused tests
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.4.0
-git push origin v2.4.0
+git tag v2.4.1
+git push origin v2.4.1
 ```
 
 ## Release Title Format
 
 ```text
-v2.4.0 - Quality, Coverage & Release Cleanup Update
+v2.4.1 - Coverage Expansion Update
 ```
 
 ## Release Notes Template
@@ -137,5 +137,5 @@ v2.1.0 - Architecture Cleanup Update
 v2.2.0 - Stability, Testing & GitHub CI Update
 v2.2.1 - GitHub Actions Runtime Update
 v2.3.0 - Docker & Deployment Update
-v2.4.0 - Quality, Coverage & Release Cleanup Update
+v2.4.1 - Coverage Expansion Update
 ```

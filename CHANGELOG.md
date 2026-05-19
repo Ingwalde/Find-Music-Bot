@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.4.1] - 2026-05-19
+
+### Added
+- Added additional coverage-focused tests for bot runtime startup, repository edge cases, Deezer service behavior and Spotify auth/client paths.
+- Added tests for successful and failing bot polling startup paths.
+- Added tests for Spotify token caching, HTTP error handling and search candidate filtering.
+- Added tests for Deezer search fallback, track loading and formatting edge cases.
+
+### Changed
+- Updated project version to `2.4.1`.
+- Raised the v2.4 quality baseline from 169 tests / 85% coverage toward a stronger coverage target.
+
+### Notes
+- This is a patch release focused on test coverage and quality confidence.
+- No new music platforms were added.
+- Main bot behavior remains unchanged.
+
+---
+
 ## [v2.4.0] - 2026-05-19
 
 ### Added
