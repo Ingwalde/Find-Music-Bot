@@ -12,6 +12,8 @@ v1.1.0
 v2.0.0
 v2.1.0
 v2.2.0
+v2.2.1
+v2.3.0
 ```
 
 ## Before Creating a Release
@@ -20,19 +22,26 @@ v2.2.0
 2. Update `README.md`.
 3. Update `CHANGELOG.md`.
 4. Update `docs/ROADMAP.md`.
-5. Run tests:
+5. Update release notes.
+6. Run Ruff:
+
+```bash
+python -m ruff check .
+```
+
+7. Run tests:
 
 ```bash
 python -m pytest
 ```
 
-6. Optionally run Ruff:
+8. For Docker releases, verify Docker build:
 
 ```bash
-ruff check .
+docker build -t find-music-bot:test .
 ```
 
-7. Check that local/private files are not staged:
+9. Check that local/private files are not staged:
 
 ```text
 .env
@@ -42,6 +51,8 @@ logs/
 __pycache__/
 .pytest_cache/
 .vscode/
+*.db
+*.log
 ```
 
 ## Commit Message Format
@@ -49,20 +60,20 @@ __pycache__/
 Use clear release commits:
 
 ```text
-Release v2.2.0: add CI and health diagnostics
+Release v2.3.0: add Docker and deployment support
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.2.0
-git push origin v2.2.0
+git tag v2.3.0
+git push origin v2.3.0
 ```
 
 ## Release Title Format
 
 ```text
-v2.2.0 - Stability, Testing & GitHub CI Update
+v2.3.0 - Docker & Deployment Update
 ```
 
 ## Release Notes Template
@@ -83,6 +94,12 @@ Short explanation of this release.
 ## Fixed
 
 - Bug fixes
+
+## Quality Checks
+
+- Ruff
+- Pytest
+- Docker build
 
 ## Notes
 
@@ -105,4 +122,6 @@ v1.9.0 - Multi-Language Update
 v2.0.0 - Spotify API Integration
 v2.1.0 - Architecture Cleanup Update
 v2.2.0 - Stability, Testing & GitHub CI Update
+v2.2.1 - GitHub Actions Runtime Update
+v2.3.0 - Docker & Deployment Update
 ```

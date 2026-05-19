@@ -1,10 +1,12 @@
 # Telegram Music Finder Bot
 
-**Current version:** `v2.2.0 — Stability, Testing & GitHub CI Update`
+[![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
+
+**Current version:** `v2.3.0 — Docker & Deployment Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for finding music through Deezer, opening Spotify links when available, saving favorite tracks, viewing search history and opening Genius lyrics pages.
 
-The project is built as a backend-style portfolio project: modular architecture, SQLite persistence, external API integrations, localization, logging, tests and versioned GitHub releases.
+The project is built as a backend-style portfolio project: modular architecture, SQLite persistence, external API integrations, localization, logging, tests, Ruff checks, GitHub Actions, Docker support and versioned GitHub releases.
 
 ---
 
@@ -22,21 +24,36 @@ The project is built as a backend-style portfolio project: modular architecture,
 - Admin health-check command.
 - SQLite database with migrations and indexes.
 - Automated tests.
-- GitHub Actions test workflow.
+- Ruff code quality checks.
+- GitHub Actions workflow.
+- Docker and Docker Compose support.
 
 ---
 
-## What Changed in v2.2.0
+## What Changed in v2.3.0
 
-- Added GitHub Actions workflow for automated tests.
-- Added `pyproject.toml` for pytest and Ruff configuration.
-- Added `requirements-dev.txt` for development tooling.
-- Added admin `/health` command.
-- Added `app/health.py` for bot, database and integration diagnostics.
-- Improved Deezer error handling so external API failures do not crash normal search flow.
-- Improved Spotify fallback tests.
-- Fixed duplicated `admin_only` response in `/errors` handler.
-- Updated version, changelog, roadmap and release workflow documentation.
+- Added `Dockerfile` for containerized bot startup.
+- Added `docker-compose.yml` for one-command local Docker run.
+- Added `.dockerignore` to keep local/private files out of Docker builds.
+- Added `docs/DEPLOYMENT.md` with local, Docker and Docker Compose instructions.
+- Added Docker build validation to GitHub Actions.
+- Added GitHub Actions badge to README.
+- Updated `.env.example` with clearer environment variable descriptions.
+- Updated project version to `2.3.0`.
+
+This release focuses on deployment readiness. It does not add new music platforms or change the main bot behavior.
+
+---
+
+## What Changed in v2.2.1
+
+- Updated GitHub Actions workflow to use Node.js 24-compatible action versions.
+- Updated `actions/checkout` from `v4` to `v6`.
+- Updated `actions/setup-python` from `v5` to `v6`.
+- Added pip dependency caching in CI.
+- Added Ruff check step to the GitHub Actions workflow.
+- Updated project version to `2.2.1`.
+- Confirmed local quality checks: Ruff passed and 66 tests passed.
 
 ---
 
@@ -49,7 +66,9 @@ The project is built as a backend-style portfolio project: modular architecture,
 - Genius / lyricsgenius
 - SQLite
 - pytest
+- Ruff
 - GitHub Actions
+- Docker
 
 ---
 
@@ -69,8 +88,10 @@ app/
 └── version.py           # Project version
 
 tests/                   # Automated tests
-docs/                    # Architecture, roadmap and release workflow
+docs/                    # Architecture, roadmap, deployment and release workflow
 .github/workflows/       # GitHub Actions CI
+Dockerfile               # Container image definition
+docker-compose.yml       # Local Docker Compose startup
 ```
 
 ---
@@ -105,13 +126,13 @@ source venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 For development tools:
 
 ```bash
-pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 ### 4. Create `.env`
@@ -146,11 +167,41 @@ ADMIN_ID=your_telegram_user_id
 
 ---
 
-## Run Bot
+## Run Bot Locally
 
 ```bash
 python run.py
 ```
+
+---
+
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t telegram-music-finder-bot .
+```
+
+Run with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Run in background:
+
+```bash
+docker compose up --build -d
+```
+
+Stop:
+
+```bash
+docker compose down
+```
+
+More details are available in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ---
 
@@ -163,8 +214,20 @@ python -m pytest
 With development tools installed:
 
 ```bash
-ruff check .
+python -m ruff check .
 python -m pytest
+```
+
+---
+
+## Quality Checks
+
+Current validation target:
+
+```text
+Ruff: passed
+Pytest: passed
+Docker build: checked in GitHub Actions
 ```
 
 ---
@@ -172,10 +235,10 @@ python -m pytest
 ## Admin Commands
 
 ```text
-/errors       Show recent saved errors
-/clear_errors Clear saved errors
-/health       Show bot, database and integration diagnostics
-/version      Show current version
+/errors        Show recent saved errors
+/clear_errors  Clear saved errors
+/health        Show bot, database and integration diagnostics
+/version       Show current version
 ```
 
 `/errors`, `/clear_errors` and `/health` require `ADMIN_ID` in `.env`.
@@ -194,6 +257,8 @@ logs/
 __pycache__/
 .pytest_cache/
 .vscode/
+*.db
+*.log
 ```
 
 If `.env` was committed or uploaded anywhere, regenerate Telegram, Genius and Spotify credentials.

@@ -93,7 +93,6 @@ app/services/spotify_service.py
 app/services/track_platform_service.py
 ```
 
-
 ## Health Diagnostics
 
 ```text
@@ -118,4 +117,28 @@ pyproject.toml
 requirements-dev.txt
 ```
 
-GitHub Actions runs automated tests on pushes and pull requests to `main`. The project also includes Ruff configuration for local code quality checks.
+GitHub Actions runs automated checks on pushes and pull requests to `main` and `master`:
+
+```text
+Ruff
+pytest
+Docker build
+```
+
+## Deployment Layer
+
+```text
+Dockerfile
+docker-compose.yml
+.dockerignore
+docs/DEPLOYMENT.md
+```
+
+The deployment layer allows the bot to run in a containerized environment while keeping runtime data outside the image:
+
+```text
+data/ -> SQLite database
+logs/ -> runtime logs
+```
+
+Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as local volumes.

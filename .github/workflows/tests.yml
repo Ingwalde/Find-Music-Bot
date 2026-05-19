@@ -12,15 +12,18 @@ on:
 
 jobs:
   tests:
-    name: Ruff and Pytest
+    name: Ruff, Pytest and Docker Build
     runs-on: ubuntu-latest
 
     env:
-      TELEGRAM_BOT_TOKEN: test-token
-      GENIUS_ACCESS_TOKEN: test-token
+      BOT_TOKEN: test-token
+      GENIUS_TOKEN: test-token
+      SPOTIFY_ENABLED: "false"
       SPOTIFY_CLIENT_ID: test-client-id
       SPOTIFY_CLIENT_SECRET: test-client-secret
-      ADMIN_IDS: "123456789"
+      ADMIN_ID: "123456789"
+      DATABASE_PATH: data/test_music_bot.db
+      LOG_FILE_PATH: logs/test_bot.log
 
     steps:
       - name: Checkout repository
@@ -35,7 +38,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: Run Ruff
@@ -43,3 +45,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+      - name: Build Docker image
+        run: docker build -t find-music-bot:test .

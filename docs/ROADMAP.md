@@ -15,31 +15,34 @@
 - `v2.0.0` — Spotify API Integration
 - `v2.1.0` — Architecture Cleanup Update
 - `v2.2.0` — Stability, Testing & GitHub CI Update
+- `v2.2.1` — GitHub Actions Runtime Update
+- `v2.3.0` — Docker & Deployment Update
 
 ## Planned
-
-### v2.3.0 — Docker and Deployment
-
-- Dockerfile
-- docker-compose.yml
-- local production-like startup
-- deployment guide
 
 ### v2.4.0 — Backend Diagnostics Update
 
 - Extended `/stats` command
-- better admin diagnostics
-- optional JSON export for error/search statistics
+- Better admin diagnostics
+- Optional JSON export for error/search statistics
+- More detailed health diagnostics
 
 ### v2.5.0 — Database Upgrade Preparation
 
-- repository abstraction cleanup
-- optional PostgreSQL-ready configuration
-- migration documentation
+- Repository abstraction cleanup
+- Optional PostgreSQL-ready configuration
+- Migration documentation
+- Database backup/export documentation
 
-## Not Planned for v2.2
+### v3.0.0 — Production Architecture Update
+
+- Optional FastAPI admin API
+- Optional deployment target documentation
+- Better production monitoring structure
+
+## Not Planned for v2.3
 
 - Additional music platforms
 - Web dashboard
 - PostgreSQL migration
-- Complex deployment automation
+- Complex production orchestration

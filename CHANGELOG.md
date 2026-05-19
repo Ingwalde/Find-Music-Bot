@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.3.0] - 2026-05-12
+
+### Added
+- Added `Dockerfile` for containerized bot startup.
+- Added `docker-compose.yml` for one-command local Docker startup.
+- Added `.dockerignore` to keep local/private files out of Docker builds.
+- Added `docs/DEPLOYMENT.md` with local, Docker and Docker Compose instructions.
+- Added Docker build validation step to GitHub Actions.
+- Added GitHub Actions badge to README.
+
+### Changed
+- Updated project version to `2.3.0`.
+- Updated README with Docker usage instructions.
+- Updated `.env.example` with clearer configuration descriptions.
+- Updated roadmap and release workflow documentation.
+
+### Notes
+- This release focuses on deployment readiness.
+- No new music platforms were added.
+- Main bot behavior remains unchanged.
+
+---
+
+## [v2.2.1] - 2026-05-12
+
+### Changed
+- Updated GitHub Actions workflow to use Node.js 24-compatible action versions.
+- Updated `actions/checkout` from `v4` to `v6`.
+- Updated `actions/setup-python` from `v5` to `v6`.
+- Added pip dependency caching to the Python setup step.
+- Added Ruff check step to the GitHub Actions workflow.
+- Updated project version to `2.2.1`.
+
+### Fixed
+- Removed GitHub Actions warning about deprecated Node.js 20 action runtime.
+- Ensured CI checks run both Ruff and pytest.
+
+### Notes
+- This is a patch release. It does not change bot features or user-facing behavior.
+
+---
+
 ## [v2.2.0] - 2026-05-12
 
 ### Added
