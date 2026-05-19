@@ -17,32 +17,29 @@
 - `v2.2.0` — Stability, Testing & GitHub CI Update
 - `v2.2.1` — GitHub Actions Runtime Update
 - `v2.3.0` — Docker & Deployment Update
+- `v2.4.0` — Quality, Coverage & Release Cleanup Update
 
 ## Planned
 
-### v2.4.0 — Backend Diagnostics Update
+### v2.5.0 — Database Maintenance & Admin Tools Update
 
 - Extended `/stats` command
-- Better admin diagnostics
-- Optional JSON export for error/search statistics
-- More detailed health diagnostics
-
-### v2.5.0 — Database Upgrade Preparation
-
-- Repository abstraction cleanup
-- Optional PostgreSQL-ready configuration
-- Migration documentation
-- Database backup/export documentation
+- Admin `/maintenance` command
+- Database size and table statistics
+- Cleanup helpers for old errors/history
+- Schema version visibility
+- More database/admin tests
 
 ### v3.0.0 — Production Architecture Update
 
 - Optional FastAPI admin API
 - Optional deployment target documentation
 - Better production monitoring structure
+- Optional PostgreSQL-ready configuration
 
-## Not Planned for v2.3
+## Not Planned for v2.x
 
 - Additional music platforms
 - Web dashboard
-- PostgreSQL migration
 - Complex production orchestration
+- Full PostgreSQL migration

@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.4.0] - 2026-05-19
+
+### Added
+- Added pytest coverage reporting through `pytest-cov`.
+- Added coverage configuration to `pyproject.toml`.
+- Added `scripts/check_release_clean.py` for release safety validation.
+- Added release cleanup validation step to GitHub Actions.
+
+### Changed
+- Updated project version to `2.4.0`.
+- Updated README with coverage and release cleanup instructions.
+- Updated release workflow documentation with coverage and cleanup checks.
+- Updated roadmap for the v2.4 quality release and v2.5 admin/database maintenance plan.
+- Improved `.gitignore` and `.dockerignore` for coverage artifacts and local archives.
+
+### Notes
+- This release focuses on code quality, coverage reporting and clean release packaging.
+- No new music platforms were added.
+- Main bot behavior remains unchanged.
+
+---
+
 ## [v2.3.0] - 2026-05-12
 
 ### Added

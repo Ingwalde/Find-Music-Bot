@@ -12,7 +12,7 @@ on:
 
 jobs:
   tests:
-    name: Ruff, Pytest and Docker Build
+    name: Ruff, Pytest Coverage, Release Cleanup and Docker Build
     runs-on: ubuntu-latest
 
     env:
@@ -43,8 +43,11 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check .
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: python -m pytest
+
+      - name: Validate release cleanup
+        run: python scripts/check_release_clean.py
 
       - name: Build Docker image
         run: docker build -t find-music-bot:test .

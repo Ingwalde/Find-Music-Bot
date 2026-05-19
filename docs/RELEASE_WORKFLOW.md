@@ -14,6 +14,7 @@ v2.1.0
 v2.2.0
 v2.2.1
 v2.3.0
+v2.4.0
 ```
 
 ## Before Creating a Release
@@ -29,19 +30,25 @@ v2.3.0
 python -m ruff check .
 ```
 
-7. Run tests:
+7. Run tests with coverage:
 
 ```bash
 python -m pytest
 ```
 
-8. For Docker releases, verify Docker build:
+8. Run the release cleanup check:
+
+```bash
+python scripts/check_release_clean.py
+```
+
+9. For Docker releases, verify Docker build:
 
 ```bash
 docker build -t find-music-bot:test .
 ```
 
-9. Check that local/private files are not staged:
+10. Check that local/private files are not staged or tracked:
 
 ```text
 .env
@@ -50,9 +57,13 @@ data/
 logs/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 .vscode/
 *.db
 *.log
+*.zip
+coverage.xml
+htmlcov/
 ```
 
 ## Commit Message Format
@@ -60,20 +71,20 @@ __pycache__/
 Use clear release commits:
 
 ```text
-Release v2.3.0: add Docker and deployment support
+Release v2.4.0: add coverage and release cleanup checks
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.3.0
-git push origin v2.3.0
+git tag v2.4.0
+git push origin v2.4.0
 ```
 
 ## Release Title Format
 
 ```text
-v2.3.0 - Docker & Deployment Update
+v2.4.0 - Quality, Coverage & Release Cleanup Update
 ```
 
 ## Release Notes Template
@@ -99,6 +110,8 @@ Short explanation of this release.
 
 - Ruff
 - Pytest
+- Coverage
+- Release cleanup check
 - Docker build
 
 ## Notes
@@ -124,4 +137,5 @@ v2.1.0 - Architecture Cleanup Update
 v2.2.0 - Stability, Testing & GitHub CI Update
 v2.2.1 - GitHub Actions Runtime Update
 v2.3.0 - Docker & Deployment Update
+v2.4.0 - Quality, Coverage & Release Cleanup Update
 ```

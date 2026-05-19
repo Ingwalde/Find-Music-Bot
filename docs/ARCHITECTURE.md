@@ -142,3 +142,24 @@ logs/ -> runtime logs
 ```
 
 Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as local volumes.
+---
+
+## Quality and Release Safety
+
+Version `v2.4.0` adds a release cleanup layer around the existing CI pipeline.
+
+```text
+scripts/
+└── check_release_clean.py   # Validates that private/local files are not tracked by Git
+```
+
+The cleanup script checks tracked files only. This allows developers to keep local `.env`, logs and SQLite files in the working directory while preventing them from being committed or released.
+
+The CI pipeline now validates:
+
+- Ruff code style checks
+- pytest test suite
+- pytest-cov coverage report
+- release cleanup check
+- Docker image build
+

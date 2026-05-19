@@ -20,8 +20,9 @@ ENV/
 .mypy_cache/
 .coverage
 .coverage.*
-htmlcov/
 coverage.xml
+htmlcov/
+coverage/
 
 # Local database and runtime data
 data/

@@ -1,6 +1,8 @@
 .git
 .github
 .env
+.env.*
+!.env.example
 .venv
 venv
 __pycache__
@@ -9,6 +11,12 @@ __pycache__
 *.pyd
 .pytest_cache
 .ruff_cache
+.mypy_cache
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+coverage
 .vscode
 .idea
 .DS_Store
@@ -20,3 +28,6 @@ logs
 *.log
 screenshots
 *.zip
+*.tar
+*.tar.gz
+*.7z
