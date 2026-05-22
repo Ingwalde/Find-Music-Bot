@@ -4,21 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v2.4.1] - 2026-05-19
+## [v2.5.0] - 2026-05-21
 
 ### Added
-- Added additional coverage-focused tests for bot runtime startup, repository edge cases, Deezer service behavior and Spotify auth/client paths.
-- Added tests for successful and failing bot polling startup paths.
-- Added tests for Spotify token caching, HTTP error handling and search candidate filtering.
-- Added tests for Deezer search fallback, track loading and formatting edge cases.
+- Added `app/database/maintenance.py` with database size, table counts, schema version and cleanup helpers.
+- Added `app/admin_tools.py` with admin statistics, maintenance and cleanup report formatting.
+- Added admin `/stats` command.
+- Added admin `/maintenance` command.
+- Added admin `/cleanup_errors` command.
+- Added admin `/cleanup_history` command.
+- Added admin menu button visibility based on `config/admins.json`.
+- Added admin menu keyboard for stats, maintenance, cleanup and health actions.
+- Added `config/admins.example.json` as a safe template for local admin IDs.
+- Added `schema_migrations` table for schema version visibility.
+- Added tests for database maintenance helpers.
+- Added tests for admin reports and admin command handlers.
+
+### Changed
+- Updated project version to `2.5.0`.
+- Updated README with admin maintenance commands.
+- Updated architecture and roadmap documentation for database maintenance.
+- Updated release workflow documentation with v2.5 release checks.
+- Updated English help text with admin diagnostics commands.
+- Updated main menu rendering to show the admin button only for allowed Telegram IDs.
+
+### Notes
+- This release focuses on database maintenance and admin tooling.
+- No new music platforms were added.
+- Main user-facing music search behavior remains unchanged.
+
+---
+
+## [v2.4.1] - 2026-05-21
+
+### Added
+- Added additional tests for runtime startup, database repositories, Deezer service and Spotify auth/client behavior.
 
 ### Changed
 - Updated project version to `2.4.1`.
-- Raised the v2.4 quality baseline from 169 tests / 85% coverage toward a stronger coverage target.
+- Increased full-project coverage from 85% to 93.40%.
+- Expanded the test suite from 169 to 196 tests.
+- Added and verified a minimum coverage gate of 85%.
 
 ### Notes
-- This is a patch release focused on test coverage and quality confidence.
-- No new music platforms were added.
+- This patch release focuses on coverage expansion only.
 - Main bot behavior remains unchanged.
 
 ---

@@ -1,14 +1,22 @@
 import telebot
 from telebot import types
 
+from app.admin_tools import (
+    cleanup_errors_report,
+    cleanup_history_report,
+    format_maintenance_report,
+    format_stats_report,
+)
 from app.bot.actions import ask_for_music, send_search_results, show_main_menu
 from app.bot.keyboards import (
+    admin_menu_keyboard,
     favorites_keyboard,
     history_keyboard,
     language_keyboard,
     main_menu_keyboard,
     search_mode_keyboard,
 )
+from app.config.admins import is_admin_user
 from app.config.settings import settings
 from app.database.repositories import (
     clear_errors,
@@ -27,11 +35,11 @@ from app.version import __version__
 logger = setup_logger(__name__)
 
 
-def is_admin(user_id: int) -> bool:
+def is_admin(user_id: int | None) -> bool:
     """
-    Checks whether user can access admin-only commands.
+    Checks whether user can access admin-only actions.
     """
-    return settings.ADMIN_ID is not None and user_id == settings.ADMIN_ID
+    return is_admin_user(user_id)
 
 
 def format_recent_errors(language: str = "en") -> str:
@@ -58,6 +66,62 @@ def format_recent_errors(language: str = "en") -> str:
         )
 
     return "\n".join(lines)
+
+
+def send_admin_only_message(bot: telebot.TeleBot, message: types.Message, language: str) -> None:
+    """
+    Sends admin-only denial message.
+    """
+    bot.send_message(message.chat.id, t("admin_only", language))
+
+
+def show_admin_menu(bot: telebot.TeleBot, message: types.Message) -> None:
+    """
+    Shows admin menu for users listed in the local admin config file.
+    """
+    upsert_user(message.from_user)
+    language = get_user_language(message.from_user.id)
+
+    if not is_admin(message.from_user.id):
+        send_admin_only_message(bot, message, language)
+        return
+
+    bot.send_message(
+        message.chat.id,
+        t("admin_menu", language),
+        reply_markup=admin_menu_keyboard(language),
+    )
+
+
+def handle_admin_action(bot: telebot.TeleBot, message: types.Message, action: str) -> None:
+    """
+    Handles admin menu button actions.
+    """
+    upsert_user(message.from_user)
+    language = get_user_language(message.from_user.id)
+
+    if not is_admin(message.from_user.id):
+        send_admin_only_message(bot, message, language)
+        return
+
+    if action == "admin_stats":
+        bot.send_message(message.chat.id, format_stats_report())
+        return
+
+    if action == "admin_maintenance":
+        bot.send_message(message.chat.id, format_maintenance_report())
+        return
+
+    if action == "admin_cleanup_errors":
+        bot.send_message(message.chat.id, cleanup_errors_report())
+        return
+
+    if action == "admin_cleanup_history":
+        bot.send_message(message.chat.id, cleanup_history_report())
+        return
+
+    if action == "admin_health":
+        bot.send_message(message.chat.id, format_health_report())
 
 
 def show_language_menu(bot: telebot.TeleBot, message: types.Message) -> None:
@@ -88,13 +152,17 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         return
 
     text = message.text.strip()
+
+    if text.startswith("/"):
+        return
+
     action = get_menu_action_by_text(text)
 
     if action == "main_menu":
         show_main_menu(bot, message.chat.id, message.from_user.id)
         return
 
-    if action in ["music", "favorites", "history", "language"]:
+    if action in ["music", "favorites", "history", "language", "admin"]:
         bot.send_message(
             message.chat.id,
             t("menu_buttons_disabled", language),
@@ -111,7 +179,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         bot.send_message(
             message.chat.id,
             t("welcome", language),
-            reply_markup=main_menu_keyboard(language),
+            reply_markup=main_menu_keyboard(language, is_admin=is_admin(message.from_user.id)),
         )
         return
 
@@ -230,7 +298,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
         bot.send_message(
             message.chat.id,
             t("welcome", language),
-            reply_markup=main_menu_keyboard(language),
+            reply_markup=main_menu_keyboard(language, is_admin=is_admin(message.from_user.id)),
         )
 
     @bot.message_handler(commands=["help"])
@@ -285,6 +353,52 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
         bot.send_message(message.chat.id, format_health_report())
 
+
+
+    @bot.message_handler(commands=["stats"])
+    def stats_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, format_stats_report())
+
+    @bot.message_handler(commands=["maintenance"])
+    def maintenance_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, format_maintenance_report())
+
+    @bot.message_handler(commands=["cleanup_errors"])
+    def cleanup_errors_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, cleanup_errors_report())
+
+    @bot.message_handler(commands=["cleanup_history"])
+    def cleanup_history_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, cleanup_history_report())
+
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:
         show_favorites(bot, message)
@@ -296,6 +410,9 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     @bot.message_handler(content_types=["text"])
     def text_handler(message: types.Message) -> None:
         upsert_user(message.from_user)
+
+        if message.text and message.text.strip().startswith("/"):
+            return
 
         action = get_menu_action_by_text(message.text)
 
@@ -317,6 +434,20 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
         if action == "language":
             show_language_menu(bot, message)
+            return
+
+        if action == "admin":
+            show_admin_menu(bot, message)
+            return
+
+        if action in {
+            "admin_stats",
+            "admin_maintenance",
+            "admin_cleanup_errors",
+            "admin_cleanup_history",
+            "admin_health",
+        }:
+            handle_admin_action(bot, message, action)
             return
 
         process_music_search(bot, message)

@@ -13,6 +13,7 @@ from app.bot.keyboards import (
     search_results_keyboard,
     track_actions_keyboard,
 )
+from app.config.admins import is_admin_user
 from app.config.settings import settings
 from app.database.repositories import (
     get_user_language,
@@ -49,7 +50,7 @@ def show_main_menu(
     bot.send_message(
         chat_id,
         t("main_menu", language),
-        reply_markup=main_menu_keyboard(language),
+        reply_markup=main_menu_keyboard(language, is_admin=is_admin_user(user_id)),
     )
 
 

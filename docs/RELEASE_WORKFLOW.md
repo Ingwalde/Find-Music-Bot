@@ -14,7 +14,9 @@ v2.1.0
 v2.2.0
 v2.2.1
 v2.3.0
+v2.4.0
 v2.4.1
+v2.5.0
 ```
 
 ## Before Creating a Release
@@ -23,7 +25,7 @@ v2.4.1
 2. Update `README.md`.
 3. Update `CHANGELOG.md`.
 4. Update `docs/ROADMAP.md`.
-5. Update release notes.
+5. Update release text directly in GitHub Releases.
 6. Run Ruff:
 
 ```bash
@@ -71,20 +73,20 @@ htmlcov/
 Use clear release commits:
 
 ```text
-Release v2.4.1: expand coverage-focused tests
+Release v2.5.0: add database maintenance and admin tools
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.4.1
-git push origin v2.4.1
+git tag v2.5.0
+git push origin v2.5.0
 ```
 
 ## Release Title Format
 
 ```text
-v2.4.1 - Coverage Expansion Update
+v2.5.0 - Database Maintenance & Admin Tools Update
 ```
 
 ## Release Notes Template
@@ -137,5 +139,12 @@ v2.1.0 - Architecture Cleanup Update
 v2.2.0 - Stability, Testing & GitHub CI Update
 v2.2.1 - GitHub Actions Runtime Update
 v2.3.0 - Docker & Deployment Update
+v2.4.0 - Quality, Coverage & Release Cleanup Update
 v2.4.1 - Coverage Expansion Update
+v2.5.0 - Database Maintenance & Admin Tools Update
 ```
+
+
+## Admin access configuration
+
+Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local and is ignored by Git.

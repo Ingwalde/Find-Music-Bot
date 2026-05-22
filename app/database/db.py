@@ -5,6 +5,7 @@ from app.config.settings import settings
 from app.database.indexes import create_indexes
 from app.database.migrations import add_column_if_missing, get_table_columns, migrate_db
 from app.database.schema import create_tables
+from app.version import __version__
 
 
 def get_database_path() -> Path:
@@ -25,6 +26,19 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def record_schema_version(cursor: sqlite3.Cursor, version: str = __version__) -> None:
+    """
+    Stores the current application schema version if it is not already recorded.
+    """
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations (version)
+        VALUES (?)
+        """,
+        (version,),
+    )
+
+
 def init_db() -> None:
     """
     Creates all required tables, applies migrations and creates indexes.
@@ -35,6 +49,7 @@ def init_db() -> None:
     create_tables(cursor)
     migrate_db(cursor)
     create_indexes(cursor)
+    record_schema_version(cursor)
 
     conn.commit()
     conn.close()
@@ -47,5 +62,6 @@ __all__ = [
     "add_column_if_missing",
     "migrate_db",
     "create_indexes",
+    "record_schema_version",
     "init_db",
 ]

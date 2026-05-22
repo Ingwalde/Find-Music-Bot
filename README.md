@@ -2,11 +2,11 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.4.1 — Coverage Expansion Update`
+**Current version:** `v2.5.0 — Database Maintenance & Admin Tools Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for finding music through Deezer, opening Spotify links when available, saving favorite tracks, viewing search history and opening Genius lyrics pages.
 
-The project is built as a backend-style portfolio project: modular architecture, SQLite persistence, external API integrations, localization, logging, tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks and versioned GitHub releases.
+The project is built as a backend-style portfolio project: modular architecture, SQLite persistence, external API integrations, localization, logging, tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools and versioned GitHub releases.
 
 ---
 
@@ -22,9 +22,12 @@ The project is built as a backend-style portfolio project: modular architecture,
 - Multi-language menu support.
 - Admin error log commands.
 - Admin health-check command.
-- SQLite database with migrations and indexes.
-- Automated tests.
-- Test coverage reporting with pytest-cov.
+- Admin statistics command.
+- Admin maintenance report command.
+- Admin cleanup commands for saved errors and search history.
+- Admin button in the main menu for users listed in `config/admins.json`.
+- SQLite database with migrations, indexes and schema version visibility.
+- Automated tests and coverage gate.
 - Ruff code quality checks.
 - Release cleanup validation for private/local files.
 - GitHub Actions workflow.
@@ -32,14 +35,29 @@ The project is built as a backend-style portfolio project: modular architecture,
 
 ---
 
+## What Changed in v2.5.0
+
+- Added database maintenance utilities.
+- Added database size, table counts and schema version reporting.
+- Added admin `/stats` command.
+- Added admin `/maintenance` command.
+- Added admin `/cleanup_errors` command.
+- Added admin `/cleanup_history` command.
+- Added admin menu button visibility based on `config/admins.json`.
+- Added schema version tracking through `schema_migrations`.
+- Added tests for admin reports, database maintenance helpers and admin handlers.
+- Updated project version to `2.5.0`.
+
+This release focuses on admin diagnostics and long-term database maintenance. It does not add new music platforms.
+
+---
+
 ## What Changed in v2.4.1
 
-- Expanded coverage-focused tests for runtime startup, database repositories, Deezer service and Spotify client/auth modules.
-- Increased test coverage beyond the v2.4.0 baseline.
-- Updated project version to `2.4.1`.
-- Kept release notes in GitHub Releases and version history in `CHANGELOG.md`.
-
-This patch release focuses only on test coverage and quality confidence. It does not change user-facing bot behavior.
+- Expanded the test suite from 169 to 196 tests.
+- Increased full-project coverage from 85% to 93.40%.
+- Added additional tests for runtime startup, database repositories, Deezer service and Spotify auth/client behavior.
+- Added and verified a minimum coverage gate of 85%.
 
 ---
 
@@ -51,7 +69,6 @@ This patch release focuses only on test coverage and quality confidence. It does
 - Added release cleanup validation to GitHub Actions.
 - Updated `.gitignore` and `.dockerignore` for coverage artifacts and local archives.
 - Updated project version to `2.4.0`.
-- Expanded the test suite and introduced an 85% coverage baseline.
 
 This release focuses on code quality, CI confidence and clean release packaging. It does not add new music platforms or change the main bot behavior.
 
@@ -69,18 +86,6 @@ This release focuses on code quality, CI confidence and clean release packaging.
 - Updated project version to `2.3.0`.
 
 This release focuses on deployment readiness. It does not add new music platforms or change the main bot behavior.
-
----
-
-## What Changed in v2.2.1
-
-- Updated GitHub Actions workflow to use Node.js 24-compatible action versions.
-- Updated `actions/checkout` from `v4` to `v6`.
-- Updated `actions/setup-python` from `v5` to `v6`.
-- Added pip dependency caching in CI.
-- Added Ruff check step to the GitHub Actions workflow.
-- Updated project version to `2.2.1`.
-- Confirmed local quality checks: Ruff passed and 66 tests passed.
 
 ---
 
@@ -106,17 +111,18 @@ This release focuses on deployment readiness. It does not add new music platform
 app/
 ├── bot/                 # Telegram handlers, callbacks and keyboards
 ├── config/              # Environment-based settings
-├── database/            # SQLite schema, migrations, indexes and repositories
+├── database/            # SQLite schema, migrations, indexes, maintenance and repositories
 ├── localization/        # Translations and language support
 ├── platforms/           # Platform integrations, Spotify modules and aggregator
 ├── services/            # Deezer, Spotify, lyrics and formatting services
 ├── utils/               # Logging, text and time helpers
+├── admin_tools.py       # Admin statistics, maintenance and cleanup reports
 ├── health.py            # Admin health diagnostics
 ├── main.py              # Bot startup
 └── version.py           # Project version
 
 tests/                   # Automated tests
-scripts/                 # Release cleanup and maintenance scripts
+scripts/                 # Release cleanup scripts
 docs/                    # Architecture, roadmap, deployment and release workflow
 .github/workflows/       # GitHub Actions CI
 Dockerfile               # Container image definition
@@ -196,6 +202,30 @@ ADMIN_ID=your_telegram_user_id
 
 ---
 
+## Admin Commands
+
+Admin-only actions can be enabled either through `ADMIN_ID` in `.env` or through a local `config/admins.json` file. The local `config/admins.json` file is ignored by Git; use `config/admins.example.json` as a template.
+
+```json
+{
+  "admin_ids": [123456789]
+}
+```
+
+Admin tools are available from the extra 🛠 Admin button in the main menu for allowed users. Slash commands are also kept as fallback.
+
+```text
+/errors           Show recent saved errors
+/clear_errors     Clear saved errors
+/health           Show runtime health checks
+/stats            Show users/searches/favorites/tracks/errors statistics
+/maintenance      Show database size, schema version and maintenance status
+/cleanup_errors   Keep newest saved errors and remove older rows
+/cleanup_history  Keep newest search history rows per user and remove older rows
+```
+
+---
+
 ## Run Bot Locally
 
 ```bash
@@ -263,8 +293,9 @@ Current validation target:
 
 ```text
 Ruff: passed
-Pytest: 66 tests passed
-Coverage: generated by pytest-cov
+Pytest: 196+ tests
+Coverage gate: 85%
+Latest measured coverage: 93.40% in v2.4.1
 Release cleanup check: enabled
 Docker build: checked in GitHub Actions
 ```
@@ -273,41 +304,11 @@ Before release, verify that private/local files are not tracked:
 
 ```bash
 python scripts/check_release_clean.py
+git ls-files .env data logs .pytest_cache .ruff_cache .vscode coverage.xml .coverage
 ```
 
 ---
 
-## Admin Commands
+## License
 
-```text
-/errors        Show recent saved errors
-/clear_errors  Clear saved errors
-/health        Show bot, database and integration diagnostics
-/version       Show current version
-```
-
-`/errors`, `/clear_errors` and `/health` require `ADMIN_ID` in `.env`.
-
----
-
-## GitHub Safety
-
-Do not publish local/private files:
-
-```text
-.env
-.git/
-data/
-logs/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-.vscode/
-*.db
-*.log
-*.zip
-coverage.xml
-htmlcov/
-```
-
-If `.env` was committed or uploaded anywhere, regenerate Telegram, Genius and Spotify credentials.
+This project is intended for portfolio and educational use.

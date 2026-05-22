@@ -3,6 +3,7 @@
 .env
 .env.*
 !.env.example
+config/admins.json
 .venv
 venv
 __pycache__

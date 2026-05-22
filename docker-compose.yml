@@ -8,3 +8,4 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./config:/app/config:ro

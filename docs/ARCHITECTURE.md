@@ -7,11 +7,11 @@ The bot is split into layers:
 ```text
 Telegram Bot Layer
  ↓
-Bot Actions / Callback Router
+Bot Actions / Callback Router / Admin Commands
  ↓
-Services / Platform Aggregator
+Services / Platform Aggregator / Admin Tools
  ↓
-Database Repositories
+Database Repositories / Maintenance Helpers
  ↓
 SQLite
 ```
@@ -23,6 +23,25 @@ app/bot/
 ```
 
 Contains Telegram handlers, callbacks and keyboard builders.
+
+Admin-only commands are registered in `app/bot/handlers.py` and use `ADMIN_ID` from settings.
+
+## Admin Tools Layer
+
+```text
+app/admin_tools.py
+```
+
+Formats operational reports for admin commands:
+
+```text
+/stats
+/maintenance
+/cleanup_errors
+/cleanup_history
+```
+
+This layer keeps Telegram command handlers small and moves report formatting into testable functions.
 
 ## Platform Layer
 
@@ -51,7 +70,8 @@ Database logic is split into:
 schema.py       → CREATE TABLE statements
 migrations.py   → lightweight SQLite migrations
 indexes.py      → CREATE INDEX statements
-db.py           → connection and init_db()
+db.py           → connection, init_db() and schema version recording
+maintenance.py  → database size, table counts, cleanup helpers and schema version visibility
 ```
 
 Repository functions are split by domain:
@@ -66,6 +86,12 @@ repository_modules/spotify.py
 ```
 
 `repositories.py` remains as a compatibility facade.
+
+## Schema Version Visibility
+
+Version `v2.5.0` adds a lightweight `schema_migrations` table.
+
+It records application schema versions during `init_db()` and allows the admin `/maintenance` command to show the current schema version.
 
 ## Localization Layer
 
@@ -109,6 +135,22 @@ The health module provides admin diagnostics for:
 
 The Telegram `/health` command is admin-only and is designed for quick operational checks without exposing secrets.
 
+## Database Maintenance Diagnostics
+
+```text
+app/database/maintenance.py
+```
+
+The maintenance module provides:
+
+- database file size;
+- row counts for important tables;
+- schema version visibility;
+- cleanup helpers for saved errors;
+- cleanup helpers for search history.
+
+These helpers are used by admin commands and covered by tests.
+
 ## CI Layer
 
 ```text
@@ -121,7 +163,8 @@ GitHub Actions runs automated checks on pushes and pull requests to `main` and `
 
 ```text
 Ruff
-pytest
+pytest with coverage
+release cleanup check
 Docker build
 ```
 
@@ -142,11 +185,10 @@ logs/ -> runtime logs
 ```
 
 Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as local volumes.
+
 ---
 
 ## Quality and Release Safety
-
-Version `v2.4.0` adds a release cleanup layer around the existing CI pipeline. Version `v2.4.1` expands test coverage around runtime startup, repositories, Deezer service and Spotify auth/client behavior without changing production behavior.
 
 ```text
 scripts/
@@ -155,11 +197,7 @@ scripts/
 
 The cleanup script checks tracked files only. This allows developers to keep local `.env`, logs and SQLite files in the working directory while preventing them from being committed or released.
 
-The CI pipeline now validates:
 
-- Ruff code style checks
-- pytest test suite
-- pytest-cov coverage report
-- release cleanup check
-- Docker image build
+## Admin access configuration
 
+Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local and is ignored by Git.

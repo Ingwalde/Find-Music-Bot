@@ -57,6 +57,12 @@ def get_menu_action_by_text(text: str) -> str | None:
         "btn_history": "history",
         "btn_language": "language",
         "btn_main_menu": "main_menu",
+        "btn_admin": "admin",
+        "btn_admin_stats": "admin_stats",
+        "btn_admin_maintenance": "admin_maintenance",
+        "btn_admin_cleanup_errors": "admin_cleanup_errors",
+        "btn_admin_cleanup_history": "admin_cleanup_history",
+        "btn_admin_health": "admin_health",
     }
 
     for language in TRANSLATIONS:

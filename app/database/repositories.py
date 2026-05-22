@@ -6,6 +6,13 @@ This file keeps old imports working, for example:
     from app.database.repositories import save_track, get_user_language
 """
 
+from app.database.maintenance import (
+    cleanup_old_errors,
+    cleanup_search_history,
+    get_database_summary,
+    get_schema_version,
+    get_table_counts,
+)
 from app.database.repository_modules.common import row_to_dict
 from app.database.repository_modules.errors import clear_errors, get_recent_errors, save_error
 from app.database.repository_modules.favorites import (
@@ -51,4 +58,9 @@ __all__ = [
     "save_error",
     "get_recent_errors",
     "clear_errors",
+    "get_table_counts",
+    "get_database_summary",
+    "get_schema_version",
+    "cleanup_old_errors",
+    "cleanup_search_history",
 ]

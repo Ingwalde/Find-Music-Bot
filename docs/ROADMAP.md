@@ -19,17 +19,16 @@
 - `v2.3.0` — Docker & Deployment Update
 - `v2.4.0` — Quality, Coverage & Release Cleanup Update
 - `v2.4.1` — Coverage Expansion Update
+- `v2.5.0` — Database Maintenance & Admin Tools Update
 
 ## Planned
 
-### v2.5.0 — Database Maintenance & Admin Tools Update
+### v2.6.0 — Admin UX & Operational Polish Update
 
-- Extended `/stats` command
-- Admin `/maintenance` command
-- Database size and table statistics
-- Cleanup helpers for old errors/history
-- Schema version visibility
-- More database/admin tests
+- Better formatting for admin reports
+- Safer confirmation flow for cleanup commands
+- Optional `/admin` menu command
+- More focused admin/help documentation
 
 ### v3.0.0 — Production Architecture Update
 
@@ -44,3 +43,8 @@
 - Web dashboard
 - Complex production orchestration
 - Full PostgreSQL migration
+
+
+## Admin access configuration
+
+Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local and is ignored by Git.

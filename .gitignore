@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Local admin access configuration
+config/admins.json
+!config/admins.example.json
+
 # Python cache / bytecode
 __pycache__/
 *.py[cod]

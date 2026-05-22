@@ -117,7 +117,7 @@ def test_process_music_search_disables_other_menu_buttons(monkeypatch):
     assert len(bot.next_handlers) == 1
 
 
-def test_process_music_search_handles_start_and_regular_query(monkeypatch):
+def test_process_music_search_handles_commands_and_regular_query(monkeypatch):
     bot = FakeBot()
     called = {}
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
@@ -126,9 +126,12 @@ def test_process_music_search_handles_start_and_regular_query(monkeypatch):
     monkeypatch.setattr(handlers, "send_search_results", lambda **kwargs: called.update(kwargs))
 
     handlers.process_music_search(bot, fake_message(text="/start"))
+
+    assert bot.messages == []
+    assert called == {}
+
     handlers.process_music_search(bot, fake_message(text="SOS"))
 
-    assert bot.messages
     assert called["query"] == "SOS"
 
 
