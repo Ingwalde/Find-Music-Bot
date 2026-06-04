@@ -1,6 +1,33 @@
 from math import ceil
+from time import time
+
+SEARCH_CONTEXT_TTL_SECONDS = 60 * 60
 
 search_contexts: dict[int, dict] = {}
+
+
+def cleanup_expired_search_contexts(now: float | None = None) -> int:
+    """
+    Removes expired in-memory search contexts and returns the number of removed entries.
+    """
+    current_time = time() if now is None else now
+    expired_user_ids = [
+        user_id
+        for user_id, context in search_contexts.items()
+        if current_time - float(context.get("created_at", 0)) > SEARCH_CONTEXT_TTL_SECONDS
+    ]
+
+    for user_id in expired_user_ids:
+        search_contexts.pop(user_id, None)
+
+    return len(expired_user_ids)
+
+
+def clear_search_context(user_id: int) -> None:
+    """
+    Removes one user's search context.
+    """
+    search_contexts.pop(user_id, None)
 
 
 def save_search_context(user_id: int, query: str, tracks: list[dict]) -> None:
@@ -8,18 +35,32 @@ def save_search_context(user_id: int, query: str, tracks: list[dict]) -> None:
     Saves last search results for user.
     Used for pagination without calling Deezer API again.
     """
+    cleanup_expired_search_contexts()
     search_contexts[user_id] = {
         "query": query,
         "tracks": tracks,
         "page": 0,
+        "created_at": time(),
     }
 
 
 def get_search_context(user_id: int) -> dict | None:
     """
     Returns user's last search context.
+    Expired contexts are removed lazily to avoid unbounded memory growth.
     """
-    return search_contexts.get(user_id)
+    context = search_contexts.get(user_id)
+
+    if not context:
+        return None
+
+    created_at = float(context.get("created_at", 0))
+
+    if time() - created_at > SEARCH_CONTEXT_TTL_SECONDS:
+        clear_search_context(user_id)
+        return None
+
+    return context
 
 
 def get_total_pages(user_id: int, page_size: int) -> int:

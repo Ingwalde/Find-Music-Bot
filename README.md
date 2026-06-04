@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.5.0 — Database Maintenance & Admin Tools Update`
+**Current version:** `v2.5.1 — Stability & Architecture Cleanup Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for finding music through Deezer, opening Spotify links when available, saving favorite tracks, viewing search history and opening Genius lyrics pages.
 
@@ -32,6 +32,22 @@ The project is built as a backend-style portfolio project: modular architecture,
 - Release cleanup validation for private/local files.
 - GitHub Actions workflow.
 - Docker and Docker Compose support.
+
+---
+
+
+## What Changed in v2.5.1
+
+- Cached admin ID loading from `config/admins.json` to avoid reading/parsing JSON on every message.
+- Localized the Genius lyrics URL button through the existing translation system.
+- Added a thread-safe Spotify runtime lock for token/cache/cooldown state.
+- Added TTL-based cleanup for in-memory search contexts to avoid unbounded memory growth.
+- Removed the lazy `actions.py → handlers.py` import workaround by registering the music search handler explicitly.
+- Updated database maintenance table reporting to discover tables from SQLite schema instead of a hardcoded list.
+- Added tests for admin cache behavior, search context expiration, dynamic maintenance table discovery, localized Genius button and Spotify runtime lock behavior.
+- Updated project version to `2.5.1`.
+
+This release is based on the external code review notes and focuses on stability, thread-safety and small architecture cleanup. It does not add new music platforms.
 
 ---
 
@@ -295,7 +311,7 @@ Current validation target:
 Ruff: passed
 Pytest: 196+ tests
 Coverage gate: 85%
-Latest measured coverage: 93.40% in v2.4.1
+Latest measured coverage: 93%+ in v2.5.1
 Release cleanup check: enabled
 Docker build: checked in GitHub Actions
 ```

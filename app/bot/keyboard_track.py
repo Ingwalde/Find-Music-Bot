@@ -86,14 +86,14 @@ def track_actions_keyboard(
     return markup
 
 
-def genius_url_keyboard(url: str) -> types.InlineKeyboardMarkup:
+def genius_url_keyboard(url: str, language: str = "en") -> types.InlineKeyboardMarkup:
     """
     Creates button for opening Genius lyrics page.
     """
     markup = types.InlineKeyboardMarkup()
     markup.add(
         types.InlineKeyboardButton(
-            text="📖 Open lyrics on Genius",
+            text=t("btn_open_genius", language),
             url=url,
         )
     )

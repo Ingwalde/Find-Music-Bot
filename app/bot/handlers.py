@@ -7,7 +7,12 @@ from app.admin_tools import (
     format_maintenance_report,
     format_stats_report,
 )
-from app.bot.actions import ask_for_music, send_search_results, show_main_menu
+from app.bot.actions import (
+    ask_for_music,
+    send_search_results,
+    set_music_search_handler,
+    show_main_menu,
+)
 from app.bot.keyboards import (
     admin_menu_keyboard,
     favorites_keyboard,
@@ -289,6 +294,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     """
     Registers all message handlers.
     """
+    set_music_search_handler(process_music_search)
 
     @bot.message_handler(commands=["start"])
     def start_handler(message: types.Message) -> None:

@@ -159,3 +159,23 @@ def test_admin_menu_rejects_non_admin(monkeypatch):
     handlers.show_admin_menu(bot, fake_message(t("btn_admin", "en"), user_id=999))
 
     assert "admin" in bot.messages[-1][0][1].lower()
+
+
+def test_admin_ids_are_cached_until_cache_is_cleared(tmp_path, monkeypatch):
+    config_file = tmp_path / "admins.json"
+    config_file.write_text('{"admin_ids": [123]}', encoding="utf-8")
+    monkeypatch.setattr(admins.settings, "ADMIN_ID", None)
+    admins.clear_admin_ids_cache()
+
+    assert admins.load_admin_ids(config_file) == {123}
+
+    config_file.write_text('{"admin_ids": [456]}', encoding="utf-8")
+    assert admins.load_admin_ids(config_file) == {123}
+
+    admins.clear_admin_ids_cache()
+    assert admins.load_admin_ids(config_file) == {456}
+
+
+def test_parse_admin_id_rejects_bool_values():
+    assert admins._parse_admin_id(True) is None
+    assert admins._parse_admin_id(False) is None

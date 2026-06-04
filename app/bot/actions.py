@@ -1,4 +1,7 @@
+from collections.abc import Callable
+
 import telebot
+from telebot import types
 
 from app.bot.context import (
     get_current_page,
@@ -27,6 +30,29 @@ from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+MusicSearchHandler = Callable[[telebot.TeleBot, types.Message], None]
+
+
+def _default_music_search_handler(bot: telebot.TeleBot, message: types.Message) -> None:
+    """
+    Safe fallback used before Telegram handlers register the real search flow.
+    """
+    logger.warning("Music search handler is not registered yet. Message skipped: %s", getattr(message, "text", None))
+
+
+_music_search_handler: MusicSearchHandler = _default_music_search_handler
+
+
+def set_music_search_handler(handler: MusicSearchHandler) -> None:
+    """
+    Registers the function used by ask_for_music for next-step search handling.
+
+    This avoids importing app.bot.handlers from actions.py and removes the
+    previous circular dependency workaround.
+    """
+    global _music_search_handler
+    _music_search_handler = handler
 
 
 def user_has_search_context(user_id: int) -> bool:
@@ -72,11 +98,9 @@ def ask_for_music(
 
     sent_msg = bot.send_message(chat_id, t("ask_music", language))
 
-    from app.bot.handlers import process_music_search
-
     bot.register_next_step_handler(
         sent_msg,
-        lambda message: process_music_search(bot, message),
+        lambda message: _music_search_handler(bot, message),
     )
 
 

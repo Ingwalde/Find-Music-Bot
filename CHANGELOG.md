@@ -1,6 +1,40 @@
+## [2.5.1]
+
+### Fixed
+- Kept the admin button visible after changing language for configured admin users.
+- Localized admin menu buttons in supported locale overrides.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+---
+
+## [v2.5.1] - 2026-05-21
+
+### Added
+- Added cached admin ID loading with `clear_admin_ids_cache()` for tests and runtime reload scenarios.
+- Added TTL-based cleanup for in-memory search contexts.
+- Added dynamic database maintenance table discovery from SQLite schema.
+- Added localized `btn_open_genius` translation key for the Genius lyrics URL button.
+- Added tests for admin cache behavior, context expiration, dynamic maintenance table discovery, localized Genius button and Spotify runtime lock behavior.
+- Added `docs/CODE_REVIEW_ACTION_PLAN.md` to document the review-based improvement roadmap.
+
+### Changed
+- Updated project version to `2.5.1`.
+- Replaced the lazy `app.bot.handlers` import inside `actions.py` with an explicit music search handler registration.
+- Wrapped Spotify token/cache/cooldown runtime state in a reentrant lock for safer threaded handler execution.
+- Updated README, roadmap, architecture and release workflow documentation.
+
+### Fixed
+- Fixed hardcoded English Genius button text by using the existing localization system.
+- Reduced repeated file I/O by caching admin IDs instead of loading `config/admins.json` on each admin check.
+- Reduced risk of unbounded memory growth from stale search pagination contexts.
+
+### Notes
+- This patch is based on the external code review findings.
+- No new music platforms were added.
+- The main bot behavior remains unchanged.
 
 ---
 

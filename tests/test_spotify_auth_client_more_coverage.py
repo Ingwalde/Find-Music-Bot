@@ -161,3 +161,10 @@ def test_search_spotify_track_ignores_candidates_without_links(monkeypatch):
     )
 
     assert client.search_spotify_track("SOS", "ABBA") is None
+
+
+def test_spotify_runtime_lock_is_reentrant_lock():
+    with auth._spotify_runtime_lock:
+        auth.disable_spotify_temporarily("blocked")
+        assert auth.is_spotify_temporarily_blocked() is True
+        assert auth.get_spotify_block_reason() == "blocked"

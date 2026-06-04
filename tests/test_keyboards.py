@@ -7,6 +7,7 @@ from app.bot.constants import (
 )
 from app.bot.keyboards import (
     favorites_keyboard,
+    genius_url_keyboard,
     history_keyboard,
     search_results_keyboard,
     track_actions_keyboard,
@@ -68,3 +69,11 @@ def test_history_keyboard_has_clear_button():
 
     assert any(button.callback_data == "hist:1" for button in buttons)
     assert any(button.callback_data == "history_clear_request" for button in buttons)
+
+
+def test_genius_url_keyboard_uses_language():
+    markup = genius_url_keyboard("https://genius.com/test", language="uk")
+    buttons = flatten_buttons(markup)
+
+    assert buttons[0].text == "📖 Відкрити текст на Genius"
+    assert buttons[0].url == "https://genius.com/test"

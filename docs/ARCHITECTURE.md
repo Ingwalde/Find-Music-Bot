@@ -201,3 +201,16 @@ The cleanup script checks tracked files only. This allows developers to keep loc
 ## Admin access configuration
 
 Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local and is ignored by Git.
+
+## v2.5.1 Stability Cleanup
+
+Version `v2.5.1` addresses review-driven stability issues without changing the main user-facing bot behavior:
+
+- admin IDs are cached after loading from `config/admins.json`;
+- Spotify token/cache/cooldown runtime state is protected by a reentrant lock;
+- in-memory search contexts include a TTL and are cleaned lazily;
+- `actions.py` no longer imports `handlers.py` through a lazy import workaround;
+- maintenance table reporting discovers tables from SQLite schema;
+- the Genius URL button uses the existing localization system.
+
+The larger structural refactor is intentionally moved to `v2.6.0` to keep this patch release focused and safe.

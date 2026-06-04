@@ -39,7 +39,7 @@ def handle_lyrics_callback(
         bot.send_message(
             call.message.chat.id,
             t("lyrics_page_found", language),
-            reply_markup=genius_url_keyboard(lyrics_url),
+            reply_markup=genius_url_keyboard(lyrics_url, language),
         )
 
     except Exception as error:

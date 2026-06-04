@@ -3,6 +3,7 @@ TRANSLATIONS = {
     "btn_deezer": "🎧 Deezer",
     "btn_back_results": "⬅️ Back to results",
     "btn_lyrics": "📖 Lyrics",
+    "btn_open_genius": "📖 Open lyrics on Genius",
     "btn_add_favorites": "⭐ Add to favorites",
     "btn_remove_favorites": "❌ Remove from favorites",
     "btn_search_again": "🔎 Search again",

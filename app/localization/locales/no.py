@@ -5,8 +5,17 @@ TRANSLATIONS = {
     'btn_language': '🌐 Språk',
     'btn_main_menu': '⬅️ Hovedmeny',
     'btn_spotify': '🟢 Spotify',
+    'btn_open_genius': '📖 Åpne tekst på Genius',
     'main_menu': 'Hovedmeny:',
     'ask_music': 'Send navn på sang:',
     'choose_language': 'Velg språk:',
-    'language_changed': 'Språket er endret til norsk.'
+    'language_changed': 'Språket er endret til norsk.',
+    'btn_admin': '🛠 Admin',
+    'btn_admin_stats': '📊 Statistikk',
+    'btn_admin_maintenance': '🛠 Vedlikehold',
+    'btn_admin_cleanup_errors': '🧹 Rydd feil',
+    'btn_admin_cleanup_history': '🗑 Rydd historikk',
+    'btn_admin_health': '❤️ Status',
+    'admin_menu': '🛠 Adminmeny:',
+    'admin_only': 'Denne handlingen er kun tilgjengelig for bot-admin.',
 }

@@ -1,3 +1,4 @@
+import threading
 import time
 
 import requests
@@ -14,6 +15,7 @@ _access_token: str | None = None
 _token_expires_at: float = 0
 _spotify_access_blocked_until: float = 0
 _spotify_access_block_reason: str | None = None
+_spotify_runtime_lock = threading.RLock()
 
 
 class SpotifyForbiddenError(Exception):
@@ -39,14 +41,16 @@ def is_spotify_temporarily_blocked() -> bool:
     """
     Returns True if Spotify lookup is temporarily disabled after access errors.
     """
-    return time.time() < _spotify_access_blocked_until
+    with _spotify_runtime_lock:
+        return time.time() < _spotify_access_blocked_until
 
 
 def get_spotify_block_reason() -> str | None:
     """
     Returns the last Spotify access block reason.
     """
-    return _spotify_access_block_reason
+    with _spotify_runtime_lock:
+        return _spotify_access_block_reason
 
 
 def disable_spotify_temporarily(reason: str) -> None:
@@ -55,8 +59,9 @@ def disable_spotify_temporarily(reason: str) -> None:
     """
     global _spotify_access_blocked_until, _spotify_access_block_reason
 
-    _spotify_access_block_reason = reason
-    _spotify_access_blocked_until = time.time() + settings.SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS
+    with _spotify_runtime_lock:
+        _spotify_access_block_reason = reason
+        _spotify_access_blocked_until = time.time() + settings.SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS
 
     logger.warning(
         "Spotify lookup temporarily disabled for %s seconds. Reason: %s",
@@ -71,10 +76,11 @@ def reset_spotify_runtime_state() -> None:
     """
     global _access_token, _token_expires_at, _spotify_access_blocked_until, _spotify_access_block_reason
 
-    _access_token = None
-    _token_expires_at = 0
-    _spotify_access_blocked_until = 0
-    _spotify_access_block_reason = None
+    with _spotify_runtime_lock:
+        _access_token = None
+        _token_expires_at = 0
+        _spotify_access_blocked_until = 0
+        _spotify_access_block_reason = None
 
 
 def handle_spotify_http_error(error: HTTPError, source: str) -> None:
@@ -111,38 +117,39 @@ def get_spotify_access_token() -> str | None:
         logger.info("Spotify integration is disabled or credentials are not configured.")
         return None
 
-    if is_spotify_temporarily_blocked():
-        logger.info("Spotify lookup skipped: %s", get_spotify_block_reason())
-        return None
-
-    now = time.time()
-
-    if _access_token and now < _token_expires_at - 30:
-        return _access_token
-
-    try:
-        response = requests.post(
-            SPOTIFY_TOKEN_URL,
-            data={"grant_type": "client_credentials"},
-            auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
-            timeout=10,
-        )
-        response.raise_for_status()
-    except HTTPError as error:
-        try:
-            handle_spotify_http_error(error, "token request")
-        except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
-            logger.warning("Spotify token request skipped: %s", spotify_error)
+    with _spotify_runtime_lock:
+        if time.time() < _spotify_access_blocked_until:
+            logger.info("Spotify lookup skipped: %s", _spotify_access_block_reason)
             return None
-        return None
-    except requests.RequestException as error:
-        logger.warning("Spotify token request failed: %s", error)
-        return None
 
-    data = response.json()
+        now = time.time()
 
-    _access_token = data.get("access_token")
-    expires_in = int(data.get("expires_in", 3600))
-    _token_expires_at = now + expires_in
+        if _access_token and now < _token_expires_at - 30:
+            return _access_token
 
-    return _access_token
+        try:
+            response = requests.post(
+                SPOTIFY_TOKEN_URL,
+                data={"grant_type": "client_credentials"},
+                auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
+                timeout=10,
+            )
+            response.raise_for_status()
+        except HTTPError as error:
+            try:
+                handle_spotify_http_error(error, "token request")
+            except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
+                logger.warning("Spotify token request skipped: %s", spotify_error)
+                return None
+            return None
+        except requests.RequestException as error:
+            logger.warning("Spotify token request failed: %s", error)
+            return None
+
+        data = response.json()
+
+        _access_token = data.get("access_token")
+        expires_in = int(data.get("expires_in", 3600))
+        _token_expires_at = now + expires_in
+
+        return _access_token

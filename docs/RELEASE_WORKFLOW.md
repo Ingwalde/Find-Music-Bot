@@ -17,6 +17,7 @@ v2.3.0
 v2.4.0
 v2.4.1
 v2.5.0
+v2.5.1
 ```
 
 ## Before Creating a Release
@@ -73,20 +74,20 @@ htmlcov/
 Use clear release commits:
 
 ```text
-Release v2.5.0: add database maintenance and admin tools
+Release v2.5.1: stability and architecture cleanup
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.5.0
-git push origin v2.5.0
+git tag v2.5.1
+git push origin v2.5.1
 ```
 
 ## Release Title Format
 
 ```text
-v2.5.0 - Database Maintenance & Admin Tools Update
+v2.5.1 - Stability & Architecture Cleanup Update
 ```
 
 ## Release Notes Template
@@ -141,7 +142,7 @@ v2.2.1 - GitHub Actions Runtime Update
 v2.3.0 - Docker & Deployment Update
 v2.4.0 - Quality, Coverage & Release Cleanup Update
 v2.4.1 - Coverage Expansion Update
-v2.5.0 - Database Maintenance & Admin Tools Update
+v2.5.1 - Stability & Architecture Cleanup Update
 ```
 
 

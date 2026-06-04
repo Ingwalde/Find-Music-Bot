@@ -5,7 +5,7 @@ from app.config.settings import settings
 from app.database.db import get_connection, get_database_path
 from app.version import __version__
 
-MAINTENANCE_TABLES = (
+DEFAULT_MAINTENANCE_TABLES = (
     "users",
     "searches",
     "tracks",
@@ -13,6 +13,33 @@ MAINTENANCE_TABLES = (
     "errors",
     "schema_migrations",
 )
+
+
+def get_maintenance_table_names() -> tuple[str, ...]:
+    """
+    Returns user-defined SQLite tables visible in maintenance reports.
+
+    The list is discovered from sqlite_master so admin diagnostics stay in sync
+    with schema changes without manually updating a hardcoded tuple.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+            """
+        )
+        table_names = tuple(str(row["name"]) for row in cursor.fetchall())
+        conn.close()
+    except Exception:
+        return DEFAULT_MAINTENANCE_TABLES
+
+    return table_names or DEFAULT_MAINTENANCE_TABLES
 
 
 def format_bytes(size_bytes: int) -> str:
@@ -51,7 +78,7 @@ def get_table_count(table_name: str) -> int:
     """
     Returns row count for a known table.
     """
-    if table_name not in MAINTENANCE_TABLES:
+    if table_name not in get_maintenance_table_names():
         raise ValueError(f"Unsupported table for maintenance stats: {table_name}")
 
     conn = get_connection()
@@ -67,7 +94,7 @@ def get_table_counts() -> dict[str, int]:
     """
     Returns row counts for maintenance-visible tables.
     """
-    return {table_name: get_table_count(table_name) for table_name in MAINTENANCE_TABLES}
+    return {table_name: get_table_count(table_name) for table_name in get_maintenance_table_names()}
 
 
 def get_schema_version() -> str:

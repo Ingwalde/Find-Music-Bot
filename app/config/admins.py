@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -33,33 +34,24 @@ def _parse_admin_id(value: Any) -> int | None:
     return admin_id if admin_id > 0 else None
 
 
-def load_admin_ids(config_path: str | Path | None = None) -> set[int]:
+def _load_admin_ids_from_file(path: Path) -> set[int]:
     """
-    Loads allowed admin Telegram IDs from config/admins.json.
-
-    Supported JSON formats:
-    - {"admin_ids": [123456789, "987654321"]}
-    - [123456789, "987654321"]
+    Loads admin IDs from a JSON file without environment fallback.
     """
-    admin_ids: set[int] = set()
-
-    if settings.ADMIN_ID is not None:
-        admin_ids.add(settings.ADMIN_ID)
-
-    path = Path(config_path) if config_path else DEFAULT_ADMIN_CONFIG_PATH
-
     if not path.exists():
-        return admin_ids
+        return set()
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return admin_ids
+        return set()
 
     raw_ids = data.get("admin_ids", []) if isinstance(data, dict) else data
 
     if not isinstance(raw_ids, list):
-        return admin_ids
+        return set()
+
+    admin_ids: set[int] = set()
 
     for raw_id in raw_ids:
         admin_id = _parse_admin_id(raw_id)
@@ -67,6 +59,41 @@ def load_admin_ids(config_path: str | Path | None = None) -> set[int]:
             admin_ids.add(admin_id)
 
     return admin_ids
+
+
+@lru_cache(maxsize=8)
+def _load_admin_ids_cached(path_value: str, environment_admin_id: int | None) -> frozenset[int]:
+    """
+    Loads admin IDs once per config path/environment value pair.
+    """
+    admin_ids = _load_admin_ids_from_file(Path(path_value))
+
+    if environment_admin_id is not None:
+        admin_ids.add(environment_admin_id)
+
+    return frozenset(admin_ids)
+
+
+def clear_admin_ids_cache() -> None:
+    """
+    Clears cached admin IDs.
+    Useful for tests or after changing config/admins.json during runtime.
+    """
+    _load_admin_ids_cached.cache_clear()
+
+
+def load_admin_ids(config_path: str | Path | None = None) -> set[int]:
+    """
+    Loads allowed admin Telegram IDs from config/admins.json.
+
+    Supported JSON formats:
+    - {"admin_ids": [123456789, "987654321"]}
+    - [123456789, "987654321"]
+
+    The default path is cached to avoid opening/parsing JSON on every message.
+    """
+    path = Path(config_path) if config_path else DEFAULT_ADMIN_CONFIG_PATH
+    return set(_load_admin_ids_cached(str(path), settings.ADMIN_ID))
 
 
 def is_admin_user(user_id: int | None) -> bool:

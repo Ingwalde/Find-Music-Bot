@@ -8,6 +8,7 @@ from app.database.maintenance import (
     format_bytes,
     get_database_size_bytes,
     get_database_summary,
+    get_maintenance_table_names,
     get_schema_version,
     get_table_count,
     get_table_counts,
@@ -113,3 +114,14 @@ def test_cleanup_search_history_can_clear_all_rows(temp_database, fake_user, mon
 def test_cleanup_search_history_rejects_negative_limit(temp_database):
     with pytest.raises(ValueError):
         cleanup_search_history(max_rows_per_user=-1)
+
+
+def test_maintenance_table_names_are_discovered_from_sqlite_schema(temp_database):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS custom_runtime_table (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+
+    assert "custom_runtime_table" in get_maintenance_table_names()
+    assert get_table_count("custom_runtime_table") == 0

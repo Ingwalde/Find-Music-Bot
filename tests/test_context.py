@@ -61,3 +61,29 @@ def test_missing_context_returns_safe_defaults():
     assert get_total_pages(user_id=999, page_size=5) == 0
     assert get_page_tracks(user_id=999, page_size=5) == []
     assert get_current_page(999) == 0
+
+
+def test_search_context_expires(monkeypatch):
+    from app.bot import context
+
+    monkeypatch.setattr(context, "SEARCH_CONTEXT_TTL_SECONDS", 10)
+    monkeypatch.setattr(context, "time", lambda: 100.0)
+    context.save_search_context(user_id=55, query="old", tracks=make_tracks(1))
+
+    monkeypatch.setattr(context, "time", lambda: 111.0)
+
+    assert context.get_search_context(55) is None
+    assert 55 not in context.search_contexts
+
+
+def test_cleanup_expired_search_contexts(monkeypatch):
+    from app.bot import context
+
+    context.search_contexts.clear()
+    context.search_contexts[1] = {"query": "old", "tracks": [], "page": 0, "created_at": 0.0}
+    context.search_contexts[2] = {"query": "new", "tracks": [], "page": 0, "created_at": 95.0}
+    monkeypatch.setattr(context, "SEARCH_CONTEXT_TTL_SECONDS", 10)
+
+    assert context.cleanup_expired_search_contexts(now=100.0) == 1
+    assert 1 not in context.search_contexts
+    assert 2 in context.search_contexts

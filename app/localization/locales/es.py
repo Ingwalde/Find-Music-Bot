@@ -8,5 +8,13 @@ TRANSLATIONS = {
     'main_menu': 'Menú principal:',
     'ask_music': 'Envía el nombre de una canción:',
     'choose_language': 'Elige tu idioma:',
-    'language_changed': 'Idioma cambiado a español.'
+    'language_changed': 'Idioma cambiado a español.',
+    'btn_admin': '🛠 Admin',
+    'btn_admin_stats': '📊 Estadísticas',
+    'btn_admin_maintenance': '🛠 Mantenimiento',
+    'btn_admin_cleanup_errors': '🧹 Limpiar errores',
+    'btn_admin_cleanup_history': '🗑 Limpiar historial',
+    'btn_admin_health': '❤️ Estado',
+    'admin_menu': '🛠 Menú de admin:',
+    'admin_only': 'Esta acción solo está disponible para el administrador del bot.',
 }

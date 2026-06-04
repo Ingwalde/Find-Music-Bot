@@ -5,8 +5,17 @@ TRANSLATIONS = {
     'btn_language': '🌐 Мова',
     'btn_main_menu': '⬅️ Головне меню',
     'btn_spotify': '🟢 Spotify',
+    'btn_open_genius': '📖 Відкрити текст на Genius',
     'main_menu': 'Головне меню:',
     'ask_music': 'Напиши назву пісні:',
     'choose_language': 'Обери мову:',
-    'language_changed': 'Мову змінено на українську.'
+    'language_changed': 'Мову змінено на українську.',
+    'btn_admin': '🛠 Адмін',
+    'btn_admin_stats': '📊 Статистика',
+    'btn_admin_maintenance': '🛠 Обслуговування',
+    'btn_admin_cleanup_errors': '🧹 Очистити помилки',
+    'btn_admin_cleanup_history': '🗑 Очистити історію',
+    'btn_admin_health': '❤️ Стан',
+    'admin_menu': '🛠 Адмін-меню:',
+    'admin_only': 'Ця дія доступна тільки адміну бота.',
 }
