@@ -20,6 +20,24 @@ def make_track(**overrides):
     return SimpleNamespace(**values)
 
 
+
+
+class FakeDeezerClient:
+    def __init__(self, search_result=None, track_result=None):
+        self.search_result = search_result if search_result is not None else []
+        self.track_result = track_result
+
+    def search(self, query):
+        if isinstance(self.search_result, Exception):
+            raise self.search_result
+        return self.search_result
+
+    def get_track(self, track_id):
+        if isinstance(self.track_result, Exception):
+            raise self.track_result
+        return self.track_result or make_track(id=track_id)
+
+
 def test_get_object_value_returns_string_objects_as_is():
     assert deezer_service.get_object_value("ABBA", ["name"]) == "ABBA"
 
@@ -42,9 +60,9 @@ def test_search_tracks_returns_empty_for_blank_query():
 
 def test_search_tracks_returns_empty_when_deezer_fails(monkeypatch):
     monkeypatch.setattr(
-        deezer_service.client,
-        "search",
-        lambda query: (_ for _ in ()).throw(RuntimeError("deezer unavailable")),
+        deezer_service,
+        "get_deezer_client",
+        lambda: FakeDeezerClient(search_result=RuntimeError("deezer unavailable")),
     )
 
     assert deezer_service.search_tracks("ABBA") == []
@@ -54,7 +72,11 @@ def test_search_tracks_skips_tracks_that_cannot_be_formatted(monkeypatch):
     valid_track = make_track()
     invalid_track = SimpleNamespace()
 
-    monkeypatch.setattr(deezer_service.client, "search", lambda query: [invalid_track, valid_track])
+    monkeypatch.setattr(
+        deezer_service,
+        "get_deezer_client",
+        lambda: FakeDeezerClient(search_result=[invalid_track, valid_track]),
+    )
 
     results = deezer_service.search_tracks("ABBA", limit=5)
 
@@ -64,7 +86,11 @@ def test_search_tracks_skips_tracks_that_cannot_be_formatted(monkeypatch):
 
 def test_search_tracks_respects_limit(monkeypatch):
     tracks = [make_track(id=index, title=f"Track {index}") for index in range(5)]
-    monkeypatch.setattr(deezer_service.client, "search", lambda query: tracks)
+    monkeypatch.setattr(
+        deezer_service,
+        "get_deezer_client",
+        lambda: FakeDeezerClient(search_result=tracks),
+    )
 
     results = deezer_service.search_tracks("ABBA", limit=2)
 
@@ -72,7 +98,11 @@ def test_search_tracks_respects_limit(monkeypatch):
 
 
 def test_get_track_success(monkeypatch):
-    monkeypatch.setattr(deezer_service.client, "get_track", lambda track_id: make_track(id=track_id))
+    monkeypatch.setattr(
+        deezer_service,
+        "get_deezer_client",
+        lambda: FakeDeezerClient(track_result=make_track(id=123)),
+    )
 
     result = deezer_service.get_track("123")
 
@@ -81,9 +111,9 @@ def test_get_track_success(monkeypatch):
 
 def test_get_track_wraps_deezer_errors(monkeypatch):
     monkeypatch.setattr(
-        deezer_service.client,
-        "get_track",
-        lambda track_id: (_ for _ in ()).throw(RuntimeError("not found")),
+        deezer_service,
+        "get_deezer_client",
+        lambda: FakeDeezerClient(track_result=RuntimeError("not found")),
     )
 
     with pytest.raises(RuntimeError, match="Could not load Deezer track"):

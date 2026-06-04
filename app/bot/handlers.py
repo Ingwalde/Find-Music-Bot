@@ -6,6 +6,7 @@ from app.admin_tools import (
     cleanup_history_report,
     format_maintenance_report,
     format_stats_report,
+    reload_admins_report,
 )
 from app.bot.actions import (
     ask_for_music,
@@ -110,23 +111,27 @@ def handle_admin_action(bot: telebot.TeleBot, message: types.Message, action: st
         return
 
     if action == "admin_stats":
-        bot.send_message(message.chat.id, format_stats_report())
+        bot.send_message(message.chat.id, format_stats_report(language))
         return
 
     if action == "admin_maintenance":
-        bot.send_message(message.chat.id, format_maintenance_report())
+        bot.send_message(message.chat.id, format_maintenance_report(language))
         return
 
     if action == "admin_cleanup_errors":
-        bot.send_message(message.chat.id, cleanup_errors_report())
+        bot.send_message(message.chat.id, cleanup_errors_report(language))
         return
 
     if action == "admin_cleanup_history":
-        bot.send_message(message.chat.id, cleanup_history_report())
+        bot.send_message(message.chat.id, cleanup_history_report(language))
         return
 
     if action == "admin_health":
         bot.send_message(message.chat.id, format_health_report())
+        return
+
+    if action == "admin_reload_admins":
+        bot.send_message(message.chat.id, reload_admins_report(language))
 
 
 def show_language_menu(bot: telebot.TeleBot, message: types.Message) -> None:
@@ -359,8 +364,6 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
         bot.send_message(message.chat.id, format_health_report())
 
-
-
     @bot.message_handler(commands=["stats"])
     def stats_handler(message: types.Message) -> None:
         upsert_user(message.from_user)
@@ -370,7 +373,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             bot.send_message(message.chat.id, t("admin_only", language))
             return
 
-        bot.send_message(message.chat.id, format_stats_report())
+        bot.send_message(message.chat.id, format_stats_report(language))
 
     @bot.message_handler(commands=["maintenance"])
     def maintenance_handler(message: types.Message) -> None:
@@ -381,7 +384,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             bot.send_message(message.chat.id, t("admin_only", language))
             return
 
-        bot.send_message(message.chat.id, format_maintenance_report())
+        bot.send_message(message.chat.id, format_maintenance_report(language))
 
     @bot.message_handler(commands=["cleanup_errors"])
     def cleanup_errors_handler(message: types.Message) -> None:
@@ -392,7 +395,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             bot.send_message(message.chat.id, t("admin_only", language))
             return
 
-        bot.send_message(message.chat.id, cleanup_errors_report())
+        bot.send_message(message.chat.id, cleanup_errors_report(language))
 
     @bot.message_handler(commands=["cleanup_history"])
     def cleanup_history_handler(message: types.Message) -> None:
@@ -403,7 +406,18 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             bot.send_message(message.chat.id, t("admin_only", language))
             return
 
-        bot.send_message(message.chat.id, cleanup_history_report())
+        bot.send_message(message.chat.id, cleanup_history_report(language))
+
+    @bot.message_handler(commands=["reload_admins"])
+    def reload_admins_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        if not is_admin(message.from_user.id):
+            bot.send_message(message.chat.id, t("admin_only", language))
+            return
+
+        bot.send_message(message.chat.id, reload_admins_report(language))
 
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:
@@ -452,6 +466,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             "admin_cleanup_errors",
             "admin_cleanup_history",
             "admin_health",
+            "admin_reload_admins",
         }:
             handle_admin_action(bot, message, action)
             return

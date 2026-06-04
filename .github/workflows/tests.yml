@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install -r requirements/dev.txt
 
       - name: Run Ruff
         run: python -m ruff check .
@@ -49,5 +49,8 @@ jobs:
       - name: Validate release cleanup
         run: python scripts/check_release_clean.py
 
+      - name: Check locale coverage
+        run: python scripts/check_locale_coverage.py
+
       - name: Build Docker image
-        run: docker build -t find-music-bot:test .
+        run: docker build -f deploy/Dockerfile -t find-music-bot:test .

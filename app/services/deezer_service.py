@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from threading import RLock
+from typing import Any
+
 import deezer
 
 from app.utils.logger import setup_logger
@@ -5,7 +10,35 @@ from app.utils.time import convert_duration
 
 logger = setup_logger(__name__)
 
-client = deezer.Client()
+_deezer_client: Any | None = None
+_deezer_client_lock = RLock()
+
+
+def reset_deezer_client() -> None:
+    """
+    Clears cached Deezer client.
+    Useful for tests and controlled runtime reloads.
+    """
+    global _deezer_client
+
+    with _deezer_client_lock:
+        _deezer_client = None
+
+
+def get_deezer_client():
+    """
+    Lazily creates Deezer client only when Deezer API is actually used.
+
+    This avoids network/client side effects during module import and makes tests
+    and health checks safer.
+    """
+    global _deezer_client
+
+    with _deezer_client_lock:
+        if _deezer_client is None:
+            _deezer_client = deezer.Client()
+
+        return _deezer_client
 
 
 def get_object_value(obj, attributes: list[str], default: str = "Unknown") -> str:
@@ -144,7 +177,7 @@ def search_tracks(query: str, limit: int = 10) -> list[dict]:
     logger.info("Searching Deezer tracks for query: %s", query)
 
     try:
-        results = client.search(query)
+        results = get_deezer_client().search(query)
     except Exception as error:
         logger.warning("Deezer search failed for %r: %s", query, error)
         return []
@@ -172,7 +205,7 @@ def get_track(track_id: str | int) -> dict:
     logger.info("Getting Deezer track by ID: %s", track_id)
 
     try:
-        track = client.get_track(int(track_id))
+        track = get_deezer_client().get_track(int(track_id))
         return format_deezer_track(track)
     except Exception as error:
         logger.warning("Deezer get_track failed for %s: %s", track_id, error)

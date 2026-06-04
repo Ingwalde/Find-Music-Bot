@@ -28,3 +28,12 @@ This document tracks improvement items identified during the external review of 
 - Migrate Telegram runtime from pyTelegramBotAPI to aiogram 3.x.
 - Move handler execution to async architecture.
 - Rework routing, state handling and middleware around aiogram patterns.
+
+## Addressed in v2.5.2
+
+- Moved Deezer client creation from import time to lazy runtime initialization.
+- Moved Genius client creation from import time to lazy runtime initialization.
+- Added locking around in-memory search context access.
+- Added localized admin reports and admin cache reload support.
+- Added locale coverage checker for visibility into incomplete locale overrides.
+- Grouped deployment and dependency files into `deploy/` and `requirements/`.

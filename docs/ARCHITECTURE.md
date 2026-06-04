@@ -156,7 +156,7 @@ These helpers are used by admin commands and covered by tests.
 ```text
 .github/workflows/tests.yml
 pyproject.toml
-requirements-dev.txt
+requirements/dev.txt
 ```
 
 GitHub Actions runs automated checks on pushes and pull requests to `main` and `master`:
@@ -171,8 +171,8 @@ Docker build
 ## Deployment Layer
 
 ```text
-Dockerfile
-docker-compose.yml
+deploy/Dockerfile
+deploy/docker-compose.yml
 .dockerignore
 docs/DEPLOYMENT.md
 ```
@@ -214,3 +214,15 @@ Version `v2.5.1` addresses review-driven stability issues without changing the m
 - the Genius URL button uses the existing localization system.
 
 The larger structural refactor is intentionally moved to `v2.6.0` to keep this patch release focused and safe.
+
+## v2.5.2 Runtime and Layout Cleanup
+
+Version `v2.5.2` adds small runtime polish and project layout cleanup without changing the main bot behavior:
+
+- Deezer and Genius clients are initialized lazily instead of during module import.
+- Search contexts are guarded by a lock for safer threaded handler execution.
+- Admin statistics and maintenance reports support localization keys.
+- Admin cache can be reloaded without restarting the bot.
+- Runtime/deployment files are grouped under `deploy/`.
+- Production and development dependency files are grouped under `requirements/`.
+- Locale override coverage can be inspected with `scripts/check_locale_coverage.py`.

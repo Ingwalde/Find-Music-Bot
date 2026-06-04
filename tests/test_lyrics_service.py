@@ -46,14 +46,14 @@ def test_create_genius_client_handles_library_error(monkeypatch):
 
 
 def test_find_lyrics_url_returns_none_when_client_is_missing(monkeypatch):
-    monkeypatch.setattr(lyrics_service, "genius", None)
+    monkeypatch.setattr(lyrics_service, "get_genius_client", lambda: None)
 
     assert lyrics_service.find_lyrics_url("SOS", "ABBA") is None
 
 
 def test_find_lyrics_url_returns_song_url(monkeypatch):
     client = FakeGeniusClient("token", timeout=10)
-    monkeypatch.setattr(lyrics_service, "genius", client)
+    monkeypatch.setattr(lyrics_service, "get_genius_client", lambda: client)
 
     url = lyrics_service.find_lyrics_url("SOS", "ABBA")
 
@@ -63,7 +63,7 @@ def test_find_lyrics_url_returns_song_url(monkeypatch):
 def test_find_lyrics_url_returns_none_when_song_not_found(monkeypatch):
     client = FakeGeniusClient("token", timeout=10)
     client.search_song = lambda title, artist=None: None
-    monkeypatch.setattr(lyrics_service, "genius", client)
+    monkeypatch.setattr(lyrics_service, "get_genius_client", lambda: client)
 
     assert lyrics_service.find_lyrics_url("Unknown", "Unknown") is None
 
@@ -75,6 +75,22 @@ def test_find_lyrics_url_handles_search_error(monkeypatch):
         raise RuntimeError("request failed")
 
     client.search_song = raise_error
-    monkeypatch.setattr(lyrics_service, "genius", client)
+    monkeypatch.setattr(lyrics_service, "get_genius_client", lambda: client)
 
     assert lyrics_service.find_lyrics_url("SOS", "ABBA") is None
+
+
+def test_get_genius_client_is_lazy(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_create_client():
+        calls["count"] += 1
+        return FakeGeniusClient("token", timeout=10)
+
+    lyrics_service.reset_genius_client()
+    monkeypatch.setattr(lyrics_service, "create_genius_client", fake_create_client)
+
+    assert lyrics_service.get_genius_client() is lyrics_service.get_genius_client()
+    assert calls["count"] == 1
+
+    lyrics_service.reset_genius_client()

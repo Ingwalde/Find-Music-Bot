@@ -2,106 +2,201 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.5.1 — Stability & Architecture Cleanup Update`
+**Current version:** `v2.5.2 — Small Cleanup & Runtime Polish Update`
 
-Telegram Music Finder Bot is a Python Telegram bot for finding music through Deezer, opening Spotify links when available, saving favorite tracks, viewing search history and opening Genius lyrics pages.
+Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
-The project is built as a backend-style portfolio project: modular architecture, SQLite persistence, external API integrations, localization, logging, tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools and versioned GitHub releases.
+The project is built as a backend-style portfolio project with modular architecture, SQLite persistence, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
 
 ---
 
-## Features
+## Main Features
 
-- Search tracks using Deezer.
-- Show track title, artist, album, duration, release date and popularity label.
-- Open Deezer track links.
-- Optionally enrich tracks with Spotify links.
-- Open Genius lyrics pages.
-- Save and remove favorite tracks.
-- View and clear search history.
-- Multi-language menu support.
-- Admin error log commands.
-- Admin health-check command.
-- Admin statistics command.
-- Admin maintenance report command.
-- Admin cleanup commands for saved errors and search history.
-- Admin button in the main menu for users listed in `config/admins.json`.
-- SQLite database with migrations, indexes and schema version visibility.
-- Automated tests and coverage gate.
-- Ruff code quality checks.
-- Release cleanup validation for private/local files.
+### Music Search
+
+- Search tracks by title, artist, or free-text query.
+- Uses Deezer as the main music data source.
+- Shows paginated search results.
+- Keeps temporary search context for pagination and track selection.
+- Automatically cleans expired in-memory search contexts.
+
+### Track Cards
+
+Each selected track can show:
+
+- Track title.
+- Artist name.
+- Album title.
+- Duration.
+- Release date when available.
+- Popularity/rank label when available.
+- Deezer track link.
+- Cover image when available.
+- Spotify link when available.
+- Genius lyrics link when available.
+
+### Platform Links
+
+- Deezer is the primary search source.
+- Spotify enrichment is optional and controlled by environment variables.
+- Spotify failures do not break the main Deezer-based result flow.
+- Spotify 403 responses trigger a temporary cooldown to avoid repeated failed lookups.
+- Genius lyrics lookup is optional and disabled safely when `GENIUS_TOKEN` is not configured.
+
+### Favorites
+
+- Add tracks to favorites.
+- Remove tracks from favorites.
+- View saved favorites.
+- Clear favorites with confirmation.
+- Favorite state is stored in SQLite.
+
+### Search History
+
+- Save user search queries.
+- View recent search history.
+- Re-run searches from history.
+- Clear search history with confirmation.
+- Search history is stored in SQLite and can be trimmed by maintenance tools.
+
+### Localization
+
+- Main menu and bot actions support multiple languages.
+- Supported language set includes English, Ukrainian, Norwegian, German, French, Spanish, Italian, and Polish.
+- English is the baseline language.
+- Missing translation keys fall back to English.
+- Locale coverage can be checked with a helper script.
+
+### Admin Menu
+
+Admin users can get an extra admin button in the main menu.
+
+Admin access can be configured through:
+
+- `ADMIN_ID` in `.env`.
+- local `config/admins.json` based on `config/admins.example.json`.
+
+The local `config/admins.json` file is ignored by Git and should not be committed.
+
+Admin menu actions include:
+
+- Statistics report.
+- Maintenance report.
+- Health report.
+- Cleanup saved errors.
+- Cleanup search history.
+- Reload admin configuration cache.
+
+Slash commands are also kept as fallback admin access:
+
+```text
+/errors           Show recent saved errors
+/clear_errors     Clear saved errors
+/health           Show runtime health checks
+/stats            Show users/searches/favorites/tracks/errors statistics
+/maintenance      Show database size, schema version and maintenance status
+/cleanup_errors   Keep newest saved errors and remove older rows
+/cleanup_history  Keep newest search history rows per user and remove older rows
+```
+
+### Admin Diagnostics
+
+Admin diagnostics include:
+
+- Bot version.
+- Database status.
+- Database path.
+- Database size.
+- Table counts.
+- Schema version.
+- Spotify availability/cooldown status.
+- Genius configuration status.
+- Recent saved errors.
+
+### Database and Persistence
+
+The project uses SQLite for local persistence.
+
+Stored data includes:
+
+- Users.
+- Tracks.
+- Favorites.
+- Search history.
+- Spotify cached links.
+- Error history.
+- Schema migration version.
+
+Database features:
+
+- Schema initialization.
+- Lightweight migrations.
+- Index creation.
+- Repository modules split by domain.
+- Compatibility repository facade for stable imports.
+- Database maintenance helpers.
+- Dynamic maintenance table discovery from SQLite schema.
+
+### Error Logging
+
+- Runtime errors can be saved into the database.
+- Error logging is designed not to crash the bot if the database is unavailable.
+- Admins can inspect and clear saved errors.
+
+### Testing and Quality
+
+The project includes automated quality checks:
+
+- Pytest test suite.
+- Coverage reporting through `pytest-cov`.
+- Minimum coverage gate.
+- Ruff linting.
 - GitHub Actions workflow.
-- Docker and Docker Compose support.
+- Release cleanup validation script.
+- Locale coverage checker.
 
----
+Useful commands:
 
+```bash
+python -m ruff check .
+python -m pytest --cov=app --cov-report=term-missing
+python scripts/check_release_clean.py
+python scripts/check_locale_coverage.py
+```
 
-## What Changed in v2.5.1
+### Docker Support
 
-- Cached admin ID loading from `config/admins.json` to avoid reading/parsing JSON on every message.
-- Localized the Genius lyrics URL button through the existing translation system.
-- Added a thread-safe Spotify runtime lock for token/cache/cooldown state.
-- Added TTL-based cleanup for in-memory search contexts to avoid unbounded memory growth.
-- Removed the lazy `actions.py → handlers.py` import workaround by registering the music search handler explicitly.
-- Updated database maintenance table reporting to discover tables from SQLite schema instead of a hardcoded list.
-- Added tests for admin cache behavior, search context expiration, dynamic maintenance table discovery, localized Genius button and Spotify runtime lock behavior.
-- Updated project version to `2.5.1`.
+Docker files are stored in `deploy/`.
 
-This release is based on the external code review notes and focuses on stability, thread-safety and small architecture cleanup. It does not add new music platforms.
+Build image:
 
----
+```bash
+docker build -f deploy/Dockerfile -t find-music-bot:test .
+```
 
-## What Changed in v2.5.0
+Run with Docker Compose:
 
-- Added database maintenance utilities.
-- Added database size, table counts and schema version reporting.
-- Added admin `/stats` command.
-- Added admin `/maintenance` command.
-- Added admin `/cleanup_errors` command.
-- Added admin `/cleanup_history` command.
-- Added admin menu button visibility based on `config/admins.json`.
-- Added schema version tracking through `schema_migrations`.
-- Added tests for admin reports, database maintenance helpers and admin handlers.
-- Updated project version to `2.5.0`.
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+```
 
-This release focuses on admin diagnostics and long-term database maintenance. It does not add new music platforms.
+Run in background:
 
----
+```bash
+docker compose -f deploy/docker-compose.yml up --build -d
+```
 
-## What Changed in v2.4.1
+Stop:
 
-- Expanded the test suite from 169 to 196 tests.
-- Increased full-project coverage from 85% to 93.40%.
-- Added additional tests for runtime startup, database repositories, Deezer service and Spotify auth/client behavior.
-- Added and verified a minimum coverage gate of 85%.
+```bash
+docker compose -f deploy/docker-compose.yml down
+```
 
----
+Docker Compose mounts:
 
-## What Changed in v2.4.0
-
-- Added pytest coverage reporting through `pytest-cov`.
-- Added coverage configuration to `pyproject.toml`.
-- Added `scripts/check_release_clean.py` to detect tracked local/private files before release.
-- Added release cleanup validation to GitHub Actions.
-- Updated `.gitignore` and `.dockerignore` for coverage artifacts and local archives.
-- Updated project version to `2.4.0`.
-
-This release focuses on code quality, CI confidence and clean release packaging. It does not add new music platforms or change the main bot behavior.
-
----
-
-## What Changed in v2.3.0
-
-- Added `Dockerfile` for containerized bot startup.
-- Added `docker-compose.yml` for one-command local Docker run.
-- Added `.dockerignore` to keep local/private files out of Docker builds.
-- Added `docs/DEPLOYMENT.md` with local, Docker and Docker Compose instructions.
-- Added Docker build validation to GitHub Actions.
-- Added GitHub Actions badge to README.
-- Updated `.env.example` with clearer environment variable descriptions.
-- Updated project version to `2.3.0`.
-
-This release focuses on deployment readiness. It does not add new music platforms or change the main bot behavior.
+- `data/` to persist SQLite database.
+- `logs/` to persist logs.
+- `config/` as read-only config for admin IDs.
 
 ---
 
@@ -118,6 +213,7 @@ This release focuses on deployment readiness. It does not add new music platform
 - Ruff
 - GitHub Actions
 - Docker
+- Docker Compose
 
 ---
 
@@ -125,24 +221,32 @@ This release focuses on deployment readiness. It does not add new music platform
 
 ```text
 app/
-├── bot/                 # Telegram handlers, callbacks and keyboards
-├── config/              # Environment-based settings
+├── bot/                 # Telegram handlers, callbacks, keyboards and user flows
+├── config/              # Environment settings and admin access config
 ├── database/            # SQLite schema, migrations, indexes, maintenance and repositories
-├── localization/        # Translations and language support
+├── localization/        # Translations, languages and fallback translator
 ├── platforms/           # Platform integrations, Spotify modules and aggregator
-├── services/            # Deezer, Spotify, lyrics and formatting services
+├── services/            # Deezer, lyrics, formatting and platform service facades
 ├── utils/               # Logging, text and time helpers
 ├── admin_tools.py       # Admin statistics, maintenance and cleanup reports
 ├── health.py            # Admin health diagnostics
 ├── main.py              # Bot startup
 └── version.py           # Project version
 
+config/
+└── admins.example.json  # Public admin config template
+
+deploy/
+├── Dockerfile           # Container image definition
+└── docker-compose.yml   # Local Docker Compose startup
+
+docs/                    # Architecture, deployment, roadmap and release workflow docs
+requirements/
+├── base.txt             # Production dependencies
+└── dev.txt              # Development and test dependencies
+scripts/                 # Release, cleanup and quality helper scripts
 tests/                   # Automated tests
-scripts/                 # Release cleanup scripts
-docs/                    # Architecture, roadmap, deployment and release workflow
 .github/workflows/       # GitHub Actions CI
-Dockerfile               # Container image definition
-docker-compose.yml       # Local Docker Compose startup
 ```
 
 ---
@@ -176,19 +280,23 @@ source venv/bin/activate
 
 ### 3. Install dependencies
 
+Production dependencies:
+
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements/base.txt
 ```
 
-For development tools:
+Development dependencies:
 
 ```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements/dev.txt
 ```
 
 ### 4. Create `.env`
 
-Copy `.env.example` to `.env` and fill in your tokens:
+Copy `.env.example` to `.env` and fill in your tokens.
+
+Windows:
 
 ```bash
 copy .env.example .env
@@ -213,14 +321,28 @@ GENIUS_TOKEN=your_genius_token_here
 SPOTIFY_ENABLED=true
 SPOTIFY_CLIENT_ID=your_spotify_client_id_here
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
+SPOTIFY_MARKET=NO
 ADMIN_ID=your_telegram_user_id
+DATABASE_PATH=data/music_bot.db
+LOG_FILE_PATH=logs/bot.log
+LOG_LEVEL=INFO
 ```
 
----
+### 5. Configure local admin IDs
 
-## Admin Commands
+Copy the example file:
 
-Admin-only actions can be enabled either through `ADMIN_ID` in `.env` or through a local `config/admins.json` file. The local `config/admins.json` file is ignored by Git; use `config/admins.example.json` as a template.
+```bash
+copy config\admins.example.json config\admins.json
+```
+
+Linux/macOS:
+
+```bash
+cp config/admins.example.json config/admins.json
+```
+
+Example:
 
 ```json
 {
@@ -228,103 +350,120 @@ Admin-only actions can be enabled either through `ADMIN_ID` in `.env` or through
 }
 ```
 
-Admin tools are available from the extra 🛠 Admin button in the main menu for allowed users. Slash commands are also kept as fallback.
-
-```text
-/errors           Show recent saved errors
-/clear_errors     Clear saved errors
-/health           Show runtime health checks
-/stats            Show users/searches/favorites/tracks/errors statistics
-/maintenance      Show database size, schema version and maintenance status
-/cleanup_errors   Keep newest saved errors and remove older rows
-/cleanup_history  Keep newest search history rows per user and remove older rows
-```
+`config/admins.json` is local-only and should not be committed.
 
 ---
 
-## Run Bot Locally
+## Running Locally
 
 ```bash
 python run.py
 ```
 
+Expected log:
+
+```text
+Bot started successfully.
+```
+
 ---
 
-## Run with Docker
+## Running with Docker
 
-Build the image:
+Build image:
 
 ```bash
-docker build -t telegram-music-finder-bot .
+docker build -f deploy/Dockerfile -t find-music-bot:test .
 ```
 
-Run with Docker Compose:
+Start with Compose:
 
 ```bash
-docker compose up --build
+docker compose -f deploy/docker-compose.yml up --build
 ```
 
-Run in background:
+Start in background:
 
 ```bash
-docker compose up --build -d
+docker compose -f deploy/docker-compose.yml up --build -d
+```
+
+View logs:
+
+```bash
+docker compose -f deploy/docker-compose.yml logs -f
 ```
 
 Stop:
 
 ```bash
-docker compose down
+docker compose -f deploy/docker-compose.yml down
 ```
-
-More details are available in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ---
 
-## Run Tests
+## Development Checks
 
-Install development tools first:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-Run Ruff and tests with coverage:
+Run before committing:
 
 ```bash
 python -m ruff check .
-python -m pytest
+python -m pytest --cov=app --cov-report=term-missing
+python scripts/check_release_clean.py
+python scripts/check_locale_coverage.py
+python -c "from app.version import __version__; print(__version__)"
 ```
 
-Show missing coverage lines in the terminal:
+Docker check:
 
 ```bash
-python -m pytest --cov=app --cov-report=term-missing
+docker build -f deploy/Dockerfile -t find-music-bot:test .
 ```
 
 ---
 
-## Quality Checks
+## Release Safety
 
-Current validation target:
+Do not commit or upload local/private files:
 
 ```text
-Ruff: passed
-Pytest: 196+ tests
-Coverage gate: 85%
-Latest measured coverage: 93%+ in v2.5.1
-Release cleanup check: enabled
-Docker build: checked in GitHub Actions
+.env
+config/admins.json
+.git/
+data/
+logs/
+.pytest_cache/
+.ruff_cache/
+.vscode/
+__pycache__/
+coverage.xml
+.coverage
+*.pyc
+*.zip
 ```
 
-Before release, verify that private/local files are not tracked:
+Use this check before release:
 
 ```bash
 python scripts/check_release_clean.py
-git ls-files .env data logs .pytest_cache .ruff_cache .vscode coverage.xml .coverage
+```
+
+Avoid sharing raw `docker compose config` output because it can expose secrets from `.env`.
+
+---
+
+## Roadmap
+
+Planned next stages:
+
+```text
+v2.5.2 - Small Cleanup & Runtime Polish Update
+v2.6.0 - Structural Refactor Update
+v3.0.0 - aiogram Migration
 ```
 
 ---
 
-## License
+## Notes
 
-This project is intended for portfolio and educational use.
+This project is intended as a portfolio backend/bot project. It focuses on practical Telegram bot functionality, API integration, local persistence, maintainability, testing, Docker deployment and production-style cleanup practices.

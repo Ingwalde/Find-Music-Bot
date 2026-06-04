@@ -33,7 +33,7 @@ source venv/bin/activate
 Install dependencies:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements/base.txt
 ```
 
 Create `.env`:
@@ -84,9 +84,9 @@ For Docker Compose, the whole local `config/` directory is mounted read-only:
 
 ```yaml
 volumes:
-  - ./data:/app/data
-  - ./logs:/app/logs
-  - ./config:/app/config:ro
+  - ../data:/app/data
+  - ../logs:/app/logs
+  - ../config:/app/config:ro
 ```
 
 This keeps `config/admins.json` outside the Docker image while still making it available to the running container.
@@ -102,7 +102,7 @@ python run.py
 Build the image:
 
 ```bash
-docker build -t telegram-music-finder-bot .
+docker build -f deploy/Dockerfile -t telegram-music-finder-bot .
 ```
 
 Run the container on Windows PowerShell:
@@ -122,25 +122,25 @@ docker run --env-file .env -v "$(pwd)/data:/app/data" -v "$(pwd)/logs:/app/logs"
 Start the bot:
 
 ```bash
-docker compose up --build
+docker compose -f deploy/docker-compose.yml up --build
 ```
 
 Run in the background:
 
 ```bash
-docker compose up --build -d
+docker compose -f deploy/docker-compose.yml up --build -d
 ```
 
 Stop the bot:
 
 ```bash
-docker compose down
+docker compose -f deploy/docker-compose.yml down
 ```
 
 View logs:
 
 ```bash
-docker compose logs -f
+docker compose -f deploy/docker-compose.yml logs -f
 ```
 
 ## Data, Logs and Config
@@ -162,7 +162,7 @@ The workflow runs:
 ```bash
 python -m ruff check .
 python -m pytest --cov=app --cov-report=xml --cov-report=term-missing
-docker build -t find-music-bot:test .
+docker build -f deploy/Dockerfile -t find-music-bot:test .
 ```
 
 This checks code style, tests, coverage and Docker image build on every push or pull request.

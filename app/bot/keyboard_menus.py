@@ -35,7 +35,10 @@ def admin_menu_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
         types.KeyboardButton(t("btn_admin_cleanup_errors", language)),
         types.KeyboardButton(t("btn_admin_cleanup_history", language)),
     )
-    markup.add(types.KeyboardButton(t("btn_admin_health", language)))
+    markup.add(
+        types.KeyboardButton(t("btn_admin_health", language)),
+        types.KeyboardButton(t("btn_admin_reload_admins", language)),
+    )
     markup.add(types.KeyboardButton(t("btn_main_menu", language)))
     return markup
 

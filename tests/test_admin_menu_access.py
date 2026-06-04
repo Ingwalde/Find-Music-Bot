@@ -141,7 +141,7 @@ def test_admin_menu_action_runs_report(monkeypatch):
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
     monkeypatch.setattr(handlers, "is_admin", lambda user_id: True)
-    monkeypatch.setattr(handlers, "format_stats_report", lambda: "stats report")
+    monkeypatch.setattr(handlers, "format_stats_report", lambda language="en": "stats report")
 
     handlers.register_handlers(bot)
     text_handler = get_registered_handler(bot, "text_handler")

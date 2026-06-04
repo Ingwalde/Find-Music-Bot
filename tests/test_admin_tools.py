@@ -25,7 +25,7 @@ def test_get_spotify_status_text_blocked(monkeypatch):
 
 
 def test_format_stats_report(temp_database, fake_user, sample_track, monkeypatch):
-    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda: "available")
+    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "available")
     repo.upsert_user(fake_user)
     repo.save_search(fake_user.id, "SOS")
     repo.add_favorite(fake_user.id, sample_track)
@@ -43,7 +43,7 @@ def test_format_stats_report(temp_database, fake_user, sample_track, monkeypatch
 
 
 def test_format_maintenance_report(temp_database, monkeypatch):
-    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda: "available")
+    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "available")
 
     report = admin_tools.format_maintenance_report()
 
@@ -72,3 +72,26 @@ def test_cleanup_reports(monkeypatch):
 
     assert "Error cleanup completed" in admin_tools.cleanup_errors_report()
     assert "Search history cleanup completed" in admin_tools.cleanup_history_report()
+
+
+def test_admin_reports_support_ukrainian_labels(temp_database, monkeypatch):
+    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "доступний")
+
+    report = admin_tools.format_stats_report("uk")
+
+    assert "Статистика бота" in report
+    assert "Статус Spotify" in report
+
+
+def test_reload_admins_report_clears_cache(monkeypatch):
+    called = {"value": False}
+
+    def fake_clear_cache():
+        called["value"] = True
+
+    monkeypatch.setattr(admin_tools, "clear_admin_ids_cache", fake_clear_cache)
+
+    report = admin_tools.reload_admins_report("en")
+
+    assert called["value"] is True
+    assert "reloaded" in report.lower()

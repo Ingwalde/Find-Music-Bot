@@ -1,0 +1,13 @@
+services:
+  music-bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: telegram-music-finder-bot
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+      - ../config:/app/config:ro

@@ -41,10 +41,10 @@ def test_admin_handlers_return_admin_reports(monkeypatch):
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
     monkeypatch.setattr(handlers.settings, "ADMIN_ID", 123)
-    monkeypatch.setattr(handlers, "format_stats_report", lambda: "stats report")
-    monkeypatch.setattr(handlers, "format_maintenance_report", lambda: "maintenance report")
-    monkeypatch.setattr(handlers, "cleanup_errors_report", lambda: "errors cleanup")
-    monkeypatch.setattr(handlers, "cleanup_history_report", lambda: "history cleanup")
+    monkeypatch.setattr(handlers, "format_stats_report", lambda language="en": "stats report")
+    monkeypatch.setattr(handlers, "format_maintenance_report", lambda language="en": "maintenance report")
+    monkeypatch.setattr(handlers, "cleanup_errors_report", lambda language="en": "errors cleanup")
+    monkeypatch.setattr(handlers, "cleanup_history_report", lambda language="en": "history cleanup")
 
     handlers.register_handlers(bot)
 

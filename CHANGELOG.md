@@ -1,12 +1,34 @@
-## [2.5.1]
-
-### Fixed
-- Kept the admin button visible after changing language for configured admin users.
-- Localized admin menu buttons in supported locale overrides.
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+---
+
+## [v2.5.2] - 2026-06-04
+
+### Added
+- Added lazy Deezer client initialization to avoid import-time client side effects.
+- Added lazy Genius client initialization to avoid startup warnings when lyrics are not configured.
+- Added thread-safe locking around in-memory search contexts.
+- Added localized admin reports and an admin cache reload action.
+- Added locale coverage checker script.
+- Added `deploy/` and `requirements/` folders for cleaner project layout.
+
+### Changed
+- Moved production dependencies to `requirements/base.txt`.
+- Moved development dependencies to `requirements/dev.txt`.
+- Moved Docker configuration to `deploy/Dockerfile` and `deploy/docker-compose.yml`.
+- Updated Docker, setup and development documentation for the new deploy/requirements layout.
+- Reworked README into a full project overview instead of a version-by-version release summary.
+- Updated project version to `2.5.2`.
+
+### Fixed
+- Fixed Ruff `E402` issue in the locale coverage checker.
+- Fixed admin report tests after adding localized Spotify status formatting.
+
+### Notes
+- The old root `Dockerfile`, `docker-compose.yml`, `requirements.txt`, and `requirements-dev.txt` can be removed after applying this update.
+- This release does not add new music platforms.
 
 ---
 
@@ -28,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Fixed hardcoded English Genius button text by using the existing localization system.
+- Fixed admin button visibility after language switching.
+- Fixed admin menu buttons not following the selected language.
 - Reduced repeated file I/O by caching admin IDs instead of loading `config/admins.json` on each admin check.
 - Reduced risk of unbounded memory growth from stale search pagination contexts.
 
@@ -204,4 +228,4 @@ All notable changes to this project will be documented in this file.
 - Improved project maintainability after Spotify API integration.
 
 ### Notes
-This release does not add major user-facing features. It focuses on internal architecture and long-term maintainability.
+- This release focuses on architecture and maintainability.

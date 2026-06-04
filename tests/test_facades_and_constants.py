@@ -5,8 +5,8 @@ from app.localization.languages import DEFAULT_LANGUAGE, get_language_label, is_
 from app.services import track_platform_service
 
 
-def test_version_is_251():
-    assert version.__version__ == "2.5.1"
+def test_version_is_252():
+    assert version.__version__ == "2.5.2"
 
 
 def test_message_constants_are_loaded_from_translations():

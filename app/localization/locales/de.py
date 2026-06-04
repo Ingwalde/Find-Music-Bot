@@ -17,4 +17,5 @@ TRANSLATIONS = {
     'btn_admin_health': '❤️ Status',
     'admin_menu': '🛠 Admin-Menü:',
     'admin_only': 'Diese Aktion ist nur für den Bot-Admin verfügbar.',
+    'btn_admin_reload_admins': '🔄 Reload admins',
 }

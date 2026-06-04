@@ -18,6 +18,7 @@ v2.4.0
 v2.4.1
 v2.5.0
 v2.5.1
+v2.5.2
 ```
 
 ## Before Creating a Release
@@ -48,7 +49,7 @@ python scripts/check_release_clean.py
 9. For Docker releases, verify Docker build:
 
 ```bash
-docker build -t find-music-bot:test .
+docker build -f deploy/Dockerfile -t find-music-bot:test .
 ```
 
 10. Check that local/private files are not staged or tracked:
@@ -74,20 +75,21 @@ htmlcov/
 Use clear release commits:
 
 ```text
-Release v2.5.1: stability and architecture cleanup
+Release v2.5.2: small cleanup and runtime polish
 ```
 
 ## Create Git Tag
 
 ```bash
-git tag v2.5.1
-git push origin v2.5.1
+git tag v2.5.2
+git push origin v2.5.2
+v2.5.2
 ```
 
 ## Release Title Format
 
 ```text
-v2.5.1 - Stability & Architecture Cleanup Update
+v2.5.2 - Small Cleanup & Runtime Polish Update
 ```
 
 ## Release Notes Template
@@ -142,7 +144,7 @@ v2.2.1 - GitHub Actions Runtime Update
 v2.3.0 - Docker & Deployment Update
 v2.4.0 - Quality, Coverage & Release Cleanup Update
 v2.4.1 - Coverage Expansion Update
-v2.5.1 - Stability & Architecture Cleanup Update
+v2.5.2 - Small Cleanup & Runtime Polish Update
 ```
 
 
