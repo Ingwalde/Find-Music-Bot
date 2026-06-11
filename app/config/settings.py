@@ -36,7 +36,7 @@ class Settings:
 
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/music_bot.db")
 
-    MAX_SEARCH_RESULTS: int = int(os.getenv("MAX_SEARCH_RESULTS", "30"))
+    MAX_SEARCH_RESULTS: int = int(os.getenv("MAX_SEARCH_RESULTS", "15"))
     RESULTS_PER_PAGE: int = int(os.getenv("RESULTS_PER_PAGE", "5"))
     HISTORY_LIMIT: int = int(os.getenv("HISTORY_LIMIT", "10"))
     MAX_HISTORY_PER_USER: int = int(os.getenv("MAX_HISTORY_PER_USER", "100"))

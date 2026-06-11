@@ -5,6 +5,7 @@ from app.bot.constants import (
     ACTION_SEARCH_AGAIN,
     CB_FAVORITE,
     CB_LYRICS,
+    CB_SIMILAR,
     CB_UNFAVORITE,
     make_callback,
 )
@@ -54,6 +55,14 @@ def track_actions_keyboard(
             types.InlineKeyboardButton(
                 text=t("btn_back_results", language),
                 callback_data=ACTION_BACK_RESULTS,
+            )
+        )
+
+    if track_id:
+        markup.add(
+            types.InlineKeyboardButton(
+                text=t("btn_similar", language),
+                callback_data=make_callback(CB_SIMILAR, track_id),
             )
         )
 

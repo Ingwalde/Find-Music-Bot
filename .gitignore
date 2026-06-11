@@ -54,3 +54,7 @@ dist/
 *.tar
 *.tar.gz
 *.7z
+
+# Claude Code local configuration and agent instructions
+.claude/
+CLAUDE.md

@@ -108,3 +108,49 @@ def set_user_language(telegram_id: int, language: str) -> None:
 
     conn.commit()
     conn.close()
+
+
+def save_last_track_id(telegram_id: int, deezer_track_id: str) -> None:
+    """
+    Saves last viewed Deezer track ID for the user.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        UPDATE users
+        SET last_track_id = ?
+        WHERE telegram_id = ?
+        """,
+        (str(deezer_track_id), telegram_id),
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_last_track_id(telegram_id: int) -> str | None:
+    """
+    Returns last viewed Deezer track ID for the user.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT last_track_id
+        FROM users
+        WHERE telegram_id = ?
+        LIMIT 1
+        """,
+        (telegram_id,),
+    )
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return row["last_track_id"]

@@ -18,6 +18,7 @@ from app.bot.constants import (
     CB_LANGUAGE,
     CB_LYRICS,
     CB_PAGE,
+    CB_SIMILAR,
     CB_TRACK,
     CB_UNFAVORITE,
 )
@@ -40,6 +41,7 @@ from app.bot.pagination_callbacks import (
     handle_back_to_results_callback,
     handle_page_callback,
 )
+from app.bot.similar_callbacks import handle_similar_callback
 from app.bot.track_callbacks import handle_track_callback
 from app.database.repositories import get_user_language
 from app.localization.translations import t
@@ -99,6 +101,11 @@ def register_callbacks(bot: telebot.TeleBot) -> None:
         if data.startswith(f"{CB_LYRICS}:"):
             track_id = data.split(":", 1)[1]
             handle_lyrics_callback(bot, call, track_id)
+            return
+
+        if data.startswith(f"{CB_SIMILAR}:"):
+            track_id = data.split(":", 1)[1]
+            handle_similar_callback(bot, call, track_id)
             return
 
         if data.startswith(f"{CB_HISTORY}:"):

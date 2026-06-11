@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.5.2 — Small Cleanup & Runtime Polish Update`
+**Current version:** `v2.6.0 — Smart Recommendations Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
@@ -34,6 +34,16 @@ Each selected track can show:
 - Cover image when available.
 - Spotify link when available.
 - Genius lyrics link when available.
+
+After the track card, the bot automatically sends a "You may also like" block with related tracks by the same artist from the local database. If the database has no data for the artist, the bot fetches the artist's top tracks from Deezer as a fallback.
+
+The track card also includes a 🎯 Similar inline button for quick access to tracks similar to the selected one using the Deezer radio endpoint.
+
+### Smart Recommendations
+
+- `/similar` — shows tracks similar to the last viewed track using the Deezer radio endpoint.
+- `/trending` — shows the top tracks of the week from the Deezer chart. Results are cached in-memory for 1 hour to reduce API load.
+- The last viewed track ID is saved in the database so `/similar` works across bot restarts.
 
 ### Platform Links
 
@@ -457,8 +467,7 @@ Avoid sharing raw `docker compose config` output because it can expose secrets f
 Planned next stages:
 
 ```text
-v2.5.2 - Small Cleanup & Runtime Polish Update
-v2.6.0 - Structural Refactor Update
+v2.6.0 - Smart Recommendations Update
 v3.0.0 - aiogram Migration
 ```
 

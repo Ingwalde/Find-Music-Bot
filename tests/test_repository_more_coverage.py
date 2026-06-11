@@ -74,3 +74,73 @@ def test_get_search_query_by_id_checks_owner_and_missing_rows(temp_database):
 def test_clear_search_history_ignores_missing_user(temp_database):
     repo.clear_search_history(404)
     assert repo.get_search_history(404) == []
+
+
+def test_save_and_get_last_track_id(temp_database):
+    user = make_user()
+    repo.upsert_user(user)
+
+    repo.save_last_track_id(user.id, "99887766")
+    result = repo.get_last_track_id(user.id)
+
+    assert result == "99887766"
+
+
+def test_get_last_track_id_returns_none_for_unknown_user(temp_database):
+    assert repo.get_last_track_id(999999) is None
+
+
+def test_get_last_track_id_returns_none_before_any_track_opened(temp_database):
+    user = make_user()
+    repo.upsert_user(user)
+
+    assert repo.get_last_track_id(user.id) is None
+
+
+def test_save_last_track_id_overwrites_previous_value(temp_database):
+    user = make_user()
+    repo.upsert_user(user)
+
+    repo.save_last_track_id(user.id, "111")
+    repo.save_last_track_id(user.id, "222")
+
+    assert repo.get_last_track_id(user.id) == "222"
+
+
+def test_get_tracks_by_artist_returns_matching_tracks(temp_database, sample_track):
+    repo.save_track(sample_track)
+
+    other = dict(sample_track)
+    other["deezer_track_id"] = "999"
+    other["title"] = "Another Track"
+    repo.save_track(other)
+
+    results = repo.get_tracks_by_artist(
+        artist=sample_track["artist"],
+        exclude_deezer_id="999",
+        limit=5,
+    )
+
+    assert len(results) == 1
+    assert results[0]["deezer_track_id"] == sample_track["deezer_track_id"]
+
+
+def test_get_tracks_by_artist_excludes_given_track(temp_database, sample_track):
+    repo.save_track(sample_track)
+
+    results = repo.get_tracks_by_artist(
+        artist=sample_track["artist"],
+        exclude_deezer_id=sample_track["deezer_track_id"],
+        limit=5,
+    )
+
+    assert results == []
+
+
+def test_get_tracks_by_artist_returns_empty_for_unknown_artist(temp_database):
+    results = repo.get_tracks_by_artist(
+        artist="No Such Artist",
+        exclude_deezer_id="0",
+    )
+
+    assert results == []

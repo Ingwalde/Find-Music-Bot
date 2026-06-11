@@ -71,6 +71,35 @@ def save_track(track: dict) -> int:
     return int(row["id"])
 
 
+def get_tracks_by_artist(
+    artist: str,
+    exclude_deezer_id: str,
+    limit: int = 3,
+) -> list[dict]:
+    """
+    Returns cached tracks by artist from local DB, excluding the given track.
+    Ordered by rank descending so the most popular tracks appear first.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT deezer_track_id, title, artist, album, duration, deezer_link, cover_url
+        FROM tracks
+        WHERE artist = ? AND deezer_track_id != ?
+        ORDER BY rank DESC
+        LIMIT ?
+        """,
+        (artist, str(exclude_deezer_id), limit),
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row_to_dict(row) for row in rows]
+
+
 def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
     """
     Returns cached track by Deezer ID from SQLite.

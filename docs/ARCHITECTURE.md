@@ -215,6 +215,16 @@ Version `v2.5.1` addresses review-driven stability issues without changing the m
 
 The larger structural refactor is intentionally moved to `v2.6.0` to keep this patch release focused and safe.
 
+## v2.6.0 Smart Recommendations
+
+Version `v2.6.0` adds smart music recommendations without changing the core search or track card flow:
+
+- `app/services/deezer_service.py` gains three new functions: `get_similar_tracks()` (Deezer radio endpoint), `get_trending_tracks()` (Deezer chart endpoint), and `get_artist_top_tracks()` (Deezer artist search + top endpoint).
+- `app/services/recommendations_service.py` is a new service module that orchestrates DB-first recommendations with Deezer fallback, manages an in-memory trending cache (1-hour TTL), and formats recommendation text for display.
+- `app/bot/similar_callbacks.py` is a new callback handler for the 🎯 Similar inline button.
+- The `users` table gains a `last_track_id` column (TEXT, nullable) to persist the last viewed track across sessions. A corresponding lightweight migration is added to `migrations.py`.
+- `repository_modules/users.py` adds `save_last_track_id()` and `get_last_track_id()`. `repository_modules/tracks.py` adds `get_tracks_by_artist()`. Both are exposed through the `repositories.py` facade.
+
 ## v2.5.2 Runtime and Layout Cleanup
 
 Version `v2.5.2` adds small runtime polish and project layout cleanup without changing the main bot behavior:

@@ -35,14 +35,15 @@ def test_show_main_menu_uses_user_language(monkeypatch):
     assert bot.messages[0][1]["reply_markup"] is not None
 
 
-def test_ask_for_music_registers_next_step(monkeypatch):
+def test_ask_for_music_sends_prompt(monkeypatch):
     bot = FakeBot()
     monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
 
     actions.ask_for_music(bot, chat_id=10, user_id=123)
 
-    assert len(bot.messages) == 2
-    assert len(bot.next_handlers) == 1
+    assert len(bot.messages) == 1
+    assert bot.messages[0][1]["reply_markup"] is not None
+    assert len(bot.next_handlers) == 0
 
 
 def test_send_search_results_rejects_empty_query(monkeypatch):
@@ -111,6 +112,7 @@ def test_send_track_card_sends_photo_when_cover_is_available(monkeypatch, sample
     monkeypatch.setattr(actions, "format_track_card", lambda track: "formatted")
     monkeypatch.setattr(actions, "is_track_favorite", lambda **kwargs: False)
     monkeypatch.setattr(actions, "user_has_search_context", lambda user_id: False)
+    monkeypatch.setattr(actions, "get_db_recommendations", lambda **kwargs: [])
 
     actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
 
@@ -126,6 +128,7 @@ def test_send_track_card_falls_back_to_message_when_photo_fails(monkeypatch, sam
     monkeypatch.setattr(actions, "format_track_card", lambda track: "formatted")
     monkeypatch.setattr(actions, "is_track_favorite", lambda **kwargs: True)
     monkeypatch.setattr(actions, "user_has_search_context", lambda user_id: True)
+    monkeypatch.setattr(actions, "get_db_recommendations", lambda **kwargs: [])
 
     actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
 

@@ -20,6 +20,7 @@ def create_tables(cursor: sqlite3.Cursor) -> None:
             username TEXT,
             first_name TEXT,
             language TEXT DEFAULT 'en',
+            last_track_id TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """

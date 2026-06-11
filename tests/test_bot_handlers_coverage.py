@@ -113,8 +113,8 @@ def test_process_music_search_disables_other_menu_buttons(monkeypatch):
 
     handlers.process_music_search(bot, fake_message(text="Favorites"))
 
-    assert len(bot.messages) == 2
-    assert len(bot.next_handlers) == 1
+    assert len(bot.messages) == 1
+    assert len(bot.next_handlers) == 0
 
 
 def test_process_music_search_handles_commands_and_regular_query(monkeypatch):
@@ -228,6 +228,120 @@ def test_register_handlers_command_handlers(monkeypatch):
         get_registered_handler(bot, handler_name)(fake_message())
 
     assert len(bot.messages) >= 9
+
+
+def _setup_common(monkeypatch):
+    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
+    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
+
+
+def make_track_dict(title="SOS", artist="ABBA"):
+    return {
+        "deezer_track_id": "1",
+        "title": title,
+        "artist": artist,
+        "deezer_link": "https://deezer.com/track/1",
+    }
+
+
+def test_similar_handler_sends_no_context_message_when_no_last_track(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: None)
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "similar_handler")(fake_message())
+
+    assert bot.messages
+    assert "Open" in bot.messages[-1][0][1] or "Відкрий" in bot.messages[-1][0][1] or "similar" in bot.messages[-1][0][1].lower()
+
+
+def test_similar_handler_sends_tracks_when_context_exists(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "deezer_get_track", lambda tid: make_track_dict())
+    monkeypatch.setattr(handlers, "get_similar_by_genre", lambda tid, artist_name="": [make_track_dict("Waterloo")])
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "similar_handler")(fake_message())
+
+    assert bot.messages
+    assert "Waterloo" in bot.messages[-1][0][1]
+
+
+def test_similar_handler_sends_empty_message_when_no_similar_tracks(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "deezer_get_track", lambda tid: make_track_dict())
+    monkeypatch.setattr(handlers, "get_similar_by_genre", lambda tid, artist_name="": [])
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "similar_handler")(fake_message())
+
+    assert bot.messages
+    assert "No similar" in bot.messages[-1][0][1]
+
+
+def test_similar_handler_handles_exception(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "deezer_get_track", lambda tid: make_track_dict())
+    monkeypatch.setattr(
+        handlers,
+        "get_similar_by_genre",
+        lambda tid, artist_name="": (_ for _ in ()).throw(RuntimeError("fail")),
+    )
+    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "similar_handler")(fake_message())
+
+    assert bot.messages
+
+
+def test_trending_handler_sends_tracks(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    tracks = [make_track_dict(f"Track {i}") for i in range(3)]
+    monkeypatch.setattr(handlers, "get_cached_trending", lambda fetch_fn: tracks)
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "trending_handler")(fake_message())
+
+    assert bot.messages
+    text = bot.messages[-1][0][1]
+    assert "Track 0" in text
+
+
+def test_trending_handler_sends_empty_message_when_no_tracks(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_cached_trending", lambda fetch_fn: [])
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "trending_handler")(fake_message())
+
+    assert bot.messages
+    assert "not available" in bot.messages[-1][0][1]
+
+
+def test_trending_handler_handles_exception(monkeypatch):
+    bot = FakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(
+        handlers,
+        "get_cached_trending",
+        lambda fetch_fn: (_ for _ in ()).throw(RuntimeError("api down")),
+    )
+    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+
+    handlers.register_handlers(bot)
+    get_registered_handler(bot, "trending_handler")(fake_message())
+
+    assert bot.messages
 
 
 def test_register_handlers_text_handler_routes_actions(monkeypatch):

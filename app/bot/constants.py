@@ -23,6 +23,7 @@ CB_UNFAVORITE = "unfav"
 CB_LYRICS = "lyrics"
 CB_HISTORY = "hist"
 CB_LANGUAGE = "lang"
+CB_SIMILAR = "similar"
 
 # Callback actions
 ACTION_BACK_RESULTS = "back_results"

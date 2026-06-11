@@ -22,6 +22,7 @@
 - `v2.5.0` — Database Maintenance & Admin Tools Update
 - `v2.5.1` — Stability & Architecture Cleanup Update
 - `v2.5.2` — Small Cleanup & Runtime Polish Update
+- `v2.6.0` — Smart Recommendations Update
 
 ## Current admin/runtime foundation
 
@@ -32,7 +33,7 @@
 
 ## Planned
 
-### v2.6.0 — Bot Structure Refactor Update
+### v2.7.0 — Bot Structure Refactor Update
 
 - Split bot handlers, callbacks and keyboards into packages.
 - Organize tests by domain folders.

@@ -153,6 +153,18 @@ def test_lyrics_callback_handles_missing_lyrics(monkeypatch):
     assert bot.messages
 
 
+def test_lyrics_callback_handles_get_track_error(monkeypatch):
+    bot = FakeBot()
+    monkeypatch.setattr(lyrics_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(lyrics_callbacks, "get_track", lambda track_id: (_ for _ in ()).throw(RuntimeError("api down")))
+    monkeypatch.setattr(lyrics_callbacks, "log_and_save_error", lambda *args, **kwargs: None)
+
+    lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+
+    assert bot.answers
+    assert len(bot.messages) == 1
+
+
 def test_page_callback_handles_expired_context(monkeypatch):
     bot = FakeBot()
     monkeypatch.setattr(pagination_callbacks, "get_user_language", lambda user_id: "en")

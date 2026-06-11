@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.6.0] - 2026-06-09
+
+### Added
+- Added `/similar` command — finds tracks similar to the last viewed track using the Deezer radio endpoint (`/track/{id}/radio`).
+- Added `/trending` command — shows top tracks of the week via the Deezer chart endpoint (`/chart/0/tracks`).
+- Added "You may also like" block sent after each track card based on artist from local DB with fallback to Deezer artist top tracks.
+- Added 🎯 Similar inline button on every track card for quick access to similar tracks.
+- Added `last_track_id` persistence to the `users` table in SQLite so `/similar` works across sessions.
+- Added `get_similar_tracks()`, `get_trending_tracks()`, `get_artist_top_tracks()` to `deezer_service.py`.
+- Added `recommendations_service.py` with in-memory trending cache (1-hour TTL) and DB-first recommendation logic.
+- Added `similar_callbacks.py` for the 🎯 Similar button callback handler.
+- Added `get_tracks_by_artist()` to tracks repository and facade.
+- Added `save_last_track_id()` / `get_last_track_id()` to users repository and facade.
+- Added localization keys for all 8 languages: `similar_header`, `similar_empty`, `similar_no_context`, `trending_header`, `trending_empty`, `you_may_also_like`, `btn_similar`.
+- Updated `/help` command text with new commands in all 8 supported languages.
+
+### Fixed
+- Fixed: infinite "menu buttons disabled" loop — users can now open Favorites/History directly while in search mode.
+- Removed redundant next-step handler that caused message quote linking in search mode.
+
+### Notes
+- Trending results are cached in-memory for 1 hour to reduce Deezer API load.
+- "You may also like" queries the local SQLite DB first; Deezer artist API is used as fallback only when no local data is found.
+- `last_track_id` is stored in the database so it persists across bot restarts.
+
+---
+
 ## [v2.5.2] - 2026-06-04
 
 ### Added

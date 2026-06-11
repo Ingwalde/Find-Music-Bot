@@ -1,7 +1,4 @@
-from collections.abc import Callable
-
 import telebot
-from telebot import types
 
 from app.bot.context import (
     get_current_page,
@@ -21,38 +18,17 @@ from app.config.settings import settings
 from app.database.repositories import (
     get_user_language,
     is_track_favorite,
+    save_last_track_id,
     save_search,
 )
 from app.localization.translations import t
 from app.services.deezer_service import search_tracks
+from app.services.recommendations_service import format_recommendations_text, get_db_recommendations
 from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-
-MusicSearchHandler = Callable[[telebot.TeleBot, types.Message], None]
-
-
-def _default_music_search_handler(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Safe fallback used before Telegram handlers register the real search flow.
-    """
-    logger.warning("Music search handler is not registered yet. Message skipped: %s", getattr(message, "text", None))
-
-
-_music_search_handler: MusicSearchHandler = _default_music_search_handler
-
-
-def set_music_search_handler(handler: MusicSearchHandler) -> None:
-    """
-    Registers the function used by ask_for_music for next-step search handling.
-
-    This avoids importing app.bot.handlers from actions.py and removes the
-    previous circular dependency workaround.
-    """
-    global _music_search_handler
-    _music_search_handler = handler
 
 
 def user_has_search_context(user_id: int) -> bool:
@@ -92,15 +68,8 @@ def ask_for_music(
 
     bot.send_message(
         chat_id,
-        t("search_mode", language),
+        t("ask_music", language),
         reply_markup=search_mode_keyboard(language),
-    )
-
-    sent_msg = bot.send_message(chat_id, t("ask_music", language))
-
-    bot.register_next_step_handler(
-        sent_msg,
-        lambda message: _music_search_handler(bot, message),
     )
 
 
@@ -222,6 +191,13 @@ def send_track_card(
 
     track = enrich_track_with_spotify_link(track)
 
+    deezer_id = track.get("deezer_track_id")
+    if deezer_id:
+        try:
+            save_last_track_id(telegram_id, deezer_id)
+        except Exception as _err:
+            logger.warning("Could not save last_track_id: %s", _err)
+
     text = format_track_card(track)
 
     is_favorite = is_track_favorite(
@@ -246,12 +222,32 @@ def send_track_card(
                 caption=text,
                 reply_markup=markup,
             )
-            return
         except Exception as error:
             logger.warning("Could not send cover image: %s", error)
+            bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=markup,
+            )
+    else:
+        bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=markup,
+        )
 
-    bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        reply_markup=markup,
-    )
+    try:
+        artist = track.get("artist", "")
+        exclude_id = track.get("deezer_track_id", "")
+        if artist and exclude_id:
+            recs = get_db_recommendations(artist=artist, exclude_deezer_id=exclude_id)
+            if recs:
+                rec_text = format_recommendations_text(recs, source_artist=artist)
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=f"{t('you_may_also_like', language)}\n\n{rec_text}",
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True,
+                )
+    except Exception as error:
+        logger.warning("Could not send recommendations: %s", error)

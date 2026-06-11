@@ -49,3 +49,5 @@ def migrate_db(cursor: sqlite3.Cursor) -> None:
     add_column_if_missing(cursor, "tracks", "spotify_track_id", "TEXT")
     add_column_if_missing(cursor, "tracks", "spotify_link", "TEXT")
     add_column_if_missing(cursor, "tracks", "spotify_updated_at", "TIMESTAMP")
+
+    add_column_if_missing(cursor, "users", "last_track_id", "TEXT")

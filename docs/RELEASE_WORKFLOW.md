@@ -19,6 +19,7 @@ v2.4.1
 v2.5.0
 v2.5.1
 v2.5.2
+v2.6.0
 ```
 
 ## Before Creating a Release

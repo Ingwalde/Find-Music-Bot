@@ -29,10 +29,16 @@ from app.database.repository_modules.searches import (
     save_search,
     trim_search_history,
 )
-from app.database.repository_modules.tracks import get_track_by_deezer_id, save_track
+from app.database.repository_modules.tracks import (
+    get_track_by_deezer_id,
+    get_tracks_by_artist,
+    save_track,
+)
 from app.database.repository_modules.users import (
+    get_last_track_id,
     get_user_id,
     get_user_language,
+    save_last_track_id,
     set_user_language,
     upsert_user,
 )
@@ -43,6 +49,8 @@ __all__ = [
     "get_user_id",
     "get_user_language",
     "set_user_language",
+    "save_last_track_id",
+    "get_last_track_id",
     "trim_search_history",
     "save_search",
     "get_search_history",
@@ -50,6 +58,7 @@ __all__ = [
     "clear_search_history",
     "save_track",
     "get_track_by_deezer_id",
+    "get_tracks_by_artist",
     "add_favorite",
     "remove_favorite",
     "clear_favorites",

@@ -11,7 +11,6 @@ from app.admin_tools import (
 from app.bot.actions import (
     ask_for_music,
     send_search_results,
-    set_music_search_handler,
     show_main_menu,
 )
 from app.bot.keyboards import (
@@ -27,6 +26,7 @@ from app.config.settings import settings
 from app.database.repositories import (
     clear_errors,
     get_favorite_tracks,
+    get_last_track_id,
     get_recent_errors,
     get_search_history,
     get_user_language,
@@ -34,6 +34,9 @@ from app.database.repositories import (
 )
 from app.health import format_health_report
 from app.localization.translations import get_menu_action_by_text, t
+from app.services.deezer_service import get_track as deezer_get_track
+from app.services.deezer_service import get_trending_tracks
+from app.services.recommendations_service import get_cached_trending, get_similar_by_genre
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.version import __version__
@@ -178,11 +181,6 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
             t("menu_buttons_disabled", language),
             reply_markup=search_mode_keyboard(language),
         )
-        sent_msg = bot.send_message(message.chat.id, t("ask_music", language))
-        bot.register_next_step_handler(
-            sent_msg,
-            lambda next_message: process_music_search(bot, next_message),
-        )
         return
 
     if text == "/start":
@@ -299,7 +297,6 @@ def register_handlers(bot: telebot.TeleBot) -> None:
     """
     Registers all message handlers.
     """
-    set_music_search_handler(process_music_search)
 
     @bot.message_handler(commands=["start"])
     def start_handler(message: types.Message) -> None:
@@ -418,6 +415,96 @@ def register_handlers(bot: telebot.TeleBot) -> None:
             return
 
         bot.send_message(message.chat.id, reload_admins_report(language))
+
+    @bot.message_handler(commands=["similar"])
+    def similar_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        last_track_id = get_last_track_id(message.from_user.id)
+
+        if not last_track_id:
+            bot.send_message(message.chat.id, t("similar_no_context", language))
+            return
+
+        source = None
+        try:
+            try:
+                source = deezer_get_track(last_track_id)
+                header = t(
+                    "similar_header",
+                    language,
+                    title=source.get("title", ""),
+                    artist=source.get("artist", ""),
+                )
+            except Exception:
+                header = t("similar_header", language, title="", artist="").rstrip(" —").rstrip()
+
+            artist_name = source.get("artist", "") if source else ""
+            tracks = get_similar_by_genre(last_track_id, artist_name=artist_name)
+
+            if not tracks:
+                bot.send_message(message.chat.id, t("similar_empty", language))
+                return
+
+            text_lines = [header]
+            for i, track in enumerate(tracks[:5], start=1):
+                title = track.get("title", "Unknown")
+                artist = track.get("artist", "Unknown artist")
+                link = track.get("deezer_link", "")
+                if link:
+                    text_lines.append(f"{i}. [{artist} — {title}]({link})")
+                else:
+                    text_lines.append(f"{i}. {artist} — {title}")
+
+            bot.send_message(message.chat.id, "\n".join(text_lines), parse_mode="Markdown")
+
+        except Exception as error:
+            log_and_save_error(
+                logger=logger,
+                telegram_id=message.from_user.id,
+                source="similar_handler",
+                error=error,
+            )
+            bot.send_message(message.chat.id, t("similar_empty", language))
+
+    @bot.message_handler(commands=["trending"])
+    def trending_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
+        try:
+            tracks = get_cached_trending(get_trending_tracks)
+
+            if not tracks:
+                bot.send_message(message.chat.id, t("trending_empty", language))
+                return
+
+            text_lines = [t("trending_header", language)]
+            for i, track in enumerate(tracks[:10], start=1):
+                title = track.get("title", "Unknown")
+                artist = track.get("artist", "Unknown artist")
+                link = track.get("deezer_link", "")
+                if link:
+                    text_lines.append(f"{i}. [{artist} — {title}]({link})")
+                else:
+                    text_lines.append(f"{i}. {artist} — {title}")
+
+            bot.send_message(
+                message.chat.id,
+                "\n".join(text_lines),
+                parse_mode="Markdown",
+                disable_web_page_preview=True,
+            )
+
+        except Exception as error:
+            log_and_save_error(
+                logger=logger,
+                telegram_id=message.from_user.id,
+                source="trending_handler",
+                error=error,
+            )
+            bot.send_message(message.chat.id, t("trending_empty", language))
 
     @bot.message_handler(commands=["favorites"])
     def favorites_handler(message: types.Message) -> None:
