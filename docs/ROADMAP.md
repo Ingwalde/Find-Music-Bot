@@ -23,6 +23,7 @@
 - `v2.5.1` — Stability & Architecture Cleanup Update
 - `v2.5.2` — Small Cleanup & Runtime Polish Update
 - `v2.6.0` — Smart Recommendations Update
+- `v2.6.1` — Localization & Error Logging Fixes Update
 
 ## Current admin/runtime foundation
 

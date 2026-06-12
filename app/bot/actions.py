@@ -26,6 +26,7 @@ from app.services.deezer_service import search_tracks
 from app.services.recommendations_service import format_recommendations_text, get_db_recommendations
 from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
+from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -195,8 +196,8 @@ def send_track_card(
     if deezer_id:
         try:
             save_last_track_id(telegram_id, deezer_id)
-        except Exception as _err:
-            logger.warning("Could not save last_track_id: %s", _err)
+        except Exception as error:
+            log_and_save_error(logger, telegram_id, "send_track_card_last_track_id", error)
 
     text = format_track_card(track)
 
@@ -223,7 +224,7 @@ def send_track_card(
                 reply_markup=markup,
             )
         except Exception as error:
-            logger.warning("Could not send cover image: %s", error)
+            log_and_save_error(logger, telegram_id, "send_track_card_cover_image", error)
             bot.send_message(
                 chat_id=chat_id,
                 text=text,
@@ -250,4 +251,4 @@ def send_track_card(
                     disable_web_page_preview=True,
                 )
     except Exception as error:
-        logger.warning("Could not send recommendations: %s", error)
+        log_and_save_error(logger, telegram_id, "send_track_card_recommendations", error)

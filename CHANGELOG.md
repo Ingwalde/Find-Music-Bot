@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.6.1] - 2026-06-11
+
+### Fixed
+- Localized favorites error alerts (were shown in English for all languages)
+- Localized version command output
+- Added error handling to language selection callback
+
+### Changed
+- Track card errors now logged to admin error log (were only logged to file)
+
+### Notes
+- Improved test coverage for favorites and history callbacks
+
+---
+
 ## [v2.6.0] - 2026-06-09
 
 ### Added

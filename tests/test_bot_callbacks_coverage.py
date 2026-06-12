@@ -38,6 +38,7 @@ class FakeBot:
         self.edited_texts = []
         self.edited_markups = []
         self.callback_handlers = []
+        self.raise_on_edit = False
 
     def answer_callback_query(self, *args, **kwargs):
         self.answers.append((args, kwargs))
@@ -46,9 +47,13 @@ class FakeBot:
         self.messages.append((args, kwargs))
 
     def edit_message_text(self, *args, **kwargs):
+        if self.raise_on_edit:
+            raise RuntimeError("edit failed")
         self.edited_texts.append((args, kwargs))
 
     def edit_message_reply_markup(self, *args, **kwargs):
+        if self.raise_on_edit:
+            raise RuntimeError("edit failed")
         self.edited_markups.append((args, kwargs))
 
     def callback_query_handler(self, **decorator_kwargs):
@@ -88,6 +93,23 @@ def test_language_callback_saves_supported_language(monkeypatch):
 
     assert saved == {"user": 123, "language": "uk"}
     assert bot.messages
+
+
+def test_language_callback_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(language_callbacks, "is_supported_language", lambda code: True)
+    monkeypatch.setattr(
+        language_callbacks,
+        "upsert_user",
+        lambda user: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(language_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    language_callbacks.handle_language_callback(bot, fake_call(), "uk")
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
 
 
 def test_track_cache_loader_uses_cache(monkeypatch, sample_track):
@@ -250,6 +272,90 @@ def test_clear_favorites_cancel_handles_empty_and_non_empty(monkeypatch, sample_
     assert len(bot.edited_texts) == 2
 
 
+def test_favorite_callback_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(favorites_callbacks, "upsert_user", lambda user: None)
+    monkeypatch.setattr(
+        favorites_callbacks,
+        "get_track",
+        lambda track_id: (_ for _ in ()).throw(RuntimeError("deezer down")),
+    )
+    monkeypatch.setattr(favorites_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+
+    assert calls
+    assert bot.answers[-1][0][1] == "Could not add to favorites."
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_remove_favorite_callback_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        favorites_callbacks,
+        "get_track",
+        lambda track_id: (_ for _ in ()).throw(RuntimeError("deezer down")),
+    )
+    monkeypatch.setattr(favorites_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+
+    assert calls
+    assert bot.answers[-1][0][1] == "Could not remove from favorites."
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_clear_favorites_request_handles_error(monkeypatch):
+    bot = FakeBot()
+    bot.raise_on_edit = True
+    calls = []
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(favorites_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    favorites_callbacks.handle_clear_favorites_request_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_clear_favorites_confirm_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        favorites_callbacks,
+        "clear_favorites",
+        lambda user_id: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(favorites_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    favorites_callbacks.handle_clear_favorites_confirm_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_clear_favorites_cancel_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        favorites_callbacks,
+        "get_favorite_tracks",
+        lambda user_id: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(favorites_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
 def test_history_search_callback_not_found(monkeypatch):
     bot = FakeBot()
     monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
@@ -284,6 +390,85 @@ def test_clear_history_request_confirm_and_cancel(monkeypatch):
     history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
 
     assert len(bot.edited_texts) == 3
+
+
+def test_history_search_callback_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        history_callbacks,
+        "get_search_query_by_id",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(history_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+
+    assert calls
+    assert bot.messages[-1][0][1] == "Could not repeat this search."
+
+
+def test_clear_history_request_handles_error(monkeypatch):
+    bot = FakeBot()
+    bot.raise_on_edit = True
+    calls = []
+    monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(history_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    history_callbacks.handle_clear_history_request_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_clear_history_confirm_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        history_callbacks,
+        "clear_search_history",
+        lambda user_id: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(history_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    history_callbacks.handle_clear_history_confirm_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+def test_clear_history_cancel_shows_history_when_not_empty(monkeypatch):
+    bot = FakeBot()
+    monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        history_callbacks,
+        "get_search_history",
+        lambda user_id, limit: [{"id": 1, "query": "SOS"}],
+    )
+
+    history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
+
+    assert bot.edited_texts
+    assert bot.edited_texts[-1][1]["reply_markup"] is not None
+
+
+def test_clear_history_cancel_handles_error(monkeypatch):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(history_callbacks, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(
+        history_callbacks,
+        "get_search_history",
+        lambda user_id, limit: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(history_callbacks, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
+
+    assert calls
+    assert bot.answers[-1][1]["show_alert"] is True
 
 
 def test_callback_router_routes_main_actions(monkeypatch):

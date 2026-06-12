@@ -70,6 +70,8 @@ TRANSLATIONS = {
     'history_empty': 'Søkehistorikken din er tom.',
     'favorite_added': '⭐ Spor lagt til i favoritter.',
     'favorite_removed': '❌ Spor fjernet fra favoritter.',
+    'favorite_add_failed': 'Kunne ikke legge til i favoritter.',
+    'favorite_remove_failed': 'Kunne ikke fjerne fra favoritter.',
     'back_to_results_empty': 'Søkeresultatene er ikke lenger tilgjengelige. Vennligst start et nytt søk.',
     'history_clear_confirm': 'Er du sikker på at du vil slette søkehistorikken din?',
     'history_cleared': '🗑 Søkehistorikk slettet.',
@@ -92,4 +94,5 @@ TRANSLATIONS = {
     'lyrics_page_found': 'Sangtekstside funnet:',
     'history_item_not_found': 'Historikkoppføring ikke funnet.',
     'unknown_action': 'Ukjent handling.',
+    'version_info': '🎧 Find Music Bot\nVersjon: v{version}',
 }

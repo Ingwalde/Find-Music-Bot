@@ -30,6 +30,8 @@ TRANSLATIONS = {
     "history_empty": "Your search history is empty.",
     "favorite_added": "⭐ Track added to favorites.",
     "favorite_removed": "❌ Track removed from favorites.",
+    "favorite_add_failed": "Could not add to favorites.",
+    "favorite_remove_failed": "Could not remove from favorites.",
     "lyrics_not_found": "Lyrics page was not found.",
     "genius_error": "Could not get lyrics information right now. Please try again later.",
     "back_to_results_empty": "Search results are not available anymore. Please start a new search.",
@@ -106,4 +108,5 @@ TRANSLATIONS = {
     'trending_empty': 'Trending tracks are not available right now.',
     'you_may_also_like': '✨ You may also like:',
     'btn_similar': '🎯 Similar',
+    'version_info': '🎧 Find Music Bot\nVersion: v{version}',
 }

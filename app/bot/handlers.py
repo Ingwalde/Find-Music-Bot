@@ -322,9 +322,12 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["version"])
     def version_handler(message: types.Message) -> None:
+        upsert_user(message.from_user)
+        language = get_user_language(message.from_user.id)
+
         bot.send_message(
             message.chat.id,
-            f"🎧 Find Music Bot\nVersion: v{__version__}",
+            t("version_info", language, version=__version__),
         )
 
     @bot.message_handler(commands=["errors"])

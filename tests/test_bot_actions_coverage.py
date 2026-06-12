@@ -133,3 +133,62 @@ def test_send_track_card_falls_back_to_message_when_photo_fails(monkeypatch, sam
     actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
 
     assert bot.messages[-1][1]["text"] == "formatted"
+
+
+def test_send_track_card_handles_last_track_id_error(monkeypatch, sample_track):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(actions, "enrich_track_with_spotify_link", lambda track: track)
+    monkeypatch.setattr(actions, "format_track_card", lambda track: "formatted")
+    monkeypatch.setattr(actions, "is_track_favorite", lambda **kwargs: False)
+    monkeypatch.setattr(actions, "user_has_search_context", lambda user_id: False)
+    monkeypatch.setattr(actions, "get_db_recommendations", lambda **kwargs: [])
+    monkeypatch.setattr(
+        actions,
+        "save_last_track_id",
+        lambda telegram_id, deezer_id: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(actions, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
+
+    assert calls
+    assert bot.photos
+
+
+def test_send_track_card_sends_recommendations_when_available(monkeypatch, sample_track):
+    bot = FakeBot()
+    monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(actions, "enrich_track_with_spotify_link", lambda track: track)
+    monkeypatch.setattr(actions, "format_track_card", lambda track: "formatted")
+    monkeypatch.setattr(actions, "is_track_favorite", lambda **kwargs: False)
+    monkeypatch.setattr(actions, "user_has_search_context", lambda user_id: False)
+    monkeypatch.setattr(actions, "save_last_track_id", lambda telegram_id, deezer_id: None)
+    monkeypatch.setattr(actions, "get_db_recommendations", lambda **kwargs: [sample_track])
+    monkeypatch.setattr(actions, "format_recommendations_text", lambda recs, source_artist: "rec text")
+
+    actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
+
+    assert "rec text" in bot.messages[-1][1]["text"]
+
+
+def test_send_track_card_handles_recommendations_error(monkeypatch, sample_track):
+    bot = FakeBot()
+    calls = []
+    monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(actions, "enrich_track_with_spotify_link", lambda track: track)
+    monkeypatch.setattr(actions, "format_track_card", lambda track: "formatted")
+    monkeypatch.setattr(actions, "is_track_favorite", lambda **kwargs: False)
+    monkeypatch.setattr(actions, "user_has_search_context", lambda user_id: False)
+    monkeypatch.setattr(actions, "save_last_track_id", lambda telegram_id, deezer_id: None)
+    monkeypatch.setattr(
+        actions,
+        "get_db_recommendations",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("db error")),
+    )
+    monkeypatch.setattr(actions, "log_and_save_error", lambda *a, **k: calls.append(1))
+
+    actions.send_track_card(bot, chat_id=10, telegram_id=123, track=sample_track)
+
+    assert calls

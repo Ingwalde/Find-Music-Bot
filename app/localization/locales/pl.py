@@ -66,4 +66,7 @@ TRANSLATIONS = {
     'lyrics_page_found': 'Strona z tekstem znaleziona:',
     'history_item_not_found': 'Element historii nie został znaleziony.',
     'unknown_action': 'Nieznana akcja.',
+    'favorite_add_failed': 'Nie udało się dodać do ulubionych.',
+    'favorite_remove_failed': 'Nie udało się usunąć z ulubionych.',
+    'version_info': '🎧 Find Music Bot\nWersja: v{version}',
 }

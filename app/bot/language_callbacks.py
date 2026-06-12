@@ -6,6 +6,10 @@ from app.config.admins import is_admin_user
 from app.database.repositories import set_user_language, upsert_user
 from app.localization.languages import is_supported_language
 from app.localization.translations import t
+from app.utils.error_logger import log_and_save_error
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def handle_language_callback(
@@ -16,24 +20,29 @@ def handle_language_callback(
     """
     Saves selected language for current user.
     """
-    if not is_supported_language(language_code):
-        bot.answer_callback_query(
-            call.id,
-            t("unsupported_language", "en"),
-            show_alert=True,
+    try:
+        if not is_supported_language(language_code):
+            bot.answer_callback_query(
+                call.id,
+                t("unsupported_language", "en"),
+                show_alert=True,
+            )
+            return
+
+        upsert_user(call.from_user)
+        set_user_language(call.from_user.id, language_code)
+
+        bot.answer_callback_query(call.id)
+
+        bot.send_message(
+            call.message.chat.id,
+            t("language_changed", language_code),
+            reply_markup=main_menu_keyboard(
+                language_code,
+                is_admin=is_admin_user(call.from_user.id),
+            ),
         )
-        return
 
-    upsert_user(call.from_user)
-    set_user_language(call.from_user.id, language_code)
-
-    bot.answer_callback_query(call.id)
-
-    bot.send_message(
-        call.message.chat.id,
-        t("language_changed", language_code),
-        reply_markup=main_menu_keyboard(
-            language_code,
-            is_admin=is_admin_user(call.from_user.id),
-        ),
-    )
+    except Exception as error:
+        log_and_save_error(logger, call.from_user.id, "language_callback", error)
+        bot.answer_callback_query(call.id, t("unknown_action", "en"), show_alert=True)

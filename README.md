@@ -2,11 +2,21 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.6.0 — Smart Recommendations Update`
+**Current version:** `v2.6.1 — Localization & Error Logging Fixes Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, SQLite persistence, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v2.6.1
+
+- Localized favorites error alerts, which were previously shown in English regardless of the user's language.
+- Localized the `/version` command output.
+- Added error handling to the language selection callback.
+- Track card errors are now logged to the admin error log instead of only the application log file.
+- Improved test coverage for favorites and history callbacks.
 
 ---
 
@@ -467,7 +477,7 @@ Avoid sharing raw `docker compose config` output because it can expose secrets f
 Planned next stages:
 
 ```text
-v2.6.0 - Smart Recommendations Update
+v2.6.1 - Localization & Error Logging Fixes Update
 v3.0.0 - aiogram Migration
 ```
 

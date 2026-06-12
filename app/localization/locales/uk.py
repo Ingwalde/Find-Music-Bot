@@ -70,6 +70,8 @@ TRANSLATIONS = {
     'history_empty': 'Твоя історія пошуку порожня.',
     'favorite_added': '⭐ Трек додано до улюблених.',
     'favorite_removed': '❌ Трек видалено з улюблених.',
+    'favorite_add_failed': 'Не вдалося додати до улюблених.',
+    'favorite_remove_failed': 'Не вдалося видалити з улюблених.',
     'back_to_results_empty': 'Результати пошуку більше недоступні. Будь ласка, розпочни новий пошук.',
     'history_clear_confirm': 'Ти впевнений, що хочеш очистити історію пошуку?',
     'history_cleared': '🗑 Історію пошуку очищено.',
@@ -92,4 +94,5 @@ TRANSLATIONS = {
     'lyrics_page_found': 'Сторінку з текстом знайдено:',
     'history_item_not_found': 'Запис в історії не знайдено.',
     'unknown_action': 'Невідома дія.',
+    'version_info': '🎧 Find Music Bot\nВерсія: v{version}',
 }

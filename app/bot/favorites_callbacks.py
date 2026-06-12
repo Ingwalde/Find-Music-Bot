@@ -58,7 +58,7 @@ def handle_favorite_callback(
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "favorite_callback", error)
-        bot.answer_callback_query(call.id, "Could not add to favorites.", show_alert=True)
+        bot.answer_callback_query(call.id, t("favorite_add_failed", language), show_alert=True)
 
 
 def handle_remove_favorite_callback(
@@ -97,7 +97,7 @@ def handle_remove_favorite_callback(
 
     except Exception as error:
         log_and_save_error(logger, call.from_user.id, "remove_favorite_callback", error)
-        bot.answer_callback_query(call.id, "Could not remove from favorites.", show_alert=True)
+        bot.answer_callback_query(call.id, t("favorite_remove_failed", language), show_alert=True)
 
 
 def handle_clear_favorites_request_callback(

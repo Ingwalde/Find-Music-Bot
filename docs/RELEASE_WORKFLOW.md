@@ -20,6 +20,7 @@ v2.5.0
 v2.5.1
 v2.5.2
 v2.6.0
+v2.6.1
 ```
 
 ## Before Creating a Release
@@ -146,6 +147,7 @@ v2.3.0 - Docker & Deployment Update
 v2.4.0 - Quality, Coverage & Release Cleanup Update
 v2.4.1 - Coverage Expansion Update
 v2.5.2 - Small Cleanup & Runtime Polish Update
+v2.6.1 - Localization & Error Logging Fixes Update
 ```
 
 

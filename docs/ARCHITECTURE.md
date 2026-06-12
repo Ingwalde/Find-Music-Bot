@@ -236,3 +236,11 @@ Version `v2.5.2` adds small runtime polish and project layout cleanup without ch
 - Runtime/deployment files are grouped under `deploy/`.
 - Production and development dependency files are grouped under `requirements/`.
 - Locale override coverage can be inspected with `scripts/check_locale_coverage.py`.
+
+## v2.6.1 Localization and Error Logging Fixes
+
+Version `v2.6.1` is a maintenance patch and does not change the core architecture:
+
+- Favorites error alerts and the `/version` command output are now localized across all 8 supported languages.
+- Track card errors (cover image, recommendations, last_track_id) are now routed to the admin error log via `log_and_save_error` instead of file-only logging.
+- Added error handling to the language selection callback.
