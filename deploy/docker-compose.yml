@@ -1,8 +1,11 @@
+name: tg-bot
+
 services:
   music-bot:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    image: tg-bot
     container_name: telegram-music-finder-bot
     restart: unless-stopped
     env_file:

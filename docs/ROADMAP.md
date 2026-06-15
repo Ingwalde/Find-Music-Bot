@@ -24,6 +24,7 @@
 - `v2.5.2` — Small Cleanup & Runtime Polish Update
 - `v2.6.0` — Smart Recommendations Update
 - `v2.6.1` — Localization & Error Logging Fixes Update
+- `v2.7.0` — Bot Structure Refactor Update
 
 ## Current admin/runtime foundation
 
@@ -33,13 +34,6 @@
 - v2.5.2 adds lazy external service clients, thread-safe search context storage, localized admin reports, locale coverage checks, and cleaner `deploy/` / `requirements/` folders.
 
 ## Planned
-
-### v2.7.0 — Bot Structure Refactor Update
-
-- Split bot handlers, callbacks and keyboards into packages.
-- Organize tests by domain folders.
-- Keep compatibility facades during the transition.
-- Reduce remaining large modules without changing bot behavior.
 
 ### v3.0.0 — aiogram Migration Update
 

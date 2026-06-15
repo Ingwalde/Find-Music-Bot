@@ -16,18 +16,20 @@ def add_favorite(telegram_id: int, track: dict) -> None:
     track_id = save_track(track)
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT OR IGNORE INTO favorites (user_id, track_id)
-        VALUES (?, ?)
-        """,
-        (user_id, track_id),
-    )
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO favorites (user_id, track_id)
+            VALUES (?, ?)
+            """,
+            (user_id, track_id),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
@@ -40,23 +42,25 @@ def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
         return
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        DELETE FROM favorites
-        WHERE user_id = ?
-        AND track_id = (
-            SELECT id FROM tracks
-            WHERE deezer_track_id = ?
-            LIMIT 1
+        cursor.execute(
+            """
+            DELETE FROM favorites
+            WHERE user_id = ?
+            AND track_id = (
+                SELECT id FROM tracks
+                WHERE deezer_track_id = ?
+                LIMIT 1
+            )
+            """,
+            (user_id, str(deezer_track_id)),
         )
-        """,
-        (user_id, str(deezer_track_id)),
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def clear_favorites(telegram_id: int) -> None:
@@ -70,18 +74,20 @@ def clear_favorites(telegram_id: int) -> None:
         return
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        DELETE FROM favorites
-        WHERE user_id = ?
-        """,
-        (user_id,),
-    )
+        cursor.execute(
+            """
+            DELETE FROM favorites
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
@@ -94,22 +100,24 @@ def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
         return False
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT favorites.id
-        FROM favorites
-        JOIN tracks ON favorites.track_id = tracks.id
-        WHERE favorites.user_id = ?
-        AND tracks.deezer_track_id = ?
-        LIMIT 1
-        """,
-        (user_id, str(deezer_track_id)),
-    )
+        cursor.execute(
+            """
+            SELECT favorites.id
+            FROM favorites
+            JOIN tracks ON favorites.track_id = tracks.id
+            WHERE favorites.user_id = ?
+            AND tracks.deezer_track_id = ?
+            LIMIT 1
+            """,
+            (user_id, str(deezer_track_id)),
+        )
 
-    row = cursor.fetchone()
-    conn.close()
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     return row is not None
 
@@ -124,37 +132,39 @@ def get_favorite_tracks(telegram_id: int) -> list[dict]:
         return []
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT
-            tracks.deezer_track_id,
-            tracks.title,
-            tracks.artist,
-            tracks.album,
-            tracks.duration,
-            tracks.duration_seconds,
-            tracks.deezer_link,
-            tracks.cover_url,
-            tracks.release_date,
-            tracks.rank,
-            tracks.popularity,
-            tracks.spotify_track_id,
-            tracks.spotify_link,
-            tracks.spotify_updated_at,
-            tracks.created_at,
-            tracks.updated_at,
-            favorites.created_at AS favorite_created_at
-        FROM favorites
-        JOIN tracks ON favorites.track_id = tracks.id
-        WHERE favorites.user_id = ?
-        ORDER BY favorites.created_at DESC
-        """,
-        (user_id,),
-    )
+        cursor.execute(
+            """
+            SELECT
+                tracks.deezer_track_id,
+                tracks.title,
+                tracks.artist,
+                tracks.album,
+                tracks.duration,
+                tracks.duration_seconds,
+                tracks.deezer_link,
+                tracks.cover_url,
+                tracks.release_date,
+                tracks.rank,
+                tracks.popularity,
+                tracks.spotify_track_id,
+                tracks.spotify_link,
+                tracks.spotify_updated_at,
+                tracks.created_at,
+                tracks.updated_at,
+                favorites.created_at AS favorite_created_at
+            FROM favorites
+            JOIN tracks ON favorites.track_id = tracks.id
+            WHERE favorites.user_id = ?
+            ORDER BY favorites.created_at DESC
+            """,
+            (user_id,),
+        )
 
-    rows = cursor.fetchall()
-    conn.close()
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
 
     return [row_to_dict(row) for row in rows]

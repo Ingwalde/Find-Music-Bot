@@ -10,22 +10,24 @@ def upsert_user(user: User) -> None:
     Existing language is preserved.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT INTO users (telegram_id, username, first_name)
-        VALUES (?, ?, ?)
-        ON CONFLICT(telegram_id)
-        DO UPDATE SET
-            username = excluded.username,
-            first_name = excluded.first_name
-        """,
-        (user.id, user.username, user.first_name),
-    )
+        cursor.execute(
+            """
+            INSERT INTO users (telegram_id, username, first_name)
+            VALUES (?, ?, ?)
+            ON CONFLICT(telegram_id)
+            DO UPDATE SET
+                username = excluded.username,
+                first_name = excluded.first_name
+            """,
+            (user.id, user.username, user.first_name),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_user_id(telegram_id: int) -> int | None:
@@ -33,18 +35,20 @@ def get_user_id(telegram_id: int) -> int | None:
     Returns internal database user ID by Telegram ID.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT id FROM users
-        WHERE telegram_id = ?
-        """,
-        (telegram_id,),
-    )
+        cursor.execute(
+            """
+            SELECT id FROM users
+            WHERE telegram_id = ?
+            """,
+            (telegram_id,),
+        )
 
-    row = cursor.fetchone()
-    conn.close()
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     if not row:
         return None
@@ -61,20 +65,22 @@ def get_user_language(telegram_id: int | None) -> str:
         return DEFAULT_LANGUAGE
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT language
-        FROM users
-        WHERE telegram_id = ?
-        LIMIT 1
-        """,
-        (telegram_id,),
-    )
+        cursor.execute(
+            """
+            SELECT language
+            FROM users
+            WHERE telegram_id = ?
+            LIMIT 1
+            """,
+            (telegram_id,),
+        )
 
-    row = cursor.fetchone()
-    conn.close()
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     if not row:
         return DEFAULT_LANGUAGE
@@ -95,19 +101,21 @@ def set_user_language(telegram_id: int, language: str) -> None:
         language = DEFAULT_LANGUAGE
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        UPDATE users
-        SET language = ?
-        WHERE telegram_id = ?
-        """,
-        (language, telegram_id),
-    )
+        cursor.execute(
+            """
+            UPDATE users
+            SET language = ?
+            WHERE telegram_id = ?
+            """,
+            (language, telegram_id),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def save_last_track_id(telegram_id: int, deezer_track_id: str) -> None:
@@ -115,19 +123,21 @@ def save_last_track_id(telegram_id: int, deezer_track_id: str) -> None:
     Saves last viewed Deezer track ID for the user.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        UPDATE users
-        SET last_track_id = ?
-        WHERE telegram_id = ?
-        """,
-        (str(deezer_track_id), telegram_id),
-    )
+        cursor.execute(
+            """
+            UPDATE users
+            SET last_track_id = ?
+            WHERE telegram_id = ?
+            """,
+            (str(deezer_track_id), telegram_id),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_last_track_id(telegram_id: int) -> str | None:
@@ -135,20 +145,22 @@ def get_last_track_id(telegram_id: int) -> str | None:
     Returns last viewed Deezer track ID for the user.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT last_track_id
-        FROM users
-        WHERE telegram_id = ?
-        LIMIT 1
-        """,
-        (telegram_id,),
-    )
+        cursor.execute(
+            """
+            SELECT last_track_id
+            FROM users
+            WHERE telegram_id = ?
+            LIMIT 1
+            """,
+            (telegram_id,),
+        )
 
-    row = cursor.fetchone()
-    conn.close()
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     if not row:
         return None

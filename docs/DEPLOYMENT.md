@@ -102,19 +102,19 @@ python run.py
 Build the image:
 
 ```bash
-docker build -f deploy/Dockerfile -t telegram-music-finder-bot .
+docker build -f deploy/Dockerfile -t tg-bot .
 ```
 
 Run the container on Windows PowerShell:
 
 ```bash
-docker run --env-file .env -v "${PWD}/data:/app/data" -v "${PWD}/logs:/app/logs" -v "${PWD}/config:/app/config:ro" telegram-music-finder-bot
+docker run --env-file .env -v "${PWD}/data:/app/data" -v "${PWD}/logs:/app/logs" -v "${PWD}/config:/app/config:ro" tg-bot
 ```
 
 On Linux/macOS:
 
 ```bash
-docker run --env-file .env -v "$(pwd)/data:/app/data" -v "$(pwd)/logs:/app/logs" -v "$(pwd)/config:/app/config:ro" telegram-music-finder-bot
+docker run --env-file .env -v "$(pwd)/data:/app/data" -v "$(pwd)/logs:/app/logs" -v "$(pwd)/config:/app/config:ro" tg-bot
 ```
 
 ## Docker Compose Run

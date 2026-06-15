@@ -11,18 +11,20 @@ def save_error(
     Saves error to database.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT INTO errors (telegram_id, source, error_message)
-        VALUES (?, ?, ?)
-        """,
-        (telegram_id, source, error_message),
-    )
+        cursor.execute(
+            """
+            INSERT INTO errors (telegram_id, source, error_message)
+            VALUES (?, ?, ?)
+            """,
+            (telegram_id, source, error_message),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_recent_errors(limit: int = 10) -> list[dict]:
@@ -30,20 +32,22 @@ def get_recent_errors(limit: int = 10) -> list[dict]:
     Returns recent saved errors.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT telegram_id, source, error_message, created_at
-        FROM errors
-        ORDER BY id DESC
-        LIMIT ?
-        """,
-        (limit,),
-    )
+        cursor.execute(
+            """
+            SELECT telegram_id, source, error_message, created_at
+            FROM errors
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
 
-    rows = cursor.fetchall()
-    conn.close()
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
 
     return [row_to_dict(row) for row in rows]
 
@@ -53,9 +57,11 @@ def clear_errors() -> None:
     Clears saved errors.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute("DELETE FROM errors")
+        cursor.execute("DELETE FROM errors")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()

@@ -244,3 +244,14 @@ Version `v2.6.1` is a maintenance patch and does not change the core architectur
 - Favorites error alerts and the `/version` command output are now localized across all 8 supported languages.
 - Track card errors (cover image, recommendations, last_track_id) are now routed to the admin error log via `log_and_save_error` instead of file-only logging.
 - Added error handling to the language selection callback.
+
+## v2.7.0 Bot Structure Refactor
+
+Version `v2.7.0` is an internal technical-debt refactor and does not change the layered architecture or user-facing behavior beyond the `/similar` formatting unification below:
+
+- `app/bot/handlers.py` gains two shared helpers: `get_user_context(message)` (registers the user and returns their language, replacing a repeated two-line pattern across ~19 handlers) and `require_admin(bot, message, language)` (replaces the repeated admin-check pattern in the 8 admin-only command handlers).
+- `process_music_search` no longer contains unreachable branches — menu-button and `/start` routing is handled exclusively by `text_handler`.
+- `/similar` and `/trending` now call `format_similar_text` / `format_recommendations_text` from `app/services/recommendations_service.py` instead of duplicating list-formatting logic; `/similar` output is now grouped as `🎤 Artist / 🎵 Others`, matching the inline 🎯 Similar button.
+- `get_similar_by_genre` no longer treats tracks with a missing `deezer_track_id` as duplicates of each other.
+- The compatibility facade `app/database/repositories.py` no longer re-exports unused internal helpers (`row_to_dict`, `trim_search_history`, `get_table_counts`, `get_schema_version`).
+- All repository functions in `repository_modules/` and `database/maintenance.py`, plus `init_db()`, now close their SQLite connection in a `finally` block.

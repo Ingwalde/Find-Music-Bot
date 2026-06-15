@@ -82,10 +82,12 @@ def get_table_count(table_name: str) -> int:
         raise ValueError(f"Unsupported table for maintenance stats: {table_name}")
 
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT COUNT(*) AS count FROM {table_name}")
-    row = cursor.fetchone()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) AS count FROM {table_name}")
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     return int(row["count"])
 
@@ -152,26 +154,28 @@ def cleanup_old_errors(keep_latest: int | None = None) -> dict[str, int]:
     before = get_table_count("errors")
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    if keep_latest == 0:
-        cursor.execute("DELETE FROM errors")
-    else:
-        cursor.execute(
-            """
-            DELETE FROM errors
-            WHERE id NOT IN (
-                SELECT id
-                FROM errors
-                ORDER BY id DESC
-                LIMIT ?
+        if keep_latest == 0:
+            cursor.execute("DELETE FROM errors")
+        else:
+            cursor.execute(
+                """
+                DELETE FROM errors
+                WHERE id NOT IN (
+                    SELECT id
+                    FROM errors
+                    ORDER BY id DESC
+                    LIMIT ?
+                )
+                """,
+                (keep_latest,),
             )
-            """,
-            (keep_latest,),
-        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     after = get_table_count("errors")
 
@@ -191,32 +195,34 @@ def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[str, in
     before = get_table_count("searches")
 
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users")
-    user_ids = [int(row["id"]) for row in cursor.fetchall()]
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users")
+        user_ids = [int(row["id"]) for row in cursor.fetchall()]
 
-    for user_id in user_ids:
-        if max_rows_per_user == 0:
-            cursor.execute("DELETE FROM searches WHERE user_id = ?", (user_id,))
-            continue
+        for user_id in user_ids:
+            if max_rows_per_user == 0:
+                cursor.execute("DELETE FROM searches WHERE user_id = ?", (user_id,))
+                continue
 
-        cursor.execute(
-            """
-            DELETE FROM searches
-            WHERE user_id = ?
-            AND id NOT IN (
-                SELECT id
-                FROM searches
+            cursor.execute(
+                """
+                DELETE FROM searches
                 WHERE user_id = ?
-                ORDER BY id DESC
-                LIMIT ?
+                AND id NOT IN (
+                    SELECT id
+                    FROM searches
+                    WHERE user_id = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                )
+                """,
+                (user_id, user_id, max_rows_per_user),
             )
-            """,
-            (user_id, user_id, max_rows_per_user),
-        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     after = get_table_count("searches")
 

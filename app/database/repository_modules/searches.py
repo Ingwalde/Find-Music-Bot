@@ -14,25 +14,27 @@ def trim_search_history(telegram_id: int) -> None:
         return
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        DELETE FROM searches
-        WHERE user_id = ?
-        AND id NOT IN (
-            SELECT id
-            FROM searches
+        cursor.execute(
+            """
+            DELETE FROM searches
             WHERE user_id = ?
-            ORDER BY id DESC
-            LIMIT ?
+            AND id NOT IN (
+                SELECT id
+                FROM searches
+                WHERE user_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+            )
+            """,
+            (user_id, user_id, settings.MAX_HISTORY_PER_USER),
         )
-        """,
-        (user_id, user_id, settings.MAX_HISTORY_PER_USER),
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def save_search(telegram_id: int, query: str) -> None:
@@ -50,18 +52,20 @@ def save_search(telegram_id: int, query: str) -> None:
         return
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT INTO searches (user_id, query)
-        VALUES (?, ?)
-        """,
-        (user_id, normalized_query),
-    )
+        cursor.execute(
+            """
+            INSERT INTO searches (user_id, query)
+            VALUES (?, ?)
+            """,
+            (user_id, normalized_query),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
     trim_search_history(telegram_id)
 
@@ -77,27 +81,29 @@ def get_search_history(telegram_id: int, limit: int = 10) -> list[dict]:
         return []
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT s.id, s.query, s.created_at
-        FROM searches s
-        JOIN (
-            SELECT LOWER(TRIM(query)) AS normalized_query, MAX(id) AS latest_id
-            FROM searches
-            WHERE user_id = ?
-            GROUP BY LOWER(TRIM(query))
-        ) latest ON s.id = latest.latest_id
-        WHERE s.user_id = ?
-        ORDER BY s.id DESC
-        LIMIT ?
-        """,
-        (user_id, user_id, limit),
-    )
+        cursor.execute(
+            """
+            SELECT s.id, s.query, s.created_at
+            FROM searches s
+            JOIN (
+                SELECT LOWER(TRIM(query)) AS normalized_query, MAX(id) AS latest_id
+                FROM searches
+                WHERE user_id = ?
+                GROUP BY LOWER(TRIM(query))
+            ) latest ON s.id = latest.latest_id
+            WHERE s.user_id = ?
+            ORDER BY s.id DESC
+            LIMIT ?
+            """,
+            (user_id, user_id, limit),
+        )
 
-    rows = cursor.fetchall()
-    conn.close()
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
 
     return [row_to_dict(row) for row in rows]
 
@@ -113,21 +119,23 @@ def get_search_query_by_id(telegram_id: int, search_id: int) -> str | None:
         return None
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT query
-        FROM searches
-        WHERE id = ?
-        AND user_id = ?
-        LIMIT 1
-        """,
-        (search_id, user_id),
-    )
+        cursor.execute(
+            """
+            SELECT query
+            FROM searches
+            WHERE id = ?
+            AND user_id = ?
+            LIMIT 1
+            """,
+            (search_id, user_id),
+        )
 
-    row = cursor.fetchone()
-    conn.close()
+        row = cursor.fetchone()
+    finally:
+        conn.close()
 
     if not row:
         return None
@@ -145,15 +153,17 @@ def clear_search_history(telegram_id: int) -> None:
         return
 
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        DELETE FROM searches
-        WHERE user_id = ?
-        """,
-        (user_id,),
-    )
+        cursor.execute(
+            """
+            DELETE FROM searches
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()

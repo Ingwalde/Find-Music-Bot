@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.7.0] - 2026-06-12
+
+### Changed
+- Removed unreachable dead-code branches from `process_music_search` (menu-button and `/start` handling, already covered by `text_handler` routing).
+- `/similar` and `/trending` now reuse `format_similar_text` and `format_recommendations_text` from `recommendations_service.py` instead of duplicating list-formatting logic. `/similar` output now uses the same grouped `🎤 Artist / 🎵 Others` format as the inline 🎯 Similar button.
+- Fixed a `seen_ids` collision in `get_similar_by_genre` where tracks without a `deezer_track_id` could block all related-artist candidates.
+- Removed unused compatibility-facade exports from `repositories.py` (`row_to_dict`, `trim_search_history`, `get_table_counts`, `get_schema_version`).
+- Extracted `get_user_context()` helper (registers the user and returns their language) used across ~19 handlers.
+- Extracted `require_admin()` helper for the 8 admin-only command handlers.
+- All repository functions and `init_db()` now close their SQLite connection in a `finally` block, guaranteeing cleanup even if an error occurs.
+
+### Notes
+- Internal refactor only — no user-facing feature changes besides the `/similar` formatting unification above.
+- Test coverage remains at 93.50% (minimum 85%).
+
+---
+
 ## [v2.6.1] - 2026-06-11
 
 ### Fixed

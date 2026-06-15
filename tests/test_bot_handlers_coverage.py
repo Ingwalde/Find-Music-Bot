@@ -92,31 +92,6 @@ def test_process_music_search_rejects_non_text(monkeypatch):
     assert called["asked"] is True
 
 
-def test_process_music_search_routes_menu_buttons(monkeypatch):
-    bot = FakeBot()
-    called = []
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "get_menu_action_by_text", lambda text: "main_menu")
-    monkeypatch.setattr(handlers, "show_main_menu", lambda bot, chat_id, user_id: called.append("main"))
-
-    handlers.process_music_search(bot, fake_message(text="Main menu"))
-
-    assert called == ["main"]
-
-
-def test_process_music_search_disables_other_menu_buttons(monkeypatch):
-    bot = FakeBot()
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "get_menu_action_by_text", lambda text: "favorites")
-
-    handlers.process_music_search(bot, fake_message(text="Favorites"))
-
-    assert len(bot.messages) == 1
-    assert len(bot.next_handlers) == 0
-
-
 def test_process_music_search_handles_commands_and_regular_query(monkeypatch):
     bot = FakeBot()
     called = {}

@@ -2,11 +2,21 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v2.6.1 — Localization & Error Logging Fixes Update`
+**Current version:** `v2.7.0 — Bot Structure Refactor Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, SQLite persistence, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v2.7.0
+
+- Internal technical-debt refactor — no new user-facing features.
+- `/similar` now displays results grouped as `🎤 Artist / 🎵 Others`, matching the inline 🎯 Similar button.
+- `/trending` formatting is now shared with the recommendations service (output unchanged).
+- Removed dead code, unused facade exports, and duplicated handler boilerplate.
+- All database repository functions now close their connection safely even on errors.
 
 ---
 

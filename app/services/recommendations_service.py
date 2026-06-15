@@ -100,7 +100,7 @@ def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) 
             rank = db_track.get("rank") if db_track else None
             decade = _get_decade(db_track.get("release_date") if db_track else None)
 
-            seen_ids = {str(track_id)} | {t["deezer_track_id"] for t in result}
+            seen_ids = {str(track_id)} | {t["deezer_track_id"] for t in result if t.get("deezer_track_id")}
             needed = limit - len(result)
 
             candidates: list[dict] = []

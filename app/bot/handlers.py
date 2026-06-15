@@ -36,7 +36,12 @@ from app.health import format_health_report
 from app.localization.translations import get_menu_action_by_text, t
 from app.services.deezer_service import get_track as deezer_get_track
 from app.services.deezer_service import get_trending_tracks
-from app.services.recommendations_service import get_cached_trending, get_similar_by_genre
+from app.services.recommendations_service import (
+    format_recommendations_text,
+    format_similar_text,
+    get_cached_trending,
+    get_similar_by_genre,
+)
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.version import __version__
@@ -49,6 +54,24 @@ def is_admin(user_id: int | None) -> bool:
     Checks whether user can access admin-only actions.
     """
     return is_admin_user(user_id)
+
+
+def get_user_context(message: types.Message) -> str:
+    """
+    Registers/updates the user and returns their language preference.
+    """
+    upsert_user(message.from_user)
+    return get_user_language(message.from_user.id)
+
+
+def require_admin(bot: telebot.TeleBot, message: types.Message, language: str) -> bool:
+    """
+    Sends an admin-only denial message and returns False if the user is not an admin.
+    """
+    if not is_admin(message.from_user.id):
+        bot.send_message(message.chat.id, t("admin_only", language))
+        return False
+    return True
 
 
 def format_recent_errors(language: str = "en") -> str:
@@ -88,8 +111,7 @@ def show_admin_menu(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Shows admin menu for users listed in the local admin config file.
     """
-    upsert_user(message.from_user)
-    language = get_user_language(message.from_user.id)
+    language = get_user_context(message)
 
     if not is_admin(message.from_user.id):
         send_admin_only_message(bot, message, language)
@@ -106,8 +128,7 @@ def handle_admin_action(bot: telebot.TeleBot, message: types.Message, action: st
     """
     Handles admin menu button actions.
     """
-    upsert_user(message.from_user)
-    language = get_user_language(message.from_user.id)
+    language = get_user_context(message)
 
     if not is_admin(message.from_user.id):
         send_admin_only_message(bot, message, language)
@@ -142,8 +163,7 @@ def show_language_menu(bot: telebot.TeleBot, message: types.Message) -> None:
     Shows language selection menu.
     Can be opened by /language or by the Language button in main menu.
     """
-    upsert_user(message.from_user)
-    language = get_user_language(message.from_user.id)
+    language = get_user_context(message)
 
     bot.send_message(
         message.chat.id,
@@ -156,8 +176,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     """
     Processes user's song search query.
     """
-    upsert_user(message.from_user)
-    language = get_user_language(message.from_user.id)
+    language = get_user_context(message)
 
     if not message.text:
         bot.send_message(message.chat.id, t("please_send_text", language))
@@ -167,28 +186,6 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
     text = message.text.strip()
 
     if text.startswith("/"):
-        return
-
-    action = get_menu_action_by_text(text)
-
-    if action == "main_menu":
-        show_main_menu(bot, message.chat.id, message.from_user.id)
-        return
-
-    if action in ["music", "favorites", "history", "language", "admin"]:
-        bot.send_message(
-            message.chat.id,
-            t("menu_buttons_disabled", language),
-            reply_markup=search_mode_keyboard(language),
-        )
-        return
-
-    if text == "/start":
-        bot.send_message(
-            message.chat.id,
-            t("welcome", language),
-            reply_markup=main_menu_keyboard(language, is_admin=is_admin(message.from_user.id)),
-        )
         return
 
     try:
@@ -216,8 +213,7 @@ def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
     Main menu button is shown as bottom keyboard.
     """
     try:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         bot.send_message(
             message.chat.id,
@@ -256,8 +252,7 @@ def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
     Main menu button is shown as bottom keyboard.
     """
     try:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         bot.send_message(
             message.chat.id,
@@ -300,8 +295,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["start"])
     def start_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         bot.send_message(
             message.chat.id,
@@ -311,8 +305,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["help"])
     def help_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         bot.send_message(message.chat.id, t("help", language))
 
@@ -322,8 +315,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["version"])
     def version_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         bot.send_message(
             message.chat.id,
@@ -332,22 +324,18 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["errors"])
     def errors_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, format_recent_errors(language))
 
     @bot.message_handler(commands=["clear_errors"])
     def clear_errors_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         clear_errors()
@@ -355,74 +343,61 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["health"])
     def health_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, format_health_report())
 
     @bot.message_handler(commands=["stats"])
     def stats_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, format_stats_report(language))
 
     @bot.message_handler(commands=["maintenance"])
     def maintenance_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, format_maintenance_report(language))
 
     @bot.message_handler(commands=["cleanup_errors"])
     def cleanup_errors_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, cleanup_errors_report(language))
 
     @bot.message_handler(commands=["cleanup_history"])
     def cleanup_history_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, cleanup_history_report(language))
 
     @bot.message_handler(commands=["reload_admins"])
     def reload_admins_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
-        if not is_admin(message.from_user.id):
-            bot.send_message(message.chat.id, t("admin_only", language))
+        if not require_admin(bot, message, language):
             return
 
         bot.send_message(message.chat.id, reload_admins_report(language))
 
     @bot.message_handler(commands=["similar"])
     def similar_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         last_track_id = get_last_track_id(message.from_user.id)
 
@@ -450,17 +425,8 @@ def register_handlers(bot: telebot.TeleBot) -> None:
                 bot.send_message(message.chat.id, t("similar_empty", language))
                 return
 
-            text_lines = [header]
-            for i, track in enumerate(tracks[:5], start=1):
-                title = track.get("title", "Unknown")
-                artist = track.get("artist", "Unknown artist")
-                link = track.get("deezer_link", "")
-                if link:
-                    text_lines.append(f"{i}. [{artist} — {title}]({link})")
-                else:
-                    text_lines.append(f"{i}. {artist} — {title}")
-
-            bot.send_message(message.chat.id, "\n".join(text_lines), parse_mode="Markdown")
+            text = format_similar_text(header, tracks[:5], artist_name)
+            bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
         except Exception as error:
             log_and_save_error(
@@ -473,8 +439,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
 
     @bot.message_handler(commands=["trending"])
     def trending_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-        language = get_user_language(message.from_user.id)
+        language = get_user_context(message)
 
         try:
             tracks = get_cached_trending(get_trending_tracks)
@@ -483,15 +448,7 @@ def register_handlers(bot: telebot.TeleBot) -> None:
                 bot.send_message(message.chat.id, t("trending_empty", language))
                 return
 
-            text_lines = [t("trending_header", language)]
-            for i, track in enumerate(tracks[:10], start=1):
-                title = track.get("title", "Unknown")
-                artist = track.get("artist", "Unknown artist")
-                link = track.get("deezer_link", "")
-                if link:
-                    text_lines.append(f"{i}. [{artist} — {title}]({link})")
-                else:
-                    text_lines.append(f"{i}. {artist} — {title}")
+            text_lines = [t("trending_header", language), format_recommendations_text(tracks[:10])]
 
             bot.send_message(
                 message.chat.id,

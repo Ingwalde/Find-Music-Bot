@@ -44,15 +44,17 @@ def init_db() -> None:
     Creates all required tables, applies migrations and creates indexes.
     """
     conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    create_tables(cursor)
-    migrate_db(cursor)
-    create_indexes(cursor)
-    record_schema_version(cursor)
+        create_tables(cursor)
+        migrate_db(cursor)
+        create_indexes(cursor)
+        record_schema_version(cursor)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 __all__ = [
