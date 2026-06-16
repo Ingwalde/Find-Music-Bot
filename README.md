@@ -2,11 +2,18 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.0.0 — aiogram Migration Update`
+**Current version:** `v3.0.1 — Async Event-Loop Hygiene Patch`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, SQLite persistence, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.0.1
+
+- Wrapped two remaining synchronous SQLite calls in `recommendations_service.py` in `asyncio.to_thread` so they no longer briefly block the event loop during `/similar` and recommendation queries.
+- No behavior change for users.
 
 ---
 

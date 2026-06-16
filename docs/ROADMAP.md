@@ -26,6 +26,7 @@
 - `v2.6.1` — Localization & Error Logging Fixes Update
 - `v2.7.0` — Bot Structure Refactor Update
 - `v3.0.0` — aiogram Migration Update
+- `v3.0.1` — Async Event-Loop Hygiene Patch
 
 ## Current admin/runtime foundation
 

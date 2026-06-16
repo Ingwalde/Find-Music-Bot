@@ -49,7 +49,8 @@ async def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int
     Returns recommended tracks by artist from local DB.
     Falls back to Deezer artist top tracks if DB has no results.
     """
-    tracks = get_tracks_by_artist(
+    tracks = await asyncio.to_thread(
+        get_tracks_by_artist,
         artist=artist,
         exclude_deezer_id=exclude_deezer_id,
         limit=limit,
@@ -95,7 +96,7 @@ async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int 
         related = await get_related_artists(artist_id, limit=3) if artist_id else []
 
         if related:
-            db_track = get_track_by_deezer_id(track_id)
+            db_track = await asyncio.to_thread(get_track_by_deezer_id, track_id)
             rank = db_track.get("rank") if db_track else None
             decade = _get_decade(db_track.get("release_date") if db_track else None)
 

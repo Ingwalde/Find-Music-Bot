@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.0.1] - 2026-06-16
+
+### Changed
+- Wrapped two remaining synchronous SQLite calls in `recommendations_service.py` (`get_db_recommendations`, `get_similar_by_genre`) in `asyncio.to_thread` so they no longer briefly block the event loop during recommendation and `/similar` queries.
+
+### Notes
+- Internal async hygiene patch — no behavior change for users.
+- Test coverage unchanged (312 tests, all passing).
+
+---
+
 ## [v3.0.0] - 2026-06-16
 
 ### Breaking Changes
