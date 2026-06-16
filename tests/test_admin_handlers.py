@@ -1,60 +1,31 @@
-from types import SimpleNamespace
+import pytest
 
 from app.bot import handlers
+from tests.conftest import AsyncFakeBot, fake_message
 
 
-class FakeBot:
-    def __init__(self):
-        self.messages = []
-        self.message_handlers = []
-
-    def send_message(self, *args, **kwargs):
-        self.messages.append((args, kwargs))
-        chat_id = kwargs.get("chat_id", args[0] if args else 1)
-        return SimpleNamespace(chat=SimpleNamespace(id=chat_id), message_id=len(self.messages))
-
-    def message_handler(self, **decorator_kwargs):
-        def decorator(func):
-            self.message_handlers.append((decorator_kwargs, func))
-            return func
-
-        return decorator
-
-
-def fake_message(user_id=123):
-    return SimpleNamespace(
-        text="/stats",
-        from_user=SimpleNamespace(id=user_id, username="tester", first_name="Test"),
-        chat=SimpleNamespace(id=10),
-    )
-
-
-def get_registered_handler(bot, name):
-    for _metadata, func in bot.message_handlers:
-        if func.__name__ == name:
-            return func
-    raise AssertionError(f"Handler {name} was not registered")
-
-
-def test_admin_handlers_return_admin_reports(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_admin_handlers_return_admin_reports(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers.settings, "ADMIN_ID", 123)
+    monkeypatch.setattr(handlers, "is_admin_user", lambda user_id: user_id == 123)
     monkeypatch.setattr(handlers, "format_stats_report", lambda language="en": "stats report")
-    monkeypatch.setattr(handlers, "format_maintenance_report", lambda language="en": "maintenance report")
-    monkeypatch.setattr(handlers, "cleanup_errors_report", lambda language="en": "errors cleanup")
-    monkeypatch.setattr(handlers, "cleanup_history_report", lambda language="en": "history cleanup")
+    monkeypatch.setattr(
+        handlers, "format_maintenance_report", lambda language="en": "maintenance report"
+    )
+    monkeypatch.setattr(
+        handlers, "cleanup_errors_report", lambda language="en": "errors cleanup"
+    )
+    monkeypatch.setattr(
+        handlers, "cleanup_history_report", lambda language="en": "history cleanup"
+    )
 
-    handlers.register_handlers(bot)
-
-    for handler_name in [
-        "stats_handler",
-        "maintenance_handler",
-        "cleanup_errors_handler",
-        "cleanup_history_handler",
-    ]:
-        get_registered_handler(bot, handler_name)(fake_message(user_id=123))
+    msg = fake_message(user_id=123)
+    await handlers.stats_handler(msg, bot)
+    await handlers.maintenance_handler(msg, bot)
+    await handlers.cleanup_errors_handler(msg, bot)
+    await handlers.cleanup_history_handler(msg, bot)
 
     sent_texts = [args[1] for args, _kwargs in bot.messages]
 
@@ -64,16 +35,16 @@ def test_admin_handlers_return_admin_reports(monkeypatch):
     assert "history cleanup" in sent_texts
 
 
-def test_admin_handlers_reject_non_admin(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_admin_handlers_reject_non_admin(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers.settings, "ADMIN_ID", 123)
+    monkeypatch.setattr(handlers, "is_admin_user", lambda user_id: False)
 
-    handlers.register_handlers(bot)
-
-    get_registered_handler(bot, "stats_handler")(fake_message(user_id=999))
-    get_registered_handler(bot, "maintenance_handler")(fake_message(user_id=999))
+    msg = fake_message(user_id=999)
+    await handlers.stats_handler(msg, bot)
+    await handlers.maintenance_handler(msg, bot)
 
     sent_texts = [args[1] for args, _kwargs in bot.messages]
 

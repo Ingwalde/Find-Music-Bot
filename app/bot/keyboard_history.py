@@ -1,4 +1,5 @@
-from telebot import types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.constants import (
     ACTION_HISTORY_CLEAR_CANCEL,
@@ -14,46 +15,46 @@ from app.utils.text import truncate_text
 def history_keyboard(
     history: list[dict],
     language: str = "en",
-) -> types.InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup:
     """
     Creates improved search history keyboard.
     """
-    markup = types.InlineKeyboardMarkup(row_width=1)
+    builder = InlineKeyboardBuilder()
 
     for item in history:
         search_id = item.get("id")
         query = item.get("query", "Unknown query")
 
-        markup.add(
-            types.InlineKeyboardButton(
+        builder.row(
+            InlineKeyboardButton(
                 text=truncate_text(f"🔎 {query}", 64),
                 callback_data=make_callback(CB_HISTORY, search_id),
             )
         )
 
-    markup.add(
-        types.InlineKeyboardButton(
+    builder.row(
+        InlineKeyboardButton(
             text=t("btn_clear_history", language),
             callback_data=ACTION_HISTORY_CLEAR_REQUEST,
         )
     )
 
-    return markup
+    return builder.as_markup()
 
 
-def confirm_clear_history_keyboard(language: str = "en") -> types.InlineKeyboardMarkup:
+def confirm_clear_history_keyboard(language: str = "en") -> InlineKeyboardMarkup:
     """
     Confirmation keyboard for clearing search history.
     """
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton(
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
             text=t("btn_yes_clear", language),
             callback_data=ACTION_HISTORY_CLEAR_CONFIRM,
         ),
-        types.InlineKeyboardButton(
+        InlineKeyboardButton(
             text=t("btn_cancel", language),
             callback_data=ACTION_HISTORY_CLEAR_CANCEL,
         ),
     )
-    return markup
+    return builder.as_markup()

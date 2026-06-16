@@ -1,5 +1,4 @@
-import requests
-from requests import HTTPError
+import httpx
 
 from app.config.settings import settings
 from app.platforms.spotify.auth import (
@@ -20,7 +19,7 @@ logger = setup_logger(__name__)
 SPOTIFY_SEARCH_URL = "https://api.spotify.com/v1/search"
 
 
-def request_spotify_search(
+async def request_spotify_search(
     token: str,
     query: str,
     limit: int,
@@ -39,21 +38,21 @@ def request_spotify_search(
         params["market"] = market
 
     try:
-        response = requests.get(
-            SPOTIFY_SEARCH_URL,
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-            timeout=10,
-        )
-        response.raise_for_status()
-    except HTTPError as error:
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            response = await http_client.get(
+                SPOTIFY_SEARCH_URL,
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+            )
+            response.raise_for_status()
+    except httpx.HTTPStatusError as error:
         try:
             handle_spotify_http_error(error, "track search")
         except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
             logger.warning("Spotify search skipped: %s", spotify_error)
             return []
         return []
-    except requests.RequestException as error:
+    except httpx.RequestError as error:
         logger.warning("Spotify search request failed: %s", error)
         return []
 
@@ -61,7 +60,7 @@ def request_spotify_search(
     return data.get("tracks", {}).get("items", [])
 
 
-def search_spotify_track(
+async def search_spotify_track(
     title: str,
     artist: str | None = None,
     limit: int = 5,
@@ -70,7 +69,7 @@ def search_spotify_track(
     Searches Spotify for the closest matching track.
     Returns normalized track data or None.
     """
-    token = get_spotify_access_token()
+    token = await get_spotify_access_token()
 
     if not token:
         return None
@@ -78,7 +77,7 @@ def search_spotify_track(
     all_items = []
 
     for query in build_spotify_queries(title, artist):
-        items = request_spotify_search(
+        items = await request_spotify_search(
             token=token,
             query=query,
             limit=limit,

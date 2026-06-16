@@ -1,18 +1,9 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app.bot import similar_callbacks
-
-
-class FakeBot:
-    def __init__(self):
-        self.answers = []
-        self.messages = []
-
-    def answer_callback_query(self, *args, **kwargs):
-        self.answers.append((args, kwargs))
-
-    def send_message(self, *args, **kwargs):
-        self.messages.append((args, kwargs))
+from tests.conftest import AsyncFakeBot, to_async
 
 
 def fake_call(track_id="123", user_id=42):
@@ -33,67 +24,80 @@ def make_track(title="SOS", artist="ABBA"):
     }
 
 
-def test_handle_similar_callback_sends_tracks_list(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_handle_similar_callback_sends_tracks_list(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
-    monkeypatch.setattr(similar_callbacks, "get_track", lambda tid: make_track())
-    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", lambda tid, artist_name="": [make_track("Waterloo", "ABBA")])
+    monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
+    monkeypatch.setattr(
+        similar_callbacks,
+        "get_similar_by_genre",
+        to_async(lambda tid, artist_name="": [make_track("Waterloo", "ABBA")]),
+    )
 
-    similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     assert len(bot.answers) == 1
     assert len(bot.messages) == 1
     assert "ABBA" in bot.messages[0][0][1]
 
 
-def test_handle_similar_callback_sends_empty_message_when_no_tracks(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_handle_similar_callback_sends_empty_message_when_no_tracks(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
-    monkeypatch.setattr(similar_callbacks, "get_track", lambda tid: make_track())
-    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", lambda tid, artist_name="": [])
+    monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
+    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": []))
 
-    similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     assert len(bot.messages) == 1
     assert "No similar" in bot.messages[0][0][1]
 
 
-def test_handle_similar_callback_uses_fallback_header_when_get_track_fails(monkeypatch):
-    bot = FakeBot()
-    monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
-    monkeypatch.setattr(similar_callbacks, "get_track", lambda tid: (_ for _ in ()).throw(RuntimeError("fail")))
-    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", lambda tid, artist_name="": [make_track()])
+@pytest.mark.asyncio
+async def test_handle_similar_callback_uses_fallback_header_when_get_track_fails(monkeypatch):
+    bot = AsyncFakeBot()
 
-    similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    async def failing_get_track(tid):
+        raise RuntimeError("fail")
+
+    monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
+    monkeypatch.setattr(similar_callbacks, "get_track", failing_get_track)
+    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": [make_track()]))
+
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     assert len(bot.messages) == 1
 
 
-def test_handle_similar_callback_handles_exception_gracefully(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_handle_similar_callback_handles_exception_gracefully(monkeypatch):
+    bot = AsyncFakeBot()
+
+    async def failing_get_similar(tid, artist_name=""):
+        raise RuntimeError("network error")
+
     monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
-    monkeypatch.setattr(similar_callbacks, "get_track", lambda tid: make_track())
-    monkeypatch.setattr(
-        similar_callbacks,
-        "get_similar_by_genre",
-        lambda tid, artist_name="": (_ for _ in ()).throw(RuntimeError("network error")),
-    )
+    monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
+    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", failing_get_similar)
     monkeypatch.setattr(similar_callbacks, "log_and_save_error", lambda **kwargs: None)
 
-    similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     assert len(bot.messages) == 1
     assert "No similar" in bot.messages[0][0][1]
 
 
-def test_handle_similar_callback_shows_up_to_five_tracks(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_handle_similar_callback_shows_up_to_five_tracks(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(similar_callbacks, "get_user_language", lambda uid: "en")
-    monkeypatch.setattr(similar_callbacks, "get_track", lambda tid: make_track())
+    monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
     many = [make_track(f"Track {i}", "ABBA") for i in range(10)]
-    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", lambda tid, artist_name="": many)
+    monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": many))
 
-    similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     text = bot.messages[0][0][1]
     assert "Track 4" in text

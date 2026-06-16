@@ -1,67 +1,68 @@
-from telebot import types
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.localization.translations import t
 
 
-def main_menu_keyboard(language: str = "en", is_admin: bool = False) -> types.ReplyKeyboardMarkup:
+def main_menu_keyboard(language: str = "en", is_admin: bool = False) -> ReplyKeyboardMarkup:
     """
     Creates bottom reply keyboard for main menu.
     Admin users get an additional Admin button.
     """
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton(t("btn_music", language)))
-    markup.add(
-        types.KeyboardButton(t("btn_favorites", language)),
-        types.KeyboardButton(t("btn_history", language)),
+    builder = ReplyKeyboardBuilder()
+    builder.row(KeyboardButton(text=t("btn_music", language)))
+    builder.row(
+        KeyboardButton(text=t("btn_favorites", language)),
+        KeyboardButton(text=t("btn_history", language)),
     )
-    markup.add(types.KeyboardButton(t("btn_language", language)))
+    builder.row(KeyboardButton(text=t("btn_language", language)))
 
     if is_admin:
-        markup.add(types.KeyboardButton(t("btn_admin", language)))
+        builder.row(KeyboardButton(text=t("btn_admin", language)))
 
-    return markup
+    return builder.as_markup(resize_keyboard=True)
 
 
-def admin_menu_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
+def admin_menu_keyboard(language: str = "en") -> ReplyKeyboardMarkup:
     """
     Creates bottom reply keyboard for admin maintenance actions.
     """
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(
-        types.KeyboardButton(t("btn_admin_stats", language)),
-        types.KeyboardButton(t("btn_admin_maintenance", language)),
+    builder = ReplyKeyboardBuilder()
+    builder.row(
+        KeyboardButton(text=t("btn_admin_stats", language)),
+        KeyboardButton(text=t("btn_admin_maintenance", language)),
     )
-    markup.add(
-        types.KeyboardButton(t("btn_admin_cleanup_errors", language)),
-        types.KeyboardButton(t("btn_admin_cleanup_history", language)),
+    builder.row(
+        KeyboardButton(text=t("btn_admin_cleanup_errors", language)),
+        KeyboardButton(text=t("btn_admin_cleanup_history", language)),
     )
-    markup.add(
-        types.KeyboardButton(t("btn_admin_health", language)),
-        types.KeyboardButton(t("btn_admin_reload_admins", language)),
+    builder.row(
+        KeyboardButton(text=t("btn_admin_health", language)),
+        KeyboardButton(text=t("btn_admin_reload_admins", language)),
     )
-    markup.add(types.KeyboardButton(t("btn_main_menu", language)))
-    return markup
+    builder.row(KeyboardButton(text=t("btn_main_menu", language)))
+    return builder.as_markup(resize_keyboard=True)
 
 
-def back_to_main_menu_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
+def back_to_main_menu_keyboard(language: str = "en") -> ReplyKeyboardMarkup:
     """
     Creates bottom keyboard with only Main menu button.
     Used in search, favorites and history screens.
     """
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton(t("btn_main_menu", language)))
-    return markup
+    builder = ReplyKeyboardBuilder()
+    builder.row(KeyboardButton(text=t("btn_main_menu", language)))
+    return builder.as_markup(resize_keyboard=True)
 
 
-def search_mode_keyboard(language: str = "en") -> types.ReplyKeyboardMarkup:
+def search_mode_keyboard(language: str = "en") -> ReplyKeyboardMarkup:
     """
     Creates bottom keyboard for secondary screens and music search mode.
     """
     return back_to_main_menu_keyboard(language)
 
 
-def remove_keyboard() -> types.ReplyKeyboardRemove:
+def remove_keyboard() -> ReplyKeyboardRemove:
     """
     Removes bottom reply keyboard.
     """
-    return types.ReplyKeyboardRemove()
+    return ReplyKeyboardRemove()

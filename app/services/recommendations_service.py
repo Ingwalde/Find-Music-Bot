@@ -1,4 +1,4 @@
-from threading import RLock
+import asyncio
 from time import time
 
 from app.database.repositories import get_track_by_deezer_id, get_tracks_by_artist
@@ -15,23 +15,23 @@ logger = setup_logger(__name__)
 _TRENDING_TTL = 3600
 
 _trending_cache: dict = {"tracks": [], "expires_at": 0.0}
-_trending_cache_lock = RLock()
+_trending_cache_lock = asyncio.Lock()
 
 
-def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
+async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
     """
     Returns trending tracks using an in-memory cache with a 1-hour TTL.
-    fetch_fn is called only when the cache is expired or empty.
+    fetch_fn is an async callable, called only when the cache is expired or empty.
     """
-    with _trending_cache_lock:
+    async with _trending_cache_lock:
         if time() < _trending_cache["expires_at"] and _trending_cache["tracks"]:
             logger.info("Returning trending tracks from cache")
             return list(_trending_cache["tracks"])
 
     logger.info("Cache expired or empty — fetching trending tracks")
-    tracks = fetch_fn(limit)
+    tracks = await fetch_fn(limit)
 
-    with _trending_cache_lock:
+    async with _trending_cache_lock:
         _trending_cache["tracks"] = tracks
         _trending_cache["expires_at"] = time() + _TRENDING_TTL
 
@@ -40,12 +40,11 @@ def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
 
 def invalidate_trending_cache() -> None:
     """Resets the trending cache. Useful for tests."""
-    with _trending_cache_lock:
-        _trending_cache["tracks"] = []
-        _trending_cache["expires_at"] = 0.0
+    _trending_cache["tracks"] = []
+    _trending_cache["expires_at"] = 0.0
 
 
-def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int = 3) -> list[dict]:
+async def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int = 3) -> list[dict]:
     """
     Returns recommended tracks by artist from local DB.
     Falls back to Deezer artist top tracks if DB has no results.
@@ -61,7 +60,7 @@ def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int = 3) 
         return tracks
 
     logger.info("No DB recommendations for %r — falling back to Deezer artist API", artist)
-    return get_artist_top_tracks(artist_name=artist, limit=limit)
+    return await get_artist_top_tracks(artist_name=artist, limit=limit)
 
 
 def _get_decade(release_date: str | None) -> tuple[int, int] | None:
@@ -78,7 +77,7 @@ def _get_decade(release_date: str | None) -> tuple[int, int] | None:
     return decade_start, decade_start + 9
 
 
-def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) -> list[dict]:
+async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) -> list[dict]:
     """
     Returns tracks similar to the given track using a 3-step strategy.
     Step 1: top tracks by the same artist (up to 5, excluding current track).
@@ -87,13 +86,13 @@ def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) 
     Step 3: fallback to artist top tracks without rank filter if steps 1+2 gave nothing.
     """
     # Step 1 — artist tracks
-    artist_raw = get_artist_top_tracks(artist_name=artist_name, limit=5)
+    artist_raw = await get_artist_top_tracks(artist_name=artist_name, limit=5)
     result = [t for t in artist_raw if t.get("deezer_track_id") != str(track_id)]
 
     # Step 2 — related artists fill if we have room
     if len(result) < limit:
-        artist_id = get_artist_id(artist_name)
-        related = get_related_artists(artist_id, limit=3) if artist_id else []
+        artist_id = await get_artist_id(artist_name)
+        related = await get_related_artists(artist_id, limit=3) if artist_id else []
 
         if related:
             db_track = get_track_by_deezer_id(track_id)
@@ -105,7 +104,7 @@ def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) 
 
             candidates: list[dict] = []
             for artist in related:
-                candidates.extend(get_artist_top_tracks_by_id(artist["id"], limit=10))
+                candidates.extend(await get_artist_top_tracks_by_id(artist["id"], limit=10))
 
             # Pass A — with decade filter
             decade_results: list[dict] = []
@@ -143,7 +142,7 @@ def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) 
     # Step 3 — fallback if both steps gave nothing
     if not result:
         logger.info("Similar steps 1+2 empty for %s — using artist fallback", track_id)
-        return get_artist_top_tracks(artist_name=artist_name, limit=limit)
+        return await get_artist_top_tracks(artist_name=artist_name, limit=limit)
 
     logger.info("Similar tracks for %s: %d result(s)", track_id, len(result))
     return result[:limit]

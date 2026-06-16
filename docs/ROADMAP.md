@@ -25,24 +25,20 @@
 - `v2.6.0` — Smart Recommendations Update
 - `v2.6.1` — Localization & Error Logging Fixes Update
 - `v2.7.0` — Bot Structure Refactor Update
+- `v3.0.0` — aiogram Migration Update
 
 ## Current admin/runtime foundation
 
 - Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable.
 - `config/admins.json` must stay local and is ignored by Git.
 - Admin language UX fixes are included: the admin button remains visible after language changes and admin menu buttons use localized labels.
-- v2.5.2 adds lazy external service clients, thread-safe search context storage, localized admin reports, locale coverage checks, and cleaner `deploy/` / `requirements/` folders.
+- v3.0.0 completes the async migration to aiogram 3.x. Deezer and lyrics integrations use httpx directly. All bot-layer code is fully async with `asyncio.to_thread` for sync DB calls.
 
 ## Planned
 
-### v3.0.0 — aiogram Migration Update
+- Revisit long-term production deployment options post-async migration.
 
-- Migrate from pyTelegramBotAPI to aiogram 3.x.
-- Move Telegram handling to async architecture.
-- Rework routing, middleware and state handling.
-- Revisit long-term production deployment options after async migration.
-
-## Not Planned for v2.x
+## Not Planned for v3.x
 
 - Additional music platforms.
 - Web dashboard.

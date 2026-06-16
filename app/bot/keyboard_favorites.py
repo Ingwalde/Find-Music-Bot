@@ -1,4 +1,5 @@
-from telebot import types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.constants import (
     ACTION_FAVORITES_CLEAR_CANCEL,
@@ -14,11 +15,11 @@ from app.utils.text import truncate_text
 def favorites_keyboard(
     tracks: list[dict],
     language: str = "en",
-) -> types.InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup:
     """
     Creates improved favorites keyboard.
     """
-    markup = types.InlineKeyboardMarkup(row_width=1)
+    builder = InlineKeyboardBuilder()
 
     for track in tracks:
         title = track.get("title", "Unknown title")
@@ -26,36 +27,36 @@ def favorites_keyboard(
         track_id = track.get("deezer_track_id")
         button_text = truncate_text(f"🎵 {title} — {artist}", 64)
 
-        markup.add(
-            types.InlineKeyboardButton(
+        builder.row(
+            InlineKeyboardButton(
                 text=button_text,
                 callback_data=make_callback(CB_TRACK, track_id),
             )
         )
 
-    markup.add(
-        types.InlineKeyboardButton(
+    builder.row(
+        InlineKeyboardButton(
             text=t("btn_clear_favorites", language),
             callback_data=ACTION_FAVORITES_CLEAR_REQUEST,
         )
     )
 
-    return markup
+    return builder.as_markup()
 
 
-def confirm_clear_favorites_keyboard(language: str = "en") -> types.InlineKeyboardMarkup:
+def confirm_clear_favorites_keyboard(language: str = "en") -> InlineKeyboardMarkup:
     """
     Confirmation keyboard for clearing all favorites.
     """
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton(
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
             text=t("btn_yes_clear", language),
             callback_data=ACTION_FAVORITES_CLEAR_CONFIRM,
         ),
-        types.InlineKeyboardButton(
+        InlineKeyboardButton(
             text=t("btn_cancel", language),
             callback_data=ACTION_FAVORITES_CLEAR_CANCEL,
         ),
     )
-    return markup
+    return builder.as_markup()

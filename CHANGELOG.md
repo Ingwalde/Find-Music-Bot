@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.0.0] - 2026-06-16
+
+### Breaking Changes
+- **Migrated from pyTelegramBotAPI to aiogram 3.29.0.** All bot handlers, callbacks, and lifecycle code are now fully async. Any custom fork relying on the sync telebot API must be updated.
+- Removed dependencies: `pyTelegramBotAPI`, `deezer-python`, `lyricsgenius`, `requests`.
+
+### Changed
+- All bot-layer functions are now `async def` using `asyncio.to_thread` for sync DB/IO calls.
+- `app/main.py` now wires `handlers_router` and `callbacks_router` into an aiogram `Dispatcher` and calls `bot.delete_webhook(drop_pending_updates=True)` before polling.
+- `app/database/repository_modules/users.py` now imports `User` from `aiogram.types` instead of `telebot.types`.
+- Deezer search rewritten with `httpx` (async HTTP, no SDK). Lyrics rewritten with `httpx` direct API. Spotify platform unchanged.
+
+### Fixed
+- Fixed track card never reaching the user when a track button was tapped — `send_track_card` in `track_callbacks.py` was called without `await`, silently discarding the coroutine. Caught during aiogram migration smoke testing.
+
+### Notes
+- Database schema and SQLite file format unchanged — no migration needed.
+- Test coverage remains ≥ 93% (312 tests, all passing).
+- All localization keys and 8 supported languages unchanged.
+
+---
+
 ## [v2.7.0] - 2026-06-12
 
 ### Changed

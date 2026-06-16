@@ -1,5 +1,7 @@
-import telebot
-from telebot import types
+import asyncio
+
+from aiogram import Bot
+from aiogram.types import CallbackQuery
 
 from app.bot.actions import user_has_search_context
 from app.bot.keyboards import (
@@ -24,58 +26,55 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def handle_favorite_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_favorite_callback(
+    bot: Bot,
+    call: CallbackQuery,
     track_id: str,
 ) -> None:
-    """
-    Adds track to favorites and updates inline button.
-    """
-    language = get_user_language(call.from_user.id)
+    language = await asyncio.to_thread(get_user_language, call.from_user.id)
 
     try:
-        upsert_user(call.from_user)
+        await asyncio.to_thread(upsert_user, call.from_user)
 
-        track = get_track(track_id)
-        save_track(track)
-        add_favorite(call.from_user.id, track)
+        track = await get_track(track_id)
+        await asyncio.to_thread(save_track, track)
+        await asyncio.to_thread(add_favorite, call.from_user.id, track)
 
         updated_markup = track_actions_keyboard(
             track,
             is_favorite=True,
-            show_back_to_results=user_has_search_context(call.from_user.id),
+            show_back_to_results=await user_has_search_context(call.from_user.id),
             language=language,
         )
 
-        bot.edit_message_reply_markup(
+        await bot.edit_message_reply_markup(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             reply_markup=updated_markup,
         )
 
-        bot.answer_callback_query(call.id, t("favorite_added", language), show_alert=False)
+        await bot.answer_callback_query(call.id, t("favorite_added", language), show_alert=False)
 
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "favorite_callback", error)
-        bot.answer_callback_query(call.id, t("favorite_add_failed", language), show_alert=True)
+        await asyncio.to_thread(
+            log_and_save_error, logger, call.from_user.id, "favorite_callback", error
+        )
+        await bot.answer_callback_query(call.id, t("favorite_add_failed", language), show_alert=True)
 
 
-def handle_remove_favorite_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_remove_favorite_callback(
+    bot: Bot,
+    call: CallbackQuery,
     track_id: str,
 ) -> None:
-    """
-    Removes track from favorites and updates inline button.
-    """
-    language = get_user_language(call.from_user.id)
+    language = await asyncio.to_thread(get_user_language, call.from_user.id)
 
     try:
-        track = get_track(track_id)
-        save_track(track)
+        track = await get_track(track_id)
+        await asyncio.to_thread(save_track, track)
 
-        remove_favorite(
+        await asyncio.to_thread(
+            remove_favorite,
             telegram_id=call.from_user.id,
             deezer_track_id=track_id,
         )
@@ -83,96 +82,103 @@ def handle_remove_favorite_callback(
         updated_markup = track_actions_keyboard(
             track,
             is_favorite=False,
-            show_back_to_results=user_has_search_context(call.from_user.id),
+            show_back_to_results=await user_has_search_context(call.from_user.id),
             language=language,
         )
 
-        bot.edit_message_reply_markup(
+        await bot.edit_message_reply_markup(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             reply_markup=updated_markup,
         )
 
-        bot.answer_callback_query(call.id, t("favorite_removed", language), show_alert=False)
+        await bot.answer_callback_query(call.id, t("favorite_removed", language), show_alert=False)
 
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "remove_favorite_callback", error)
-        bot.answer_callback_query(call.id, t("favorite_remove_failed", language), show_alert=True)
+        await asyncio.to_thread(
+            log_and_save_error, logger, call.from_user.id, "remove_favorite_callback", error
+        )
+        await bot.answer_callback_query(
+            call.id, t("favorite_remove_failed", language), show_alert=True
+        )
 
 
-def handle_clear_favorites_request_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_clear_favorites_request_callback(
+    bot: Bot,
+    call: CallbackQuery,
 ) -> None:
-    """
-    Asks user to confirm favorites clearing.
-    """
-    language = get_user_language(call.from_user.id)
+    language = await asyncio.to_thread(get_user_language, call.from_user.id)
 
     try:
-        bot.edit_message_text(
+        await bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=t("favorites_clear_confirm", language),
             reply_markup=confirm_clear_favorites_keyboard(language),
         )
-        bot.answer_callback_query(call.id)
+        await bot.answer_callback_query(call.id)
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_request", error)
-        bot.answer_callback_query(call.id, t("could_not_open_confirmation", language), show_alert=True)
+        await asyncio.to_thread(
+            log_and_save_error, logger, call.from_user.id, "clear_favorites_request", error
+        )
+        await bot.answer_callback_query(
+            call.id, t("could_not_open_confirmation", language), show_alert=True
+        )
 
 
-def handle_clear_favorites_confirm_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_clear_favorites_confirm_callback(
+    bot: Bot,
+    call: CallbackQuery,
 ) -> None:
-    """
-    Clears all user favorites after confirmation.
-    """
-    language = get_user_language(call.from_user.id)
+    language = await asyncio.to_thread(get_user_language, call.from_user.id)
 
     try:
-        clear_favorites(call.from_user.id)
+        await asyncio.to_thread(clear_favorites, call.from_user.id)
 
-        bot.edit_message_text(
+        await bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=t("favorites_cleared", language),
         )
-        bot.answer_callback_query(call.id, t("favorites_cleared", language))
+        await bot.answer_callback_query(call.id, t("favorites_cleared", language))
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_confirm", error)
-        bot.answer_callback_query(call.id, t("could_not_clear_favorites", language), show_alert=True)
+        await asyncio.to_thread(
+            log_and_save_error, logger, call.from_user.id, "clear_favorites_confirm", error
+        )
+        await bot.answer_callback_query(
+            call.id, t("could_not_clear_favorites", language), show_alert=True
+        )
 
 
-def handle_clear_favorites_cancel_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_clear_favorites_cancel_callback(
+    bot: Bot,
+    call: CallbackQuery,
 ) -> None:
-    """
-    Cancels favorites clearing and returns to favorites list.
-    """
-    language = get_user_language(call.from_user.id)
+    language = await asyncio.to_thread(get_user_language, call.from_user.id)
 
     try:
-        tracks = get_favorite_tracks(call.from_user.id)
+        tracks = await asyncio.to_thread(get_favorite_tracks, call.from_user.id)
 
         if not tracks:
-            bot.edit_message_text(
+            await bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text=t("favorites_empty", language),
             )
-            bot.answer_callback_query(call.id)
+            await bot.answer_callback_query(call.id)
             return
 
-        bot.edit_message_text(
+        await bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text=t("favorites_title", language, count=len(tracks)),
             reply_markup=favorites_keyboard(tracks, language),
         )
-        bot.answer_callback_query(call.id, t("cancelled", language))
+        await bot.answer_callback_query(call.id, t("cancelled", language))
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "clear_favorites_cancel", error)
-        bot.answer_callback_query(call.id, t("could_not_cancel", language), show_alert=True)
+        await asyncio.to_thread(
+            log_and_save_error, logger, call.from_user.id, "clear_favorites_cancel", error
+        )
+        await bot.answer_callback_query(
+            call.id, t("could_not_cancel", language), show_alert=True
+        )

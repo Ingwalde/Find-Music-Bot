@@ -255,3 +255,42 @@ Version `v2.7.0` is an internal technical-debt refactor and does not change the 
 - `get_similar_by_genre` no longer treats tracks with a missing `deezer_track_id` as duplicates of each other.
 - The compatibility facade `app/database/repositories.py` no longer re-exports unused internal helpers (`row_to_dict`, `trim_search_history`, `get_table_counts`, `get_schema_version`).
 - All repository functions in `repository_modules/` and `database/maintenance.py`, plus `init_db()`, now close their SQLite connection in a `finally` block.
+
+## v3.0.0 aiogram Migration
+
+Version `v3.0.0` replaces pyTelegramBotAPI with aiogram 3.29.0 and makes the entire bot layer async. The layered architecture is preserved; only the Telegram integration and dependency set change.
+
+**Async execution model:**
+
+- All bot-layer functions (`app/bot/`) are `async def`.
+- Sync DB and I/O calls are wrapped with `asyncio.to_thread(fn, *args)`.
+- The search context store (`app/bot/context.py`) uses `asyncio.Lock` for thread-safe async access.
+- Spotify token/cache state uses a reentrant lock (`threading.RLock`) for sync callers inside `to_thread`.
+
+**Routing:**
+
+```text
+aiogram Dispatcher
+ ├── handlers_router   → @router.message(Command(...)) and @router.message(F.text)
+ └── callbacks_router  → @router.callback_query() (manual data-string dispatch)
+```
+
+Command handlers are registered before the `F.text` catch-all within `handlers_router`, so aiogram matches them in the correct order.
+
+**Startup sequence (`app/main.py`):**
+
+```python
+dp.include_router(handlers_router)
+dp.include_router(callbacks_router)
+await bot.delete_webhook(drop_pending_updates=True)
+await dp.start_polling(bot)
+```
+
+**Removed dependencies:**
+
+- `pyTelegramBotAPI` — replaced by `aiogram 3.29.0`
+- `deezer-python` — Deezer search now uses `httpx` directly in `deezer_service.py`
+- `lyricsgenius` — lyrics fetching now uses `httpx` with the Genius search API directly
+- `requests` — no remaining direct usage; `httpx` covers all HTTP needs
+
+**Database and schema unchanged:** SQLite file format, schema, and all repository function signatures are identical to v2.7.0. No migration needed.

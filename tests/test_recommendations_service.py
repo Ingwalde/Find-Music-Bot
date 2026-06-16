@@ -1,3 +1,4 @@
+import pytest
 
 from app.services import recommendations_service
 from app.services.recommendations_service import (
@@ -9,6 +10,7 @@ from app.services.recommendations_service import (
     get_similar_by_genre,
     invalidate_trending_cache,
 )
+from tests.conftest import to_async
 
 
 def make_track(title="SOS", artist="ABBA", link="https://deezer.com/track/1"):
@@ -22,88 +24,95 @@ def make_track(title="SOS", artist="ABBA", link="https://deezer.com/track/1"):
     }
 
 
-def test_get_cached_trending_calls_fetch_fn_on_empty_cache():
+@pytest.mark.asyncio
+async def test_get_cached_trending_calls_fetch_fn_on_empty_cache():
     invalidate_trending_cache()
     calls = []
 
-    def fetch(limit):
+    async def fetch(limit):
         calls.append(limit)
         return [make_track()]
 
-    result = get_cached_trending(fetch, limit=5)
+    result = await get_cached_trending(fetch, limit=5)
 
     assert len(calls) == 1
     assert calls[0] == 5
     assert len(result) == 1
 
 
-def test_get_cached_trending_returns_cached_on_second_call():
+@pytest.mark.asyncio
+async def test_get_cached_trending_returns_cached_on_second_call():
     invalidate_trending_cache()
     call_count = []
 
-    def fetch(limit):
+    async def fetch(limit):
         call_count.append(1)
         return [make_track()]
 
-    get_cached_trending(fetch)
-    get_cached_trending(fetch)
+    await get_cached_trending(fetch)
+    await get_cached_trending(fetch)
 
     assert len(call_count) == 1
 
 
-def test_invalidate_trending_cache_forces_refetch():
+@pytest.mark.asyncio
+async def test_invalidate_trending_cache_forces_refetch():
     invalidate_trending_cache()
     call_count = []
 
-    def fetch(limit):
+    async def fetch(limit):
         call_count.append(1)
         return [make_track()]
 
-    get_cached_trending(fetch)
+    await get_cached_trending(fetch)
     invalidate_trending_cache()
-    get_cached_trending(fetch)
+    await get_cached_trending(fetch)
 
     assert len(call_count) == 2
 
 
-def test_get_cached_trending_does_not_cache_empty_result():
+@pytest.mark.asyncio
+async def test_get_cached_trending_does_not_cache_empty_result():
     invalidate_trending_cache()
     call_count = []
 
-    def fetch(limit):
+    async def fetch(limit):
         call_count.append(1)
         return []
 
-    get_cached_trending(fetch)
-    get_cached_trending(fetch)
+    await get_cached_trending(fetch)
+    await get_cached_trending(fetch)
 
     assert len(call_count) == 2
 
 
-def test_get_db_recommendations_returns_db_tracks_when_available(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_db_recommendations_returns_db_tracks_when_available(monkeypatch):
     tracks = [make_track("Waterloo", "ABBA")]
     monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: tracks)
 
-    result = get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
+    result = await get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
 
     assert result == tracks
 
 
-def test_get_db_recommendations_falls_back_to_deezer_when_db_empty(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_db_recommendations_falls_back_to_deezer_when_db_empty(monkeypatch):
     fallback = [make_track("Gimme", "ABBA")]
     monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda **kwargs: fallback)
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda **kwargs: fallback))
 
-    result = get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
+    result = await get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
 
     assert result == fallback
 
 
-def test_get_db_recommendations_returns_empty_when_both_empty(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_db_recommendations_returns_empty_when_both_empty(monkeypatch):
     monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda **kwargs: [])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda **kwargs: []))
 
-    result = get_db_recommendations(artist="Unknown", exclude_deezer_id="0")
+    result = await get_db_recommendations(artist="Unknown", exclude_deezer_id="0")
 
     assert result == []
 
@@ -236,94 +245,130 @@ def make_similar_track(track_id="2", title="Waterloo", artist="ABBA", rank=50000
     }
 
 
-def test_get_similar_by_genre_step1_returns_artist_tracks(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step1_returns_artist_tracks(monkeypatch):
     tracks = [make_similar_track(track_id=str(i)) for i in range(2, 7)]
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: tracks)
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: None)
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: tracks))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: None))
 
-    result = get_similar_by_genre("1", artist_name="ABBA")
+    result = await get_similar_by_genre("1", artist_name="ABBA")
 
     assert len(result) == 5
     assert all(t["deezer_track_id"] != "1" for t in result)
 
 
-def test_get_similar_by_genre_step2_fills_with_related_tracks(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_fills_with_related_tracks(monkeypatch):
     artist_tracks = [make_similar_track(track_id="2"), make_similar_track(track_id="3")]
     related_tracks = [make_similar_track(track_id=str(i), rank=500000) for i in range(10, 20)]
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: artist_tracks)
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: artist_tracks)
+    )
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
     monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: related_tracks)
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_tracks)
+    )
 
-    result = get_similar_by_genre("1", artist_name="ABBA", limit=10)
+    result = await get_similar_by_genre("1", artist_name="ABBA", limit=10)
 
     assert len(result) == 10
     assert result[0]["deezer_track_id"] == "2"
 
 
-def test_get_similar_by_genre_step2_dedupes_related_tracks(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_dedupes_related_tracks(monkeypatch):
     artist_track = make_similar_track(track_id="2")
     related_returns = [
         make_similar_track(track_id="2"),
         make_similar_track(track_id="3", title="Fernando"),
     ]
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [artist_track])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: [artist_track])
+    )
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
     monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: related_returns)
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_returns)
+    )
 
-    result = get_similar_by_genre("1", artist_name="ABBA")
+    result = await get_similar_by_genre("1", artist_name="ABBA")
 
     ids = [t["deezer_track_id"] for t in result]
     assert ids.count("2") == 1
     assert "3" in ids
 
 
-def test_get_similar_by_genre_step2_rank_filter_excludes_out_of_range(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_rank_filter_excludes_out_of_range(monkeypatch):
     in_range = make_similar_track(track_id="2", rank=600000)
     out_of_range = make_similar_track(track_id="3", rank=100)
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
     monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": 500000})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [in_range, out_of_range])
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_artist_top_tracks_by_id",
+        to_async(lambda aid, limit=10: [in_range, out_of_range]),
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
     assert result[0]["rank"] == 600000
 
 
-def test_get_similar_by_genre_step2_null_rank_track_included(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_null_rank_track_included(monkeypatch):
     null_rank = make_similar_track(track_id="2", rank=None)
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
     monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": 500000})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [null_rank])
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [null_rank])
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
     assert result[0]["rank"] is None
 
 
-def test_get_similar_by_genre_step3_fallback_when_both_empty(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step3_fallback_when_both_empty(monkeypatch):
     fallback_track = make_similar_track(track_id="99", title="Fallback")
     call_count = [0]
 
-    def mock_artist_top(artist_name, limit):
+    async def mock_artist_top(artist_name, limit):
         call_count[0] += 1
         if call_count[0] == 1:
             return []
         return [fallback_track]
 
     monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", mock_artist_top)
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: None)
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: None))
 
-    result = get_similar_by_genre("1", artist_name="ABBA")
+    result = await get_similar_by_genre("1", artist_name="ABBA")
 
     assert result == [fallback_track]
     assert call_count[0] == 2
@@ -344,102 +389,169 @@ def test_get_decade_returns_none_for_invalid_or_out_of_range():
     assert _get_decade("not-a-date") is None
 
 
-def test_get_similar_by_genre_step2_decade_filter_includes_same_decade(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_decade_filter_includes_same_decade(monkeypatch):
     track_in_decade = {**make_similar_track(track_id="2"), "release_date": "1975-06-01"}
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [track_in_decade])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [track_in_decade])
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
 
 
-def test_get_similar_by_genre_step2_pass_b_includes_different_decade_when_pass_a_insufficient(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_pass_b_includes_different_decade_when_pass_a_insufficient(monkeypatch):
     track_wrong_decade = {**make_similar_track(track_id="2"), "release_date": "1985-01-01"}
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [track_wrong_decade])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+    )
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_artist_top_tracks_by_id",
+        to_async(lambda aid, limit=10: [track_wrong_decade]),
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
 
 
-def test_get_similar_by_genre_step2_null_date_track_included_when_decade_known(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_null_date_track_included_when_decade_known(monkeypatch):
     no_date_track = make_similar_track(track_id="2")
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [no_date_track])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [no_date_track])
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
 
 
-def test_get_similar_by_genre_step2_pass_b_skipped_when_pass_a_sufficient(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_pass_b_skipped_when_pass_a_sufficient(monkeypatch):
     same_decade = [
         {**make_similar_track(track_id=str(i)), "release_date": "1975-01-01"}
         for i in range(2, 7)
     ]
     wrong_decade = {**make_similar_track(track_id="99"), "release_date": "1985-01-01"}
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: same_decade + [wrong_decade])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+    )
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_artist_top_tracks_by_id",
+        to_async(lambda aid, limit=10: same_decade + [wrong_decade]),
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 5
     assert all(t["release_date"] == "1975-01-01" for t in result)
     assert "99" not in [t["deezer_track_id"] for t in result]
 
 
-def test_get_similar_by_genre_step2_pass_b_fills_when_pass_a_insufficient(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_pass_b_fills_when_pass_a_insufficient(monkeypatch):
     wrong_decade = [
         {**make_similar_track(track_id=str(i)), "release_date": "1985-01-01"}
         for i in range(2, 5)
     ]
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: wrong_decade)
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: wrong_decade)
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 3
 
 
-def test_get_similar_by_genre_step2_no_decade_filter_when_source_date_unknown(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_step2_no_decade_filter_when_source_date_unknown(monkeypatch):
     track_1985 = {**make_similar_track(track_id="2"), "release_date": "1985-01-01"}
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: [])
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": None})
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: [track_1985])
+    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: []))
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": None}
+    )
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [track_1985])
+    )
 
-    result = get_similar_by_genre("1")
+    result = await get_similar_by_genre("1")
 
     assert len(result) == 1
 
 
-def test_get_similar_by_genre_respects_limit(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_similar_by_genre_respects_limit(monkeypatch):
     artist_tracks = [make_similar_track(track_id=str(i)) for i in range(2, 5)]
     related_tracks = [make_similar_track(track_id=str(i), rank=500000) for i in range(10, 20)]
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", lambda artist_name, limit: artist_tracks)
-    monkeypatch.setattr(recommendations_service, "get_artist_id", lambda name: 7)
-    monkeypatch.setattr(recommendations_service, "get_related_artists", lambda aid, limit=3: [{"id": 8, "name": "Queen"}])
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks", to_async(lambda artist_name, limit: artist_tracks)
+    )
+    monkeypatch.setattr(recommendations_service, "get_artist_id", to_async(lambda name: 7))
+    monkeypatch.setattr(
+        recommendations_service,
+        "get_related_artists",
+        to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
+    )
     monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
-    monkeypatch.setattr(recommendations_service, "get_artist_top_tracks_by_id", lambda aid, limit=10: related_tracks)
+    monkeypatch.setattr(
+        recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_tracks)
+    )
 
-    result = get_similar_by_genre("1", artist_name="ABBA", limit=5)
+    result = await get_similar_by_genre("1", artist_name="ABBA", limit=5)
 
     assert len(result) == 5

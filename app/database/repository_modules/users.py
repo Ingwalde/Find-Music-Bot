@@ -1,4 +1,4 @@
-from telebot.types import User
+from aiogram.types import User
 
 from app.database.db import get_connection
 from app.localization.languages import DEFAULT_LANGUAGE, is_supported_language

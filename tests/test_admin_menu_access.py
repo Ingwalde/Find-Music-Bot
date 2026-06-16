@@ -1,9 +1,10 @@
-from types import SimpleNamespace
+import pytest
 
 from app.bot import actions, handlers
 from app.bot.keyboard_menus import admin_menu_keyboard, main_menu_keyboard
 from app.config import admins
 from app.localization.translations import get_menu_action_by_text, t
+from tests.conftest import AsyncFakeBot, fake_message, to_async
 
 
 def reply_button_texts(markup):
@@ -74,46 +75,14 @@ def test_admin_menu_buttons_are_detected_as_menu_actions():
     assert get_menu_action_by_text(t("btn_admin_health", "en")) == "admin_health"
 
 
-class FakeBot:
-    def __init__(self):
-        self.messages = []
-        self.message_handlers = []
-
-    def send_message(self, *args, **kwargs):
-        self.messages.append((args, kwargs))
-        chat_id = kwargs.get("chat_id", args[0] if args else 1)
-        return SimpleNamespace(chat=SimpleNamespace(id=chat_id), message_id=len(self.messages))
-
-    def message_handler(self, **decorator_kwargs):
-        def decorator(func):
-            self.message_handlers.append((decorator_kwargs, func))
-            return func
-
-        return decorator
-
-
-def fake_message(text, user_id=123):
-    return SimpleNamespace(
-        text=text,
-        from_user=SimpleNamespace(id=user_id, username="tester", first_name="Test"),
-        chat=SimpleNamespace(id=10),
-    )
-
-
-def get_registered_handler(bot, name):
-    for _metadata, func in bot.message_handlers:
-        if func.__name__ == name:
-            return func
-    raise AssertionError(f"Handler {name} was not registered")
-
-
-def test_show_main_menu_uses_admin_visibility(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_show_main_menu_uses_admin_visibility(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
     monkeypatch.setattr(actions, "is_admin_user", lambda user_id: user_id == 123)
 
-    actions.show_main_menu(bot, chat_id=10, user_id=123)
-    actions.show_main_menu(bot, chat_id=10, user_id=999)
+    await actions.show_main_menu(bot, chat_id=10, user_id=123)
+    await actions.show_main_menu(bot, chat_id=10, user_id=999)
 
     admin_texts = reply_button_texts(bot.messages[0][1]["reply_markup"])
     regular_texts = reply_button_texts(bot.messages[1][1]["reply_markup"])
@@ -122,41 +91,40 @@ def test_show_main_menu_uses_admin_visibility(monkeypatch):
     assert t("btn_admin", "en") not in regular_texts
 
 
-def test_admin_button_opens_admin_menu(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_admin_button_opens_admin_menu(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "is_admin", lambda user_id: True)
+    monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: True))
 
-    handlers.register_handlers(bot)
-    text_handler = get_registered_handler(bot, "text_handler")
-    text_handler(fake_message(t("btn_admin", "en")))
+    await handlers.text_handler(fake_message(t("btn_admin", "en")), bot)
 
     assert bot.messages[-1][0][1] == t("admin_menu", "en")
     assert t("btn_admin_stats", "en") in reply_button_texts(bot.messages[-1][1]["reply_markup"])
 
 
-def test_admin_menu_action_runs_report(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_admin_menu_action_runs_report(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "is_admin", lambda user_id: True)
+    monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: True))
     monkeypatch.setattr(handlers, "format_stats_report", lambda language="en": "stats report")
 
-    handlers.register_handlers(bot)
-    text_handler = get_registered_handler(bot, "text_handler")
-    text_handler(fake_message(t("btn_admin_stats", "en")))
+    await handlers.text_handler(fake_message(t("btn_admin_stats", "en")), bot)
 
     assert bot.messages[-1][0][1] == "stats report"
 
 
-def test_admin_menu_rejects_non_admin(monkeypatch):
-    bot = FakeBot()
+@pytest.mark.asyncio
+async def test_admin_menu_rejects_non_admin(monkeypatch):
+    bot = AsyncFakeBot()
     monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
     monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "is_admin", lambda user_id: False)
+    monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: False))
 
-    handlers.show_admin_menu(bot, fake_message(t("btn_admin", "en"), user_id=999))
+    await handlers.show_admin_menu(bot, fake_message(t("btn_admin", "en"), user_id=999))
 
     assert "admin" in bot.messages[-1][0][1].lower()
 

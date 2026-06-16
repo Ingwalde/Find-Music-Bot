@@ -15,7 +15,7 @@ from app.bot.keyboards import (
 
 
 def flatten_buttons(markup):
-    return [button for row in markup.keyboard for button in row]
+    return [button for row in markup.inline_keyboard for button in row]
 
 
 def test_search_results_keyboard_has_track_buttons_and_pagination(sample_track):

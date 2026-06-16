@@ -3,6 +3,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-q --cov=app --cov-report=term-missing --cov-report=xml"
+asyncio_mode = "strict"
 
 [tool.coverage.run]
 source = ["app"]

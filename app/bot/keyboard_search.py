@@ -1,4 +1,5 @@
-from telebot import types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.constants import ACTION_NOOP, CB_PAGE, CB_TRACK, make_callback
 from app.utils.text import truncate_text
@@ -8,11 +9,11 @@ def search_results_keyboard(
     tracks: list[dict],
     page: int = 0,
     total_pages: int = 1,
-) -> types.InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup:
     """
     Creates paginated inline keyboard with Deezer search results.
     """
-    markup = types.InlineKeyboardMarkup(row_width=1)
+    builder = InlineKeyboardBuilder()
 
     for track in tracks:
         title = track.get("title", "Unknown title")
@@ -20,8 +21,8 @@ def search_results_keyboard(
         track_id = track.get("deezer_track_id")
         button_text = truncate_text(f"{title} — {artist}", 64)
 
-        markup.add(
-            types.InlineKeyboardButton(
+        builder.row(
+            InlineKeyboardButton(
                 text=button_text,
                 callback_data=make_callback(CB_TRACK, track_id),
             )
@@ -32,14 +33,14 @@ def search_results_keyboard(
 
         if page > 0:
             navigation_buttons.append(
-                types.InlineKeyboardButton(
+                InlineKeyboardButton(
                     text="⬅️ Prev",
                     callback_data=make_callback(CB_PAGE, page - 1),
                 )
             )
 
         navigation_buttons.append(
-            types.InlineKeyboardButton(
+            InlineKeyboardButton(
                 text=f"📄 {page + 1}/{total_pages}",
                 callback_data=ACTION_NOOP,
             )
@@ -47,12 +48,12 @@ def search_results_keyboard(
 
         if page < total_pages - 1:
             navigation_buttons.append(
-                types.InlineKeyboardButton(
+                InlineKeyboardButton(
                     text="Next ➡️",
                     callback_data=make_callback(CB_PAGE, page + 1),
                 )
             )
 
-        markup.row(*navigation_buttons)
+        builder.row(*navigation_buttons)
 
-    return markup
+    return builder.as_markup()

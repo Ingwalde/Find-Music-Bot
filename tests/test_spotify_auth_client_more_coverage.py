@@ -1,8 +1,10 @@
+import asyncio
+
+import httpx
 import pytest
-import requests
-from requests import HTTPError
 
 from app.platforms.spotify import auth, client
+from tests.conftest import FakeAsyncClient, make_httpx_response
 
 
 @pytest.fixture(autouse=True)
@@ -12,88 +14,73 @@ def reset_spotify_runtime_state():
     auth.reset_spotify_runtime_state()
 
 
-class FakeHttpResponse:
-    def __init__(self, status_code=200, payload=None):
-        self.status_code = status_code
-        self.payload = payload or {}
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            error = HTTPError(f"{self.status_code} error")
-            error.response = self
-            raise error
-
-    def json(self):
-        return self.payload
-
-
 def test_handle_spotify_http_error_raises_credentials_error_for_401():
-    error = HTTPError("401")
-    error.response = FakeHttpResponse(status_code=401)
+    response = make_httpx_response(status_code=401)
+
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        response.raise_for_status()
 
     with pytest.raises(auth.SpotifyCredentialsError):
-        auth.handle_spotify_http_error(error, "token request")
+        auth.handle_spotify_http_error(exc_info.value, "token request")
 
 
 def test_handle_spotify_http_error_reraises_unknown_http_error():
-    error = HTTPError("500")
-    error.response = FakeHttpResponse(status_code=500)
+    response = make_httpx_response(status_code=500)
 
-    with pytest.raises(HTTPError):
-        auth.handle_spotify_http_error(error, "token request")
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        response.raise_for_status()
+
+    with pytest.raises(httpx.HTTPStatusError):
+        auth.handle_spotify_http_error(exc_info.value, "token request")
 
 
-def test_get_spotify_access_token_returns_cached_token(monkeypatch):
-    calls = []
-
+@pytest.mark.asyncio
+async def test_get_spotify_access_token_returns_cached_token(monkeypatch):
     monkeypatch.setattr(auth.settings, "SPOTIFY_ENABLED", True)
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_ID", "client-id")
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_SECRET", "client-secret")
-    monkeypatch.setattr(
-        auth.requests,
-        "post",
-        lambda *args, **kwargs: calls.append((args, kwargs))
-        or FakeHttpResponse(payload={"access_token": "token-1", "expires_in": 3600}),
+
+    fake_client = FakeAsyncClient(
+        response=make_httpx_response(json_data={"access_token": "token-1", "expires_in": 3600})
     )
+    monkeypatch.setattr(auth.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
 
-    assert auth.get_spotify_access_token() == "token-1"
-    assert auth.get_spotify_access_token() == "token-1"
-    assert len(calls) == 1
+    assert await auth.get_spotify_access_token() == "token-1"
+    assert await auth.get_spotify_access_token() == "token-1"
+    assert len(fake_client.calls) == 1
 
 
-def test_get_spotify_access_token_returns_none_on_request_exception(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_spotify_access_token_returns_none_on_request_exception(monkeypatch):
     monkeypatch.setattr(auth.settings, "SPOTIFY_ENABLED", True)
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_ID", "client-id")
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_SECRET", "client-secret")
-    monkeypatch.setattr(
-        auth.requests,
-        "post",
-        lambda *args, **kwargs: (_ for _ in ()).throw(requests.RequestException("network down")),
-    )
 
-    assert auth.get_spotify_access_token() is None
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("network down"))
+    monkeypatch.setattr(auth.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
+
+    assert await auth.get_spotify_access_token() is None
 
 
-def test_get_spotify_access_token_returns_none_on_401(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_spotify_access_token_returns_none_on_401(monkeypatch):
     monkeypatch.setattr(auth.settings, "SPOTIFY_ENABLED", True)
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_ID", "client-id")
     monkeypatch.setattr(auth.settings, "SPOTIFY_CLIENT_SECRET", "client-secret")
-    monkeypatch.setattr(auth.requests, "post", lambda *args, **kwargs: FakeHttpResponse(status_code=401))
 
-    assert auth.get_spotify_access_token() is None
+    fake_client = FakeAsyncClient(response=make_httpx_response(status_code=401))
+    monkeypatch.setattr(auth.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
+
+    assert await auth.get_spotify_access_token() is None
 
 
-def test_request_spotify_search_success_without_market(monkeypatch):
-    captured = {}
+@pytest.mark.asyncio
+async def test_request_spotify_search_success_without_market(monkeypatch):
     items = [{"id": "spotify-id"}]
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"tracks": {"items": items}}))
+    monkeypatch.setattr(client.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
 
-    def fake_get(*args, **kwargs):
-        captured.update(kwargs)
-        return FakeHttpResponse(payload={"tracks": {"items": items}})
-
-    monkeypatch.setattr(client.requests, "get", fake_get)
-
-    result = client.request_spotify_search(
+    result = await client.request_spotify_search(
         token="token",
         query="ABBA SOS",
         limit=3,
@@ -101,26 +88,25 @@ def test_request_spotify_search_success_without_market(monkeypatch):
     )
 
     assert result == items
-    assert captured["params"] == {"q": "ABBA SOS", "type": "track", "limit": 3}
+    _, _, kwargs = fake_client.calls[0]
+    assert kwargs["params"] == {"q": "ABBA SOS", "type": "track", "limit": 3}
 
 
-def test_request_spotify_search_returns_empty_on_request_exception(monkeypatch):
-    monkeypatch.setattr(
-        client.requests,
-        "get",
-        lambda *args, **kwargs: (_ for _ in ()).throw(requests.RequestException("timeout")),
-    )
+@pytest.mark.asyncio
+async def test_request_spotify_search_returns_empty_on_request_exception(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("timeout"))
+    monkeypatch.setattr(client.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
 
-    assert client.request_spotify_search("token", "ABBA", 5, "NO") == []
+    assert await client.request_spotify_search("token", "ABBA", 5, "NO") == []
 
 
-def test_search_spotify_track_returns_best_candidate(monkeypatch):
-    monkeypatch.setattr(client, "get_spotify_access_token", lambda: "token")
-    monkeypatch.setattr(client.settings, "SPOTIFY_MARKET", "NO")
-    monkeypatch.setattr(
-        client,
-        "request_spotify_search",
-        lambda **kwargs: [
+@pytest.mark.asyncio
+async def test_search_spotify_track_returns_best_candidate(monkeypatch):
+    async def fake_get_token():
+        return "token"
+
+    async def fake_search(**kwargs):
+        return [
             {
                 "id": "bad",
                 "name": "Different Song",
@@ -135,21 +121,25 @@ def test_search_spotify_track_returns_best_candidate(monkeypatch):
                 "album": {"name": "ABBA Gold"},
                 "external_urls": {"spotify": "https://open.spotify.com/track/good"},
             },
-        ],
-    )
+        ]
 
-    result = client.search_spotify_track("SOS", "ABBA")
+    monkeypatch.setattr(client, "get_spotify_access_token", fake_get_token)
+    monkeypatch.setattr(client.settings, "SPOTIFY_MARKET", "NO")
+    monkeypatch.setattr(client, "request_spotify_search", fake_search)
+
+    result = await client.search_spotify_track("SOS", "ABBA")
 
     assert result["spotify_track_id"] == "good"
     assert result["spotify_link"].endswith("/good")
 
 
-def test_search_spotify_track_ignores_candidates_without_links(monkeypatch):
-    monkeypatch.setattr(client, "get_spotify_access_token", lambda: "token")
-    monkeypatch.setattr(
-        client,
-        "request_spotify_search",
-        lambda **kwargs: [
+@pytest.mark.asyncio
+async def test_search_spotify_track_ignores_candidates_without_links(monkeypatch):
+    async def fake_get_token():
+        return "token"
+
+    async def fake_search(**kwargs):
+        return [
             {
                 "id": "no-link",
                 "name": "SOS",
@@ -157,14 +147,19 @@ def test_search_spotify_track_ignores_candidates_without_links(monkeypatch):
                 "album": {"name": "Album"},
                 "external_urls": {},
             }
-        ],
-    )
+        ]
 
-    assert client.search_spotify_track("SOS", "ABBA") is None
+    monkeypatch.setattr(client, "get_spotify_access_token", fake_get_token)
+    monkeypatch.setattr(client, "request_spotify_search", fake_search)
+
+    assert await client.search_spotify_track("SOS", "ABBA") is None
 
 
-def test_spotify_runtime_lock_is_reentrant_lock():
-    with auth._spotify_runtime_lock:
+@pytest.mark.asyncio
+async def test_spotify_runtime_lock_is_asyncio_lock():
+    assert isinstance(auth._spotify_runtime_lock, asyncio.Lock)
+
+    async with auth._spotify_runtime_lock:
         auth.disable_spotify_temporarily("blocked")
         assert auth.is_spotify_temporarily_blocked() is True
         assert auth.get_spotify_block_reason() == "blocked"

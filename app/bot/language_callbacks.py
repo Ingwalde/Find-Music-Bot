@@ -1,5 +1,7 @@
-import telebot
-from telebot import types
+import asyncio
+
+from aiogram import Bot
+from aiogram.types import CallbackQuery
 
 from app.bot.keyboards import main_menu_keyboard
 from app.config.admins import is_admin_user
@@ -12,9 +14,9 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def handle_language_callback(
-    bot: telebot.TeleBot,
-    call: types.CallbackQuery,
+async def handle_language_callback(
+    bot: Bot,
+    call: CallbackQuery,
     language_code: str,
 ) -> None:
     """
@@ -22,19 +24,19 @@ def handle_language_callback(
     """
     try:
         if not is_supported_language(language_code):
-            bot.answer_callback_query(
+            await bot.answer_callback_query(
                 call.id,
                 t("unsupported_language", "en"),
                 show_alert=True,
             )
             return
 
-        upsert_user(call.from_user)
-        set_user_language(call.from_user.id, language_code)
+        await asyncio.to_thread(upsert_user, call.from_user)
+        await asyncio.to_thread(set_user_language, call.from_user.id, language_code)
 
-        bot.answer_callback_query(call.id)
+        await bot.answer_callback_query(call.id)
 
-        bot.send_message(
+        await bot.send_message(
             call.message.chat.id,
             t("language_changed", language_code),
             reply_markup=main_menu_keyboard(
@@ -44,5 +46,5 @@ def handle_language_callback(
         )
 
     except Exception as error:
-        log_and_save_error(logger, call.from_user.id, "language_callback", error)
-        bot.answer_callback_query(call.id, t("unknown_action", "en"), show_alert=True)
+        await asyncio.to_thread(log_and_save_error, logger, call.from_user.id, "language_callback", error)
+        await bot.answer_callback_query(call.id, t("unknown_action", "en"), show_alert=True)

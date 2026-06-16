@@ -1,5 +1,4 @@
 import pytest
-from requests import HTTPError
 
 from app.platforms.spotify import client as spotify_client
 from app.services import spotify_service
@@ -13,6 +12,7 @@ from app.services.spotify_service import (
     reset_spotify_runtime_state,
     score_spotify_candidate,
 )
+from tests.conftest import FakeAsyncClient, make_httpx_response
 
 
 @pytest.fixture(autouse=True)
@@ -78,24 +78,22 @@ def test_disable_spotify_temporarily(monkeypatch):
     assert get_spotify_block_reason() == "403 Forbidden"
 
 
-def test_search_spotify_track_skips_when_temporarily_blocked(monkeypatch):
-    monkeypatch.setattr(spotify_client, "get_spotify_access_token", lambda: None)
+@pytest.mark.asyncio
+async def test_search_spotify_track_skips_when_temporarily_blocked(monkeypatch):
+    async def fake_get_token():
+        return None
 
-    assert spotify_service.search_spotify_track("SOS", "ABBA") is None
+    monkeypatch.setattr(spotify_client, "get_spotify_access_token", fake_get_token)
+
+    assert await spotify_service.search_spotify_track("SOS", "ABBA") is None
 
 
-def test_request_spotify_search_returns_empty_on_403(monkeypatch):
-    class FakeResponse:
-        status_code = 403
+@pytest.mark.asyncio
+async def test_request_spotify_search_returns_empty_on_403(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(status_code=403))
+    monkeypatch.setattr(spotify_client.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
 
-        def raise_for_status(self):
-            error = HTTPError("403 Client Error: Forbidden")
-            error.response = self
-            raise error
-
-    monkeypatch.setattr(spotify_client.requests, "get", lambda *args, **kwargs: FakeResponse())
-
-    result = spotify_service.request_spotify_search(
+    result = await spotify_service.request_spotify_search(
         token="test-token",
         query='track:"SOS" artist:"ABBA"',
         limit=5,
@@ -107,17 +105,14 @@ def test_request_spotify_search_returns_empty_on_403(monkeypatch):
     assert "403 Forbidden" in spotify_service.get_spotify_block_reason()
 
 
-def test_search_spotify_track_returns_none_on_403(monkeypatch):
-    class FakeResponse:
-        status_code = 403
+@pytest.mark.asyncio
+async def test_search_spotify_track_returns_none_on_403(monkeypatch):
+    async def fake_get_token():
+        return "test-token"
 
-        def raise_for_status(self):
-            error = HTTPError("403 Client Error: Forbidden")
-            error.response = self
-            raise error
+    fake_client = FakeAsyncClient(response=make_httpx_response(status_code=403))
+    monkeypatch.setattr(spotify_client, "get_spotify_access_token", fake_get_token)
+    monkeypatch.setattr(spotify_client.httpx, "AsyncClient", lambda *args, **kwargs: fake_client)
 
-    monkeypatch.setattr(spotify_client, "get_spotify_access_token", lambda: "test-token")
-    monkeypatch.setattr(spotify_client.requests, "get", lambda *args, **kwargs: FakeResponse())
-
-    assert spotify_service.search_spotify_track("SOS", "ABBA") is None
+    assert await spotify_service.search_spotify_track("SOS", "ABBA") is None
     assert spotify_service.is_spotify_temporarily_blocked() is True

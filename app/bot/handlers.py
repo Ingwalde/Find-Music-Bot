@@ -1,5 +1,8 @@
-import telebot
-from telebot import types
+import asyncio
+
+from aiogram import Bot, F, Router
+from aiogram.filters import Command
+from aiogram.types import LinkPreviewOptions, Message
 
 from app.admin_tools import (
     cleanup_errors_report,
@@ -48,37 +51,30 @@ from app.version import __version__
 
 logger = setup_logger(__name__)
 
-
-def is_admin(user_id: int | None) -> bool:
-    """
-    Checks whether user can access admin-only actions.
-    """
-    return is_admin_user(user_id)
+router = Router(name="handlers")
 
 
-def get_user_context(message: types.Message) -> str:
-    """
-    Registers/updates the user and returns their language preference.
-    """
-    upsert_user(message.from_user)
-    return get_user_language(message.from_user.id)
+# ── helpers ──────────────────────────────────────────────────────────────────
 
 
-def require_admin(bot: telebot.TeleBot, message: types.Message, language: str) -> bool:
-    """
-    Sends an admin-only denial message and returns False if the user is not an admin.
-    """
-    if not is_admin(message.from_user.id):
-        bot.send_message(message.chat.id, t("admin_only", language))
+async def is_admin(user_id: int | None) -> bool:
+    return await asyncio.to_thread(is_admin_user, user_id)
+
+
+async def get_user_context(message: Message) -> str:
+    await asyncio.to_thread(upsert_user, message.from_user)
+    return await asyncio.to_thread(get_user_language, message.from_user.id)
+
+
+async def require_admin(bot: Bot, message: Message, language: str) -> bool:
+    if not await is_admin(message.from_user.id):
+        await bot.send_message(message.chat.id, t("admin_only", language))
         return False
     return True
 
 
-def format_recent_errors(language: str = "en") -> str:
-    """
-    Builds readable message with recent saved errors.
-    """
-    errors = get_recent_errors(limit=settings.ERROR_HISTORY_LIMIT)
+async def format_recent_errors(language: str = "en") -> str:
+    errors = await asyncio.to_thread(get_recent_errors, limit=settings.ERROR_HISTORY_LIMIT)
 
     if not errors:
         return t("errors_empty", language)
@@ -100,87 +96,82 @@ def format_recent_errors(language: str = "en") -> str:
     return "\n".join(lines)
 
 
-def send_admin_only_message(bot: telebot.TeleBot, message: types.Message, language: str) -> None:
-    """
-    Sends admin-only denial message.
-    """
-    bot.send_message(message.chat.id, t("admin_only", language))
+async def send_admin_only_message(bot: Bot, message: Message, language: str) -> None:
+    await bot.send_message(message.chat.id, t("admin_only", language))
 
 
-def show_admin_menu(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Shows admin menu for users listed in the local admin config file.
-    """
-    language = get_user_context(message)
+async def show_admin_menu(bot: Bot, message: Message) -> None:
+    language = await get_user_context(message)
 
-    if not is_admin(message.from_user.id):
-        send_admin_only_message(bot, message, language)
+    if not await is_admin(message.from_user.id):
+        await send_admin_only_message(bot, message, language)
         return
 
-    bot.send_message(
+    await bot.send_message(
         message.chat.id,
         t("admin_menu", language),
         reply_markup=admin_menu_keyboard(language),
     )
 
 
-def handle_admin_action(bot: telebot.TeleBot, message: types.Message, action: str) -> None:
-    """
-    Handles admin menu button actions.
-    """
-    language = get_user_context(message)
+async def handle_admin_action(bot: Bot, message: Message, action: str) -> None:
+    language = await get_user_context(message)
 
-    if not is_admin(message.from_user.id):
-        send_admin_only_message(bot, message, language)
+    if not await is_admin(message.from_user.id):
+        await send_admin_only_message(bot, message, language)
         return
 
     if action == "admin_stats":
-        bot.send_message(message.chat.id, format_stats_report(language))
+        await bot.send_message(
+            message.chat.id, await asyncio.to_thread(format_stats_report, language)
+        )
         return
 
     if action == "admin_maintenance":
-        bot.send_message(message.chat.id, format_maintenance_report(language))
+        await bot.send_message(
+            message.chat.id, await asyncio.to_thread(format_maintenance_report, language)
+        )
         return
 
     if action == "admin_cleanup_errors":
-        bot.send_message(message.chat.id, cleanup_errors_report(language))
+        await bot.send_message(
+            message.chat.id, await asyncio.to_thread(cleanup_errors_report, language)
+        )
         return
 
     if action == "admin_cleanup_history":
-        bot.send_message(message.chat.id, cleanup_history_report(language))
+        await bot.send_message(
+            message.chat.id, await asyncio.to_thread(cleanup_history_report, language)
+        )
         return
 
     if action == "admin_health":
-        bot.send_message(message.chat.id, format_health_report())
+        await bot.send_message(
+            message.chat.id, await asyncio.to_thread(format_health_report)
+        )
         return
 
     if action == "admin_reload_admins":
-        bot.send_message(message.chat.id, reload_admins_report(language))
+        # reload_admins_report only does in-memory lru_cache.cache_clear() — no DB I/O
+        await bot.send_message(message.chat.id, reload_admins_report(language))
 
 
-def show_language_menu(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Shows language selection menu.
-    Can be opened by /language or by the Language button in main menu.
-    """
-    language = get_user_context(message)
+async def show_language_menu(bot: Bot, message: Message) -> None:
+    language = await get_user_context(message)
 
-    bot.send_message(
+    await bot.send_message(
         message.chat.id,
         t("choose_language", language),
         reply_markup=language_keyboard(),
     )
 
 
-def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Processes user's song search query.
-    """
-    language = get_user_context(message)
+async def process_music_search(bot: Bot, message: Message) -> None:
+    language = await get_user_context(message)
 
     if not message.text:
-        bot.send_message(message.chat.id, t("please_send_text", language))
-        ask_for_music(bot, message.chat.id, message.from_user.id)
+        await bot.send_message(message.chat.id, t("please_send_text", language))
+        await ask_for_music(bot, message.chat.id, message.from_user.id)
         return
 
     text = message.text.strip()
@@ -189,7 +180,7 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         return
 
     try:
-        send_search_results(
+        await send_search_results(
             bot=bot,
             chat_id=message.chat.id,
             user_id=message.from_user.id,
@@ -198,324 +189,352 @@ def process_music_search(bot: telebot.TeleBot, message: types.Message) -> None:
         )
 
     except Exception as error:
-        log_and_save_error(
+        await asyncio.to_thread(
+            log_and_save_error,
             logger=logger,
             telegram_id=message.from_user.id,
             source="music_search",
             error=error,
         )
-        bot.send_message(message.chat.id, t("something_wrong_searching", language))
+        await bot.send_message(message.chat.id, t("something_wrong_searching", language))
 
 
-def show_favorites(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Shows user's favorite tracks.
-    Main menu button is shown as bottom keyboard.
-    """
+async def show_favorites(bot: Bot, message: Message) -> None:
     try:
-        language = get_user_context(message)
+        language = await get_user_context(message)
 
-        bot.send_message(
+        await bot.send_message(
             message.chat.id,
             t("favorites_menu", language),
             reply_markup=search_mode_keyboard(language),
         )
 
-        tracks = get_favorite_tracks(message.from_user.id)
+        tracks = await asyncio.to_thread(get_favorite_tracks, message.from_user.id)
 
         if not tracks:
-            bot.send_message(message.chat.id, t("favorites_empty", language))
+            await bot.send_message(message.chat.id, t("favorites_empty", language))
             return
 
         markup = favorites_keyboard(tracks, language)
 
-        bot.send_message(
+        await bot.send_message(
             message.chat.id,
             t("favorites_title", language, count=len(tracks)),
             reply_markup=markup,
         )
 
     except Exception as error:
-        log_and_save_error(
+        await asyncio.to_thread(
+            log_and_save_error,
             logger=logger,
             telegram_id=message.from_user.id,
             source="favorites",
             error=error,
         )
-        language = get_user_language(message.from_user.id)
-        bot.send_message(message.chat.id, t("could_not_load_favorites", language))
+        language = await asyncio.to_thread(get_user_language, message.from_user.id)
+        await bot.send_message(message.chat.id, t("could_not_load_favorites", language))
 
 
-def show_history(bot: telebot.TeleBot, message: types.Message) -> None:
-    """
-    Shows user's recent unique search history as clickable buttons.
-    Main menu button is shown as bottom keyboard.
-    """
+async def show_history(bot: Bot, message: Message) -> None:
     try:
-        language = get_user_context(message)
+        language = await get_user_context(message)
 
-        bot.send_message(
+        await bot.send_message(
             message.chat.id,
             t("history_menu", language),
             reply_markup=search_mode_keyboard(language),
         )
 
-        history = get_search_history(
+        history = await asyncio.to_thread(
+            get_search_history,
             message.from_user.id,
             limit=settings.HISTORY_LIMIT,
         )
 
         if not history:
-            bot.send_message(message.chat.id, t("history_empty", language))
+            await bot.send_message(message.chat.id, t("history_empty", language))
             return
 
         markup = history_keyboard(history, language)
 
-        bot.send_message(
+        await bot.send_message(
             message.chat.id,
             t("history_title", language, count=len(history)),
             reply_markup=markup,
         )
 
     except Exception as error:
-        log_and_save_error(
+        await asyncio.to_thread(
+            log_and_save_error,
             logger=logger,
             telegram_id=message.from_user.id,
             source="history",
             error=error,
         )
-        language = get_user_language(message.from_user.id)
-        bot.send_message(message.chat.id, t("could_not_load_history", language))
+        language = await asyncio.to_thread(get_user_language, message.from_user.id)
+        await bot.send_message(message.chat.id, t("could_not_load_history", language))
 
 
-def register_handlers(bot: telebot.TeleBot) -> None:
-    """
-    Registers all message handlers.
-    """
+# ── simple user commands (7B) ─────────────────────────────────────────────────
 
-    @bot.message_handler(commands=["start"])
-    def start_handler(message: types.Message) -> None:
-        language = get_user_context(message)
 
-        bot.send_message(
+@router.message(Command("start"))
+async def start_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    await bot.send_message(
+        message.chat.id,
+        t("welcome", language),
+        reply_markup=main_menu_keyboard(language, is_admin=await is_admin(message.from_user.id)),
+    )
+
+
+@router.message(Command("help"))
+async def help_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    await bot.send_message(message.chat.id, t("help", language))
+
+
+@router.message(Command("language"))
+async def language_handler(message: Message, bot: Bot) -> None:
+    await show_language_menu(bot, message)
+
+
+@router.message(Command("version"))
+async def version_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    await bot.send_message(
+        message.chat.id,
+        t("version_info", language, version=__version__),
+    )
+
+
+@router.message(Command("favorites"))
+async def favorites_handler(message: Message, bot: Bot) -> None:
+    await show_favorites(bot, message)
+
+
+@router.message(Command("history"))
+async def history_handler(message: Message, bot: Bot) -> None:
+    await show_history(bot, message)
+
+
+# ── admin commands (7C) ───────────────────────────────────────────────────────
+
+
+@router.message(Command("errors"))
+async def errors_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(message.chat.id, await format_recent_errors(language))
+
+
+@router.message(Command("clear_errors"))
+async def clear_errors_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await asyncio.to_thread(clear_errors)
+    await bot.send_message(message.chat.id, t("errors_cleared", language))
+
+
+@router.message(Command("health"))
+async def health_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(message.chat.id, await asyncio.to_thread(format_health_report))
+
+
+@router.message(Command("stats"))
+async def stats_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(message.chat.id, await asyncio.to_thread(format_stats_report, language))
+
+
+@router.message(Command("maintenance"))
+async def maintenance_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(
+        message.chat.id, await asyncio.to_thread(format_maintenance_report, language)
+    )
+
+
+@router.message(Command("cleanup_errors"))
+async def cleanup_errors_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(
+        message.chat.id, await asyncio.to_thread(cleanup_errors_report, language)
+    )
+
+
+@router.message(Command("cleanup_history"))
+async def cleanup_history_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(
+        message.chat.id, await asyncio.to_thread(cleanup_history_report, language)
+    )
+
+
+@router.message(Command("reload_admins"))
+async def reload_admins_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    if not await require_admin(bot, message, language):
+        return
+
+    await bot.send_message(message.chat.id, reload_admins_report(language))
+
+
+# ── feature commands (7D) ─────────────────────────────────────────────────────
+
+
+@router.message(Command("similar"))
+async def similar_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    last_track_id = await asyncio.to_thread(get_last_track_id, message.from_user.id)
+
+    if not last_track_id:
+        await bot.send_message(message.chat.id, t("similar_no_context", language))
+        return
+
+    source = None
+    try:
+        try:
+            source = await deezer_get_track(last_track_id)
+            header = t(
+                "similar_header",
+                language,
+                title=source.get("title", ""),
+                artist=source.get("artist", ""),
+            )
+        except Exception:
+            header = t("similar_header", language, title="", artist="").rstrip(" —").rstrip()
+
+        artist_name = source.get("artist", "") if source else ""
+        tracks = await get_similar_by_genre(last_track_id, artist_name=artist_name)
+
+        if not tracks:
+            await bot.send_message(message.chat.id, t("similar_empty", language))
+            return
+
+        text = format_similar_text(header, tracks[:5], artist_name)
+        # original /similar had no link_preview — behavior preserved
+        await bot.send_message(message.chat.id, text, parse_mode="Markdown")
+
+    except Exception as error:
+        await asyncio.to_thread(
+            log_and_save_error,
+            logger=logger,
+            telegram_id=message.from_user.id,
+            source="similar_handler",
+            error=error,
+        )
+        await bot.send_message(message.chat.id, t("similar_empty", language))
+
+
+@router.message(Command("trending"))
+async def trending_handler(message: Message, bot: Bot) -> None:
+    language = await get_user_context(message)
+
+    try:
+        tracks = await get_cached_trending(get_trending_tracks)
+
+        if not tracks:
+            await bot.send_message(message.chat.id, t("trending_empty", language))
+            return
+
+        text_lines = [t("trending_header", language), format_recommendations_text(tracks[:10])]
+
+        await bot.send_message(
             message.chat.id,
-            t("welcome", language),
-            reply_markup=main_menu_keyboard(language, is_admin=is_admin(message.from_user.id)),
+            "\n".join(text_lines),
+            parse_mode="Markdown",
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
 
-    @bot.message_handler(commands=["help"])
-    def help_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        bot.send_message(message.chat.id, t("help", language))
-
-    @bot.message_handler(commands=["language"])
-    def language_handler(message: types.Message) -> None:
-        show_language_menu(bot, message)
-
-    @bot.message_handler(commands=["version"])
-    def version_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        bot.send_message(
-            message.chat.id,
-            t("version_info", language, version=__version__),
+    except Exception as error:
+        await asyncio.to_thread(
+            log_and_save_error,
+            logger=logger,
+            telegram_id=message.from_user.id,
+            source="trending_handler",
+            error=error,
         )
+        await bot.send_message(message.chat.id, t("trending_empty", language))
 
-    @bot.message_handler(commands=["errors"])
-    def errors_handler(message: types.Message) -> None:
-        language = get_user_context(message)
 
-        if not require_admin(bot, message, language):
-            return
+# ── text handler (7E) ─────────────────────────────────────────────────────────
 
-        bot.send_message(message.chat.id, format_recent_errors(language))
 
-    @bot.message_handler(commands=["clear_errors"])
-    def clear_errors_handler(message: types.Message) -> None:
-        language = get_user_context(message)
+@router.message(F.text)
+async def text_handler(message: Message, bot: Bot) -> None:
+    await asyncio.to_thread(upsert_user, message.from_user)
 
-        if not require_admin(bot, message, language):
-            return
+    if message.text and message.text.strip().startswith("/"):
+        return
 
-        clear_errors()
-        bot.send_message(message.chat.id, t("errors_cleared", language))
+    action = get_menu_action_by_text(message.text)
 
-    @bot.message_handler(commands=["health"])
-    def health_handler(message: types.Message) -> None:
-        language = get_user_context(message)
+    if action == "main_menu":
+        await show_main_menu(bot, message.chat.id, message.from_user.id)
+        return
 
-        if not require_admin(bot, message, language):
-            return
+    if action == "music":
+        await ask_for_music(bot, message.chat.id, message.from_user.id)
+        return
 
-        bot.send_message(message.chat.id, format_health_report())
+    if action == "favorites":
+        await show_favorites(bot, message)
+        return
 
-    @bot.message_handler(commands=["stats"])
-    def stats_handler(message: types.Message) -> None:
-        language = get_user_context(message)
+    if action == "history":
+        await show_history(bot, message)
+        return
 
-        if not require_admin(bot, message, language):
-            return
+    if action == "language":
+        await show_language_menu(bot, message)
+        return
 
-        bot.send_message(message.chat.id, format_stats_report(language))
+    if action == "admin":
+        await show_admin_menu(bot, message)
+        return
 
-    @bot.message_handler(commands=["maintenance"])
-    def maintenance_handler(message: types.Message) -> None:
-        language = get_user_context(message)
+    if action in {
+        "admin_stats",
+        "admin_maintenance",
+        "admin_cleanup_errors",
+        "admin_cleanup_history",
+        "admin_health",
+        "admin_reload_admins",
+    }:
+        await handle_admin_action(bot, message, action)
+        return
 
-        if not require_admin(bot, message, language):
-            return
-
-        bot.send_message(message.chat.id, format_maintenance_report(language))
-
-    @bot.message_handler(commands=["cleanup_errors"])
-    def cleanup_errors_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        if not require_admin(bot, message, language):
-            return
-
-        bot.send_message(message.chat.id, cleanup_errors_report(language))
-
-    @bot.message_handler(commands=["cleanup_history"])
-    def cleanup_history_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        if not require_admin(bot, message, language):
-            return
-
-        bot.send_message(message.chat.id, cleanup_history_report(language))
-
-    @bot.message_handler(commands=["reload_admins"])
-    def reload_admins_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        if not require_admin(bot, message, language):
-            return
-
-        bot.send_message(message.chat.id, reload_admins_report(language))
-
-    @bot.message_handler(commands=["similar"])
-    def similar_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        last_track_id = get_last_track_id(message.from_user.id)
-
-        if not last_track_id:
-            bot.send_message(message.chat.id, t("similar_no_context", language))
-            return
-
-        source = None
-        try:
-            try:
-                source = deezer_get_track(last_track_id)
-                header = t(
-                    "similar_header",
-                    language,
-                    title=source.get("title", ""),
-                    artist=source.get("artist", ""),
-                )
-            except Exception:
-                header = t("similar_header", language, title="", artist="").rstrip(" —").rstrip()
-
-            artist_name = source.get("artist", "") if source else ""
-            tracks = get_similar_by_genre(last_track_id, artist_name=artist_name)
-
-            if not tracks:
-                bot.send_message(message.chat.id, t("similar_empty", language))
-                return
-
-            text = format_similar_text(header, tracks[:5], artist_name)
-            bot.send_message(message.chat.id, text, parse_mode="Markdown")
-
-        except Exception as error:
-            log_and_save_error(
-                logger=logger,
-                telegram_id=message.from_user.id,
-                source="similar_handler",
-                error=error,
-            )
-            bot.send_message(message.chat.id, t("similar_empty", language))
-
-    @bot.message_handler(commands=["trending"])
-    def trending_handler(message: types.Message) -> None:
-        language = get_user_context(message)
-
-        try:
-            tracks = get_cached_trending(get_trending_tracks)
-
-            if not tracks:
-                bot.send_message(message.chat.id, t("trending_empty", language))
-                return
-
-            text_lines = [t("trending_header", language), format_recommendations_text(tracks[:10])]
-
-            bot.send_message(
-                message.chat.id,
-                "\n".join(text_lines),
-                parse_mode="Markdown",
-                disable_web_page_preview=True,
-            )
-
-        except Exception as error:
-            log_and_save_error(
-                logger=logger,
-                telegram_id=message.from_user.id,
-                source="trending_handler",
-                error=error,
-            )
-            bot.send_message(message.chat.id, t("trending_empty", language))
-
-    @bot.message_handler(commands=["favorites"])
-    def favorites_handler(message: types.Message) -> None:
-        show_favorites(bot, message)
-
-    @bot.message_handler(commands=["history"])
-    def history_handler(message: types.Message) -> None:
-        show_history(bot, message)
-
-    @bot.message_handler(content_types=["text"])
-    def text_handler(message: types.Message) -> None:
-        upsert_user(message.from_user)
-
-        if message.text and message.text.strip().startswith("/"):
-            return
-
-        action = get_menu_action_by_text(message.text)
-
-        if action == "main_menu":
-            show_main_menu(bot, message.chat.id, message.from_user.id)
-            return
-
-        if action == "music":
-            ask_for_music(bot, message.chat.id, message.from_user.id)
-            return
-
-        if action == "favorites":
-            show_favorites(bot, message)
-            return
-
-        if action == "history":
-            show_history(bot, message)
-            return
-
-        if action == "language":
-            show_language_menu(bot, message)
-            return
-
-        if action == "admin":
-            show_admin_menu(bot, message)
-            return
-
-        if action in {
-            "admin_stats",
-            "admin_maintenance",
-            "admin_cleanup_errors",
-            "admin_cleanup_history",
-            "admin_health",
-            "admin_reload_admins",
-        }:
-            handle_admin_action(bot, message, action)
-            return
-
-        process_music_search(bot, message)
+    await process_music_search(bot, message)

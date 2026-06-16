@@ -1,123 +1,8 @@
-from types import SimpleNamespace
-
+import httpx
 import pytest
 
 from app.services import deezer_service
-
-
-def make_track(**overrides):
-    values = {
-        "id": 1,
-        "title": "SOS",
-        "artist": SimpleNamespace(name="ABBA"),
-        "album": SimpleNamespace(title="ABBA Gold", cover="https://example.com/cover.jpg"),
-        "duration": 210,
-        "link": "https://www.deezer.com/track/1",
-        "release_date": None,
-        "rank": None,
-    }
-    values.update(overrides)
-    return SimpleNamespace(**values)
-
-
-
-
-class FakeDeezerClient:
-    def __init__(self, search_result=None, track_result=None):
-        self.search_result = search_result if search_result is not None else []
-        self.track_result = track_result
-
-    def search(self, query):
-        if isinstance(self.search_result, Exception):
-            raise self.search_result
-        return self.search_result
-
-    def get_track(self, track_id):
-        if isinstance(self.track_result, Exception):
-            raise self.track_result
-        return self.track_result or make_track(id=track_id)
-
-
-def test_get_object_value_returns_string_objects_as_is():
-    assert deezer_service.get_object_value("ABBA", ["name"]) == "ABBA"
-
-
-def test_format_deezer_track_handles_missing_album_cover_and_rank():
-    track = make_track(album=None, artist="ABBA")
-
-    result = deezer_service.format_deezer_track(track)
-
-    assert result["artist"] == "ABBA"
-    assert result["album"] == "Unknown album"
-    assert result["cover_url"] is None
-    assert result["rank"] is None
-    assert result["popularity"] is None
-
-
-def test_search_tracks_returns_empty_for_blank_query():
-    assert deezer_service.search_tracks("   ") == []
-
-
-def test_search_tracks_returns_empty_when_deezer_fails(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service,
-        "get_deezer_client",
-        lambda: FakeDeezerClient(search_result=RuntimeError("deezer unavailable")),
-    )
-
-    assert deezer_service.search_tracks("ABBA") == []
-
-
-def test_search_tracks_skips_tracks_that_cannot_be_formatted(monkeypatch):
-    valid_track = make_track()
-    invalid_track = SimpleNamespace()
-
-    monkeypatch.setattr(
-        deezer_service,
-        "get_deezer_client",
-        lambda: FakeDeezerClient(search_result=[invalid_track, valid_track]),
-    )
-
-    results = deezer_service.search_tracks("ABBA", limit=5)
-
-    assert len(results) == 1
-    assert results[0]["title"] == "SOS"
-
-
-def test_search_tracks_respects_limit(monkeypatch):
-    tracks = [make_track(id=index, title=f"Track {index}") for index in range(5)]
-    monkeypatch.setattr(
-        deezer_service,
-        "get_deezer_client",
-        lambda: FakeDeezerClient(search_result=tracks),
-    )
-
-    results = deezer_service.search_tracks("ABBA", limit=2)
-
-    assert [track["title"] for track in results] == ["Track 0", "Track 1"]
-
-
-def test_get_track_success(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service,
-        "get_deezer_client",
-        lambda: FakeDeezerClient(track_result=make_track(id=123)),
-    )
-
-    result = deezer_service.get_track("123")
-
-    assert result["deezer_track_id"] == "123"
-
-
-def test_get_track_wraps_deezer_errors(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service,
-        "get_deezer_client",
-        lambda: FakeDeezerClient(track_result=RuntimeError("not found")),
-    )
-
-    with pytest.raises(RuntimeError, match="Could not load Deezer track"):
-        deezer_service.get_track("bad")
+from tests.conftest import FakeAsyncClient, make_httpx_response
 
 
 def make_raw_track(track_id=1, title="SOS", artist_name="ABBA", duration=210):
@@ -132,92 +17,160 @@ def make_raw_track(track_id=1, title="SOS", artist_name="ABBA", duration=210):
     }
 
 
-class FakeResponse:
-    def __init__(self, json_data, status_code=200):
-        self._json = json_data
-        self.status_code = status_code
-
-    def json(self):
-        return self._json
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError(f"HTTP {self.status_code}")
+@pytest.mark.asyncio
+async def test_search_tracks_returns_empty_for_blank_query():
+    assert await deezer_service.search_tracks("   ") == []
 
 
-def test_get_trending_tracks_returns_list_on_success(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": [make_raw_track(3, "Dancing Queen")]}),
+@pytest.mark.asyncio
+async def test_search_tracks_returns_empty_when_deezer_fails(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("deezer unavailable"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    assert await deezer_service.search_tracks("ABBA") == []
+
+
+@pytest.mark.asyncio
+async def test_search_tracks_returns_parsed_tracks(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": [make_raw_track()]}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    results = await deezer_service.search_tracks("ABBA", limit=5)
+
+    assert len(results) == 1
+    assert results[0]["title"] == "SOS"
+    assert results[0]["artist"] == "ABBA"
+
+
+@pytest.mark.asyncio
+async def test_search_tracks_skips_items_that_cannot_be_parsed(monkeypatch):
+    fake_client = FakeAsyncClient(
+        response=make_httpx_response(json_data={"data": ["not-a-dict", make_raw_track()]})
     )
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_trending_tracks()
+    results = await deezer_service.search_tracks("ABBA", limit=5)
+
+    assert len(results) == 1
+    assert results[0]["title"] == "SOS"
+
+
+@pytest.mark.asyncio
+async def test_search_tracks_respects_limit(monkeypatch):
+    tracks = [make_raw_track(track_id=index, title=f"Track {index}") for index in range(5)]
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": tracks}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    results = await deezer_service.search_tracks("ABBA", limit=2)
+
+    assert [track["title"] for track in results] == ["Track 0", "Track 1"]
+
+
+@pytest.mark.asyncio
+async def test_get_track_success(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data=make_raw_track(track_id=123)))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    result = await deezer_service.get_track("123")
+
+    assert result["deezer_track_id"] == "123"
+
+
+@pytest.mark.asyncio
+async def test_get_track_wraps_deezer_api_error(monkeypatch):
+    fake_client = FakeAsyncClient(
+        response=make_httpx_response(json_data={"error": {"message": "no data", "code": 800}})
+    )
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    with pytest.raises(RuntimeError, match="Could not load Deezer track"):
+        await deezer_service.get_track("bad")
+
+
+@pytest.mark.asyncio
+async def test_get_track_wraps_request_errors(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("not found"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    with pytest.raises(RuntimeError, match="Could not load Deezer track"):
+        await deezer_service.get_track("bad")
+
+
+@pytest.mark.asyncio
+async def test_get_trending_tracks_returns_list_on_success(monkeypatch):
+    fake_client = FakeAsyncClient(
+        response=make_httpx_response(json_data={"data": [make_raw_track(3, "Dancing Queen")]})
+    )
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    result = await deezer_service.get_trending_tracks()
 
     assert len(result) == 1
     assert result[0]["title"] == "Dancing Queen"
 
 
-def test_get_trending_tracks_returns_empty_on_request_error(monkeypatch):
-    def failing_get(url, **kwargs):
-        raise RuntimeError("no network")
+@pytest.mark.asyncio
+async def test_get_trending_tracks_returns_empty_on_request_error(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("no network"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    monkeypatch.setattr(deezer_service.requests, "get", failing_get)
-
-    result = deezer_service.get_trending_tracks()
+    result = await deezer_service.get_trending_tracks()
 
     assert result == []
 
 
-def test_get_artist_top_tracks_returns_tracks(monkeypatch):
-    artist_response = FakeResponse({"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]})
-    top_response = FakeResponse({"data": [make_raw_track(10, "Mamma Mia")]})
-    responses = [artist_response, top_response]
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_returns_tracks(monkeypatch):
+    artist_response = make_httpx_response(
+        json_data={"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]}
+    )
+    top_response = make_httpx_response(json_data={"data": [make_raw_track(10, "Mamma Mia")]})
 
-    monkeypatch.setattr(deezer_service.requests, "get", lambda url, **kwargs: responses.pop(0))
+    clients = [
+        FakeAsyncClient(response=artist_response),
+        FakeAsyncClient(response=top_response),
+    ]
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: clients.pop(0))
 
-    result = deezer_service.get_artist_top_tracks("ABBA", limit=1)
+    result = await deezer_service.get_artist_top_tracks("ABBA", limit=1)
 
     assert len(result) == 1
     assert result[0]["title"] == "Mamma Mia"
 
 
-def test_get_artist_top_tracks_returns_empty_when_artist_not_found(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": []}),
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_returns_empty_when_artist_not_found(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": []}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    result = await deezer_service.get_artist_top_tracks("Unknown Artist XYZ")
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_returns_empty_on_search_error(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("search failed"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
+
+    result = await deezer_service.get_artist_top_tracks("ABBA")
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_returns_empty_on_top_error(monkeypatch):
+    artist_response = make_httpx_response(
+        json_data={"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]}
     )
 
-    result = deezer_service.get_artist_top_tracks("Unknown Artist XYZ")
+    clients = [
+        FakeAsyncClient(response=artist_response),
+        FakeAsyncClient(exc=httpx.ConnectError("top endpoint failed")),
+    ]
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: clients.pop(0))
 
-    assert result == []
-
-
-def test_get_artist_top_tracks_returns_empty_on_search_error(monkeypatch):
-    def failing_get(url, **kwargs):
-        raise RuntimeError("search failed")
-
-    monkeypatch.setattr(deezer_service.requests, "get", failing_get)
-
-    result = deezer_service.get_artist_top_tracks("ABBA")
-
-    assert result == []
-
-
-def test_get_artist_top_tracks_returns_empty_on_top_error(monkeypatch):
-    artist_response = FakeResponse({"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]})
-    call_count = [0]
-
-    def patchy_get(url, **kwargs):
-        call_count[0] += 1
-        if call_count[0] == 1:
-            return artist_response
-        raise RuntimeError("top endpoint failed")
-
-    monkeypatch.setattr(deezer_service.requests, "get", patchy_get)
-
-    result = deezer_service.get_artist_top_tracks("ABBA")
+    result = await deezer_service.get_artist_top_tracks("ABBA")
 
     assert result == []
 
@@ -309,94 +262,84 @@ def test_parse_raw_track_handles_null_id_and_link():
     assert result["deezer_link"] == ""
 
 
-def test_get_artist_top_tracks_by_id_returns_tracks(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": [make_raw_track(5, "Fernando")]}),
-    )
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_by_id_returns_tracks(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": [make_raw_track(5, "Fernando")]}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_artist_top_tracks_by_id(7, limit=5)
+    result = await deezer_service.get_artist_top_tracks_by_id(7, limit=5)
 
     assert len(result) == 1
     assert result[0]["title"] == "Fernando"
     assert result[0]["artist"] == "ABBA"
 
 
-def test_get_artist_top_tracks_by_id_returns_empty_on_error(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: (_ for _ in ()).throw(RuntimeError("timeout")),
-    )
+@pytest.mark.asyncio
+async def test_get_artist_top_tracks_by_id_returns_empty_on_error(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("timeout"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_artist_top_tracks_by_id(7)
+    result = await deezer_service.get_artist_top_tracks_by_id(7)
 
     assert result == []
 
 
-def test_get_artist_id_returns_id_on_success(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]}),
+@pytest.mark.asyncio
+async def test_get_artist_id_returns_id_on_success(monkeypatch):
+    fake_client = FakeAsyncClient(
+        response=make_httpx_response(
+            json_data={"data": [{"id": 884025, "title": "Mamma Mia", "artist": {"id": 7, "name": "ABBA"}}]}
+        )
     )
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_artist_id("ABBA")
+    result = await deezer_service.get_artist_id("ABBA")
 
     assert result == 7
 
 
-def test_get_artist_id_returns_none_when_no_results(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": []}),
-    )
+@pytest.mark.asyncio
+async def test_get_artist_id_returns_none_when_no_results(monkeypatch):
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": []}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_artist_id("Unknown Artist XYZ")
+    result = await deezer_service.get_artist_id("Unknown Artist XYZ")
 
     assert result is None
 
 
-def test_get_artist_id_returns_none_on_error(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: (_ for _ in ()).throw(RuntimeError("timeout")),
-    )
+@pytest.mark.asyncio
+async def test_get_artist_id_returns_none_on_error(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("timeout"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_artist_id("ABBA")
+    result = await deezer_service.get_artist_id("ABBA")
 
     assert result is None
 
 
-def test_get_related_artists_returns_list_with_limit(monkeypatch):
+@pytest.mark.asyncio
+async def test_get_related_artists_returns_list_with_limit(monkeypatch):
     artists = [
         {"id": 8, "name": "Queen"},
         {"id": 9, "name": "Led Zeppelin"},
         {"id": 10, "name": "Pink Floyd"},
         {"id": 11, "name": "The Beatles"},
     ]
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: FakeResponse({"data": artists}),
-    )
+    fake_client = FakeAsyncClient(response=make_httpx_response(json_data={"data": artists}))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_related_artists(7, limit=2)
+    result = await deezer_service.get_related_artists(7, limit=2)
 
     assert len(result) == 2
     assert result[0] == {"id": 8, "name": "Queen"}
 
 
-def test_get_related_artists_returns_empty_on_error(monkeypatch):
-    monkeypatch.setattr(
-        deezer_service.requests,
-        "get",
-        lambda url, **kwargs: (_ for _ in ()).throw(RuntimeError("network error")),
-    )
+@pytest.mark.asyncio
+async def test_get_related_artists_returns_empty_on_error(monkeypatch):
+    fake_client = FakeAsyncClient(exc=httpx.ConnectError("network error"))
+    monkeypatch.setattr(deezer_service.httpx, "AsyncClient", lambda *a, **kw: fake_client)
 
-    result = deezer_service.get_related_artists(7)
+    result = await deezer_service.get_related_artists(7)
 
     assert result == []
