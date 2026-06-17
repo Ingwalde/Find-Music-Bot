@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.1.0] - 2026-06-17
+
+### Changed
+- Migrated the database from SQLite to PostgreSQL (asyncpg). All database access is now
+  fully asynchronous via a connection pool; SQLite code has been removed from the application.
+- Repository modules, maintenance layer, error logging, platform aggregator, and health checks
+  all operate against PostgreSQL through the shared asyncpg pool.
+- `app/main.py` now calls `await init_db_pool()` at startup and `await close_db_pool()` in the
+  finally block; the sync `init_db()` call has been removed.
+- `asyncio.to_thread` wrappers around database calls removed across the bot layer (handlers,
+  callbacks, services) — all DB calls are now natively async.
+- `DATABASE_URL` is now required — `settings.validate()` raises `ValueError` if it is missing.
+
+### Added
+- PostgreSQL service in `deploy/docker-compose.yml` (postgres:16-alpine) with a `pg_isready`
+  healthcheck; bot service depends on `service_healthy`.
+- Named volume `postgres-data` for persistent PostgreSQL data.
+- `scripts/migrate_sqlite_to_postgres.py` — one-time standalone migration script that reads
+  the existing SQLite file (read-only), creates the PG schema, migrates all tables in FK-safe
+  order preserving explicit IDs, resets BIGSERIAL sequences, and verifies row counts.
+
+### Notes
+- No user-facing feature changes; this is a database backend migration.
+- Existing data is preserved via the migration script before switching to PostgreSQL.
+- `migrations.py` is kept in place but unreferenced by the application (Stage 12 handles it).
+- Tests run against a real PostgreSQL instance via testcontainers.
+
+---
+
 ## [v3.0.1] - 2026-06-16
 
 ### Changed

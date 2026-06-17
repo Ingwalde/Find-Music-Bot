@@ -39,7 +39,14 @@ async def test_run_bot_initializes_and_polls(monkeypatch):
     bot = FakeBot()
     calls = []
 
-    monkeypatch.setattr(main, "init_db", lambda: calls.append("init_db"))
+    async def fake_init_db_pool():
+        calls.append("init_db_pool")
+
+    async def fake_close_db_pool():
+        calls.append("close_db_pool")
+
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
     monkeypatch.setattr(main, "create_bot", lambda: bot)
     monkeypatch.setattr(main.Dispatcher, "include_router", lambda self, router: None)
 
@@ -50,7 +57,9 @@ async def test_run_bot_initializes_and_polls(monkeypatch):
 
     await main.run_bot()
 
-    assert calls == ["init_db", ("start_polling", (bot,))]
+    assert "init_db_pool" in calls
+    assert ("start_polling", (bot,)) in calls
+    assert "close_db_pool" in calls
     assert bot.session.closed is True
     assert bot.deleted_webhook_kwargs.get("drop_pending_updates") is True
 
@@ -60,7 +69,14 @@ async def test_run_bot_includes_routers_and_drops_pending_updates(monkeypatch):
     bot = FakeBot()
     included = []
 
-    monkeypatch.setattr(main, "init_db", lambda: None)
+    async def fake_init_db_pool():
+        pass
+
+    async def fake_close_db_pool():
+        pass
+
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
     monkeypatch.setattr(main, "create_bot", lambda: bot)
 
     def patched_include(self, router):
@@ -85,7 +101,17 @@ async def test_run_bot_logs_and_reraises_polling_error(monkeypatch):
     bot = FakeBot()
     captured = {}
 
-    monkeypatch.setattr(main, "init_db", lambda: None)
+    async def fake_init_db_pool():
+        pass
+
+    async def fake_close_db_pool():
+        pass
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
     monkeypatch.setattr(main, "create_bot", lambda: bot)
     monkeypatch.setattr(main.Dispatcher, "include_router", lambda self, router: None)
 
@@ -93,7 +119,7 @@ async def test_run_bot_logs_and_reraises_polling_error(monkeypatch):
         raise RuntimeError("polling failed")
 
     monkeypatch.setattr(main.Dispatcher, "start_polling", fake_start_polling)
-    monkeypatch.setattr(main, "log_and_save_error", lambda **kwargs: captured.update(kwargs))
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
 
     with pytest.raises(RuntimeError, match="polling failed"):
         await main.run_bot()

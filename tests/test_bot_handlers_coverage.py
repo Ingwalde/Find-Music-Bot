@@ -14,8 +14,8 @@ def make_track_dict(title="SOS", artist="ABBA"):
 
 
 def _setup_common(monkeypatch):
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
 
 
 # ── 7A: helpers ───────────────────────────────────────────────────────────────
@@ -31,21 +31,14 @@ async def test_is_admin_delegates_to_is_admin_user(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_format_recent_errors_handles_empty_and_items(monkeypatch):
-    monkeypatch.setattr(handlers, "get_recent_errors", lambda limit: [])
+    monkeypatch.setattr(handlers, "get_recent_errors", to_async(lambda limit: []))
     result = await handlers.format_recent_errors("en")
     assert result
 
     monkeypatch.setattr(
         handlers,
         "get_recent_errors",
-        lambda limit: [
-            {
-                "source": "unit",
-                "created_at": "today",
-                "error_message": "boom",
-                "telegram_id": 123,
-            }
-        ],
+        to_async(lambda limit: [{"source": "unit", "created_at": "today", "error_message": "boom", "telegram_id": 123}]),
     )
     formatted = await handlers.format_recent_errors("en")
 
@@ -72,10 +65,10 @@ async def test_show_favorites_empty_and_with_tracks(monkeypatch, sample_track):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
 
-    monkeypatch.setattr(handlers, "get_favorite_tracks", lambda user_id: [])
+    monkeypatch.setattr(handlers, "get_favorite_tracks", to_async(lambda user_id: []))
     await handlers.show_favorites(bot, fake_message())
 
-    monkeypatch.setattr(handlers, "get_favorite_tracks", lambda user_id: [sample_track])
+    monkeypatch.setattr(handlers, "get_favorite_tracks", to_async(lambda user_id: [sample_track]))
     await handlers.show_favorites(bot, fake_message())
 
     assert len(bot.messages) >= 4
@@ -88,8 +81,8 @@ async def test_show_favorites_handles_error(monkeypatch):
     monkeypatch.setattr(
         handlers, "upsert_user", lambda user: (_ for _ in ()).throw(RuntimeError("boom"))
     )
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(handlers, "log_and_save_error", to_async(lambda **kwargs: None))
 
     await handlers.show_favorites(bot, fake_message())
 
@@ -101,13 +94,13 @@ async def test_show_history_empty_and_with_items(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
 
-    monkeypatch.setattr(handlers, "get_search_history", lambda user_id, limit: [])
+    monkeypatch.setattr(handlers, "get_search_history", to_async(lambda user_id, limit: []))
     await handlers.show_history(bot, fake_message())
 
     monkeypatch.setattr(
         handlers,
         "get_search_history",
-        lambda user_id, limit: [{"id": 1, "query": "SOS"}],
+        to_async(lambda user_id, limit: [{"id": 1, "query": "SOS"}]),
     )
     await handlers.show_history(bot, fake_message())
 
@@ -121,8 +114,8 @@ async def test_show_history_handles_error(monkeypatch):
     monkeypatch.setattr(
         handlers, "upsert_user", lambda user: (_ for _ in ()).throw(RuntimeError("boom"))
     )
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
-    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(handlers, "log_and_save_error", to_async(lambda **kwargs: None))
 
     await handlers.show_history(bot, fake_message())
 
@@ -135,8 +128,8 @@ async def test_command_handlers(monkeypatch):
     _setup_common(monkeypatch)
     monkeypatch.setattr(handlers, "is_admin_user", lambda user_id: user_id == 123)
     monkeypatch.setattr(handlers, "format_recent_errors", to_async(lambda language="en": "errors"))
-    monkeypatch.setattr(handlers, "format_health_report", lambda: "health")
-    monkeypatch.setattr(handlers, "clear_errors", lambda: None)
+    monkeypatch.setattr(handlers, "format_health_report", to_async(lambda: "health"))
+    monkeypatch.setattr(handlers, "clear_errors", to_async(lambda: None))
     monkeypatch.setattr(
         handlers,
         "show_favorites",
@@ -216,7 +209,7 @@ async def test_process_music_search_handles_search_error(monkeypatch):
         "send_search_results",
         to_async(lambda **kwargs: (_ for _ in ()).throw(RuntimeError("boom"))),
     )
-    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+    monkeypatch.setattr(handlers, "log_and_save_error", to_async(lambda **kwargs: None))
 
     await handlers.process_music_search(bot, fake_message(text="SOS"))
 
@@ -236,7 +229,7 @@ async def test_process_music_search_handles_search_error(monkeypatch):
 async def test_similar_handler_sends_no_context_message_when_no_last_track(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
-    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: None)
+    monkeypatch.setattr(handlers, "get_last_track_id", to_async(lambda uid: None))
 
     await handlers.similar_handler(fake_message(), bot)
 
@@ -252,7 +245,7 @@ async def test_similar_handler_sends_no_context_message_when_no_last_track(monke
 async def test_similar_handler_sends_tracks_when_context_exists(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
-    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "get_last_track_id", to_async(lambda uid: "42"))
     monkeypatch.setattr(handlers, "deezer_get_track", to_async(lambda tid: make_track_dict()))
     monkeypatch.setattr(
         handlers,
@@ -270,7 +263,7 @@ async def test_similar_handler_sends_tracks_when_context_exists(monkeypatch):
 async def test_similar_handler_sends_empty_message_when_no_similar_tracks(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
-    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "get_last_track_id", to_async(lambda uid: "42"))
     monkeypatch.setattr(handlers, "deezer_get_track", to_async(lambda tid: make_track_dict()))
     monkeypatch.setattr(
         handlers, "get_similar_by_genre", to_async(lambda tid, artist_name="": [])
@@ -286,14 +279,14 @@ async def test_similar_handler_sends_empty_message_when_no_similar_tracks(monkey
 async def test_similar_handler_handles_exception(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
-    monkeypatch.setattr(handlers, "get_last_track_id", lambda uid: "42")
+    monkeypatch.setattr(handlers, "get_last_track_id", to_async(lambda uid: "42"))
     monkeypatch.setattr(handlers, "deezer_get_track", to_async(lambda tid: make_track_dict()))
     monkeypatch.setattr(
         handlers,
         "get_similar_by_genre",
         to_async(lambda tid, artist_name="": (_ for _ in ()).throw(RuntimeError("fail"))),
     )
-    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+    monkeypatch.setattr(handlers, "log_and_save_error", to_async(lambda **kwargs: None))
 
     await handlers.similar_handler(fake_message(), bot)
 
@@ -338,7 +331,7 @@ async def test_trending_handler_handles_exception(monkeypatch):
         "get_cached_trending",
         to_async(lambda fetch_fn: (_ for _ in ()).throw(RuntimeError("api down"))),
     )
-    monkeypatch.setattr(handlers, "log_and_save_error", lambda **kwargs: None)
+    monkeypatch.setattr(handlers, "log_and_save_error", to_async(lambda **kwargs: None))
 
     await handlers.trending_handler(fake_message(), bot)
 
@@ -353,7 +346,7 @@ async def test_text_handler_routes_actions(monkeypatch):
     bot = AsyncFakeBot()
     routed = []
     action_seq = iter(["main_menu", "music", "favorites", "history", "language", None])
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
     monkeypatch.setattr(handlers, "get_menu_action_by_text", lambda text: next(action_seq))
     monkeypatch.setattr(
         handlers, "show_main_menu", to_async(lambda bot, chat_id, user_id: routed.append("main"))

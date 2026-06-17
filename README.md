@@ -2,18 +2,22 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.0.1 — Async Event-Loop Hygiene Patch`
+**Current version:** `v3.1.0 — PostgreSQL Migration`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
-The project is built as a backend-style portfolio project with modular architecture, SQLite persistence, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
 
 ---
 
-## What Changed in v3.0.1
+## What Changed in v3.1.0
 
-- Wrapped two remaining synchronous SQLite calls in `recommendations_service.py` in `asyncio.to_thread` so they no longer briefly block the event loop during `/similar` and recommendation queries.
-- No behavior change for users.
+- Migrated the database from SQLite to PostgreSQL (asyncpg). All database access is now fully asynchronous via a connection pool.
+- `asyncio.to_thread` wrappers removed — all DB calls are natively async.
+- `deploy/docker-compose.yml` now includes a PostgreSQL service with healthcheck and named volume.
+- `scripts/migrate_sqlite_to_postgres.py` provided for one-time data migration from existing SQLite files.
+- `DATABASE_URL` is now required at startup.
+- No user-facing feature changes.
 
 ---
 
@@ -97,7 +101,7 @@ The track card also includes a 🎯 Similar inline button for quick access to tr
 - Remove tracks from favorites.
 - View saved favorites.
 - Clear favorites with confirmation.
-- Favorite state is stored in SQLite.
+- Favorite state is stored in PostgreSQL.
 
 ### Search History
 
@@ -105,7 +109,7 @@ The track card also includes a 🎯 Similar inline button for quick access to tr
 - View recent search history.
 - Re-run searches from history.
 - Clear search history with confirmation.
-- Search history is stored in SQLite and can be trimmed by maintenance tools.
+- Search history is stored in PostgreSQL and can be trimmed by maintenance tools.
 
 ### Localization
 
@@ -163,7 +167,7 @@ Admin diagnostics include:
 
 ### Database and Persistence
 
-The project uses SQLite for local persistence.
+The project uses PostgreSQL for persistence, accessed via asyncpg with a connection pool.
 
 Stored data includes:
 
@@ -177,13 +181,13 @@ Stored data includes:
 
 Database features:
 
-- Schema initialization.
-- Lightweight migrations.
+- Async connection pool (asyncpg).
+- Schema initialization on first startup.
 - Index creation.
 - Repository modules split by domain.
 - Compatibility repository facade for stable imports.
 - Database maintenance helpers.
-- Dynamic maintenance table discovery from SQLite schema.
+- One-time SQLite→PostgreSQL migration script.
 
 ### Error Logging
 

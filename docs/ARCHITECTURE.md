@@ -13,7 +13,7 @@ Services / Platform Aggregator / Admin Tools
  ↓
 Database Repositories / Maintenance Helpers
  ↓
-SQLite
+PostgreSQL  (asyncpg connection pool)
 ```
 
 ## Bot Layer
@@ -67,10 +67,10 @@ app/database/
 Database logic is split into:
 
 ```text
-schema.py       → CREATE TABLE statements
-migrations.py   → lightweight SQLite migrations
-indexes.py      → CREATE INDEX statements
-db.py           → connection, init_db() and schema version recording
+schema.py       → CREATE TABLE statements (PostgreSQL, async)
+migrations.py   → SQLite PRAGMA migrations (kept for reference, unreferenced in v3.1.0+)
+indexes.py      → CREATE INDEX statements (PostgreSQL, async)
+db.py           → asyncpg pool singleton, init_db_pool(), close_db_pool(), schema version
 maintenance.py  → database size, table counts, cleanup helpers and schema version visibility
 ```
 
@@ -128,7 +128,7 @@ app/health.py
 The health module provides admin diagnostics for:
 
 - bot runtime status;
-- SQLite database connectivity;
+- PostgreSQL database connectivity (pool health);
 - Deezer service import availability;
 - Spotify configuration and temporary cooldown state;
 - Genius token configuration.
@@ -180,11 +180,13 @@ docs/DEPLOYMENT.md
 The deployment layer allows the bot to run in a containerized environment while keeping runtime data outside the image:
 
 ```text
-data/ -> SQLite database
+data/ -> SQLite file (kept for migration; removed after cutover)
 logs/ -> runtime logs
 ```
 
 Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as local volumes.
+The Postgres service uses a named volume (`postgres-data`) for persistent data and a `pg_isready`
+healthcheck; the bot service depends on `service_healthy`.
 
 ---
 
@@ -192,10 +194,11 @@ Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as l
 
 ```text
 scripts/
-└── check_release_clean.py   # Validates that private/local files are not tracked by Git
+├── check_release_clean.py          # Validates that private/local files are not tracked by Git
+└── migrate_sqlite_to_postgres.py   # One-time SQLite → PostgreSQL data migration
 ```
 
-The cleanup script checks tracked files only. This allows developers to keep local `.env`, logs and SQLite files in the working directory while preventing them from being committed or released.
+The cleanup script checks tracked files only. This allows developers to keep local `.env`, logs and data files in the working directory while preventing them from being committed or released.
 
 
 ## Admin access configuration
@@ -293,4 +296,52 @@ await dp.start_polling(bot)
 - `lyricsgenius` — lyrics fetching now uses `httpx` with the Genius search API directly
 - `requests` — no remaining direct usage; `httpx` covers all HTTP needs
 
-**Database and schema unchanged:** SQLite file format, schema, and all repository function signatures are identical to v2.7.0. No migration needed.
+**Database and schema unchanged in v3.0.0:** SQLite file format, schema, and all repository function signatures are identical to v2.7.0. No migration needed for the aiogram upgrade.
+
+## v3.1.0 PostgreSQL Migration
+
+Version `v3.1.0` replaces SQLite with PostgreSQL (asyncpg) as the persistence layer.
+
+**Connection pool lifecycle:**
+
+```python
+# startup — app/main.py
+await init_db_pool()     # creates pool, runs DDL, records schema version
+
+# shutdown — app/main.py finally block
+await close_db_pool()    # drains pool and resets singleton
+```
+
+`init_db_pool()` runs `create_tables_pg`, `create_indexes_pg`, and `record_schema_version_pg`
+against a fresh connection from the pool. The pool is a module-level singleton in `app/database/db.py`;
+all repository modules call `get_pool()` to acquire a connection.
+
+**Type changes from SQLite to PostgreSQL:**
+
+| SQLite                              | PostgreSQL              |
+|-------------------------------------|-------------------------|
+| `INTEGER PRIMARY KEY AUTOINCREMENT` | `BIGSERIAL PRIMARY KEY` |
+| `INTEGER` (Telegram IDs, FK cols)   | `BIGINT`                |
+| `TIMESTAMP DEFAULT CURRENT_TIMESTAMP` | `TIMESTAMPTZ DEFAULT NOW()` |
+
+**Test isolation:**
+
+Tests run against a real PostgreSQL instance via `testcontainers` (postgres:16). The `live_pg`
+fixture in `tests/conftest.py` creates a function-scoped asyncpg pool, runs DDL, TRUNCATEs all
+tables, and monkeypatches `get_pool` in every repository module before each test.
+
+**async execution model (v3.1.0+):**
+
+- All database calls are natively async — no `asyncio.to_thread` wrappers remain.
+- Repository functions use `async with pool.acquire() as conn` for per-call connection checkout.
+- The Spotify token/cache state remains `threading.RLock`-protected for the sync callers in the platform layer.
+
+**Data migration:**
+
+`scripts/migrate_sqlite_to_postgres.py` is a one-time standalone script that:
+1. Opens the SQLite file read-only.
+2. Calls `create_tables_pg` + `create_indexes_pg` on the PG target.
+3. Migrates tables in FK-safe order (`schema_migrations → users → tracks → searches → favorites → errors`), preserving explicit `id` values.
+4. Resets each BIGSERIAL sequence with `SELECT setval(pg_get_serial_sequence(...))` after bulk insert.
+5. Verifies row counts and exits non-zero on mismatch.
+6. Aborts if target tables are non-empty (pass `--force` to override).

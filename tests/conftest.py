@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+import pytest_asyncio
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -64,18 +65,6 @@ class FakeAsyncClient:
 
 
 @pytest.fixture
-def fake_user():
-    """
-    Returns a lightweight object compatible with repositories.upsert_user().
-    """
-    return SimpleNamespace(
-        id=123456789,
-        username="test_user",
-        first_name="Test",
-    )
-
-
-@pytest.fixture
 def sample_track():
     """
     Returns normalized track dictionary used by database and formatter tests.
@@ -94,24 +83,6 @@ def sample_track():
         "popularity": "Very high",
     }
 
-
-@pytest.fixture
-def temp_database(tmp_path, monkeypatch):
-    """
-    Configures the app to use an isolated SQLite database for each test.
-    """
-    from app.config.settings import settings
-    from app.database.db import init_db
-
-    db_path = tmp_path / "test_music_bot.db"
-
-    monkeypatch.setattr(settings, "DATABASE_PATH", str(db_path))
-    monkeypatch.setattr(settings, "MAX_HISTORY_PER_USER", 5)
-    monkeypatch.setattr(settings, "HISTORY_LIMIT", 3)
-
-    init_db()
-
-    return db_path
 
 
 def to_async(fn):
@@ -194,3 +165,80 @@ def clear_search_contexts():
     search_contexts.clear()
     yield
     search_contexts.clear()
+
+
+# ── PostgreSQL testcontainers fixtures ────────────────────────────────────────
+# Shared by test_users_pg, test_tracks_pg, test_searches_pg (and future modules).
+# Stage 10 finalises this fixture set; we consolidate here as modules migrate.
+
+
+@pytest.fixture(scope="session")
+def pg_container():
+    from testcontainers.postgres import PostgresContainer
+
+    with PostgresContainer("postgres:16") as pg:
+        yield pg
+
+
+@pytest.fixture(scope="session")
+def pg_dsn(pg_container):
+    url = pg_container.get_connection_url()
+    return url.replace("+psycopg2", "")
+
+
+@pytest_asyncio.fixture
+async def live_pg(pg_dsn, monkeypatch):
+    """
+    Function-scoped asyncpg pool against the testcontainers PostgreSQL instance.
+
+    Per-test lifecycle:
+      1. Create pool (min_size=1, max_size=3).
+      2. Run DDL — CREATE TABLE/INDEX IF NOT EXISTS (idempotent).
+      3. TRUNCATE users, tracks RESTART IDENTITY CASCADE
+         (cascades to searches and favorites, ensuring a clean slate).
+      4. Patch get_pool in every migrated repo module so all DB calls
+         use this pool instead of the production singleton.
+      5. Yield pool for direct use in assertions.
+      6. Close pool on teardown.
+
+    All tests use PostgreSQL — SQLite fixtures removed in Stage 10.
+    """
+    import asyncpg
+
+    import app.database.maintenance as maintenance_module
+    import app.database.repository_modules.errors as errors_module
+    import app.database.repository_modules.favorites as favorites_module
+    import app.database.repository_modules.searches as searches_module
+    import app.database.repository_modules.spotify as spotify_module
+    import app.database.repository_modules.tracks as tracks_module
+    import app.database.repository_modules.users as users_module
+    import app.health as health_module
+    from app.database.indexes import create_indexes_pg
+    from app.database.schema import create_tables_pg
+
+    pool = await asyncpg.create_pool(pg_dsn, min_size=1, max_size=3)
+
+    async with pool.acquire() as conn:
+        await create_tables_pg(conn)
+        await create_indexes_pg(conn)
+
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "TRUNCATE users, tracks, errors, schema_migrations RESTART IDENTITY CASCADE"
+        )
+
+    async def _get_pool():
+        return pool
+
+    monkeypatch.setattr(users_module, "get_pool", _get_pool)
+    monkeypatch.setattr(tracks_module, "get_pool", _get_pool)
+    monkeypatch.setattr(searches_module, "get_pool", _get_pool)
+    monkeypatch.setattr(favorites_module, "get_pool", _get_pool)
+    monkeypatch.setattr(errors_module, "get_pool", _get_pool)
+    monkeypatch.setattr(spotify_module, "get_pool", _get_pool)
+    monkeypatch.setattr(maintenance_module, "get_pool", _get_pool)
+    monkeypatch.setattr(health_module, "get_pool", _get_pool)
+
+    yield pool
+
+    await pool.close()

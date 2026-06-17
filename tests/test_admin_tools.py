@@ -1,5 +1,17 @@
+import pytest
+
 from app import admin_tools
-from app.database import repositories as repo
+
+
+def _fake_summary():
+    return {
+        "database_path": "testdb",
+        "database_size_bytes": 1024,
+        "database_size": "1.0 KB",
+        "table_counts": {"users": 1, "searches": 1, "favorites": 1, "tracks": 1, "errors": 1},
+        "schema_version": "3.0.1",
+        "app_version": "3.0.1",
+    }
 
 
 def test_get_spotify_status_text_not_configured(monkeypatch):
@@ -24,14 +36,15 @@ def test_get_spotify_status_text_blocked(monkeypatch):
     assert "403" in admin_tools.get_spotify_status_text()
 
 
-def test_format_stats_report(temp_database, fake_user, sample_track, monkeypatch):
-    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "available")
-    repo.upsert_user(fake_user)
-    repo.save_search(fake_user.id, "SOS")
-    repo.add_favorite(fake_user.id, sample_track)
-    repo.save_error(fake_user.id, "unit", "boom")
+@pytest.mark.asyncio
+async def test_format_stats_report(monkeypatch):
+    async def fake_get_database_summary():
+        return _fake_summary()
 
-    report = admin_tools.format_stats_report()
+    monkeypatch.setattr(admin_tools, "get_database_summary", fake_get_database_summary)
+    monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "available")
+
+    report = await admin_tools.format_stats_report()
 
     assert "Bot Statistics" in report
     assert "Users: 1" in report
@@ -42,10 +55,15 @@ def test_format_stats_report(temp_database, fake_user, sample_track, monkeypatch
     assert "Spotify status: available" in report
 
 
-def test_format_maintenance_report(temp_database, monkeypatch):
+@pytest.mark.asyncio
+async def test_format_maintenance_report(monkeypatch):
+    async def fake_get_database_summary():
+        return _fake_summary()
+
+    monkeypatch.setattr(admin_tools, "get_database_summary", fake_get_database_summary)
     monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "available")
 
-    report = admin_tools.format_maintenance_report()
+    report = await admin_tools.format_maintenance_report()
 
     assert "Maintenance Report" in report
     assert "Version:" in report
@@ -66,18 +84,37 @@ def test_format_cleanup_result():
     assert "After: 2" in report
 
 
-def test_cleanup_reports(monkeypatch):
-    monkeypatch.setattr(admin_tools, "cleanup_old_errors", lambda: {"before": 2, "after": 1, "deleted": 1})
-    monkeypatch.setattr(admin_tools, "cleanup_search_history", lambda: {"before": 4, "after": 2, "deleted": 2})
+@pytest.mark.asyncio
+async def test_cleanup_reports(monkeypatch):
+    async def fake_cleanup_old_errors(*args, **kwargs):
+        return {"before": 2, "after": 1, "deleted": 1}
 
-    assert "Error cleanup completed" in admin_tools.cleanup_errors_report()
-    assert "Search history cleanup completed" in admin_tools.cleanup_history_report()
+    async def fake_cleanup_search_history(*args, **kwargs):
+        return {"before": 4, "after": 2, "deleted": 2}
+
+    monkeypatch.setattr(admin_tools, "cleanup_old_errors", fake_cleanup_old_errors)
+    monkeypatch.setattr(admin_tools, "cleanup_search_history", fake_cleanup_search_history)
+
+    assert "Error cleanup completed" in await admin_tools.cleanup_errors_report()
+    assert "Search history cleanup completed" in await admin_tools.cleanup_history_report()
 
 
-def test_admin_reports_support_ukrainian_labels(temp_database, monkeypatch):
+@pytest.mark.asyncio
+async def test_admin_reports_support_ukrainian_labels(monkeypatch):
+    async def fake_get_database_summary():
+        return {
+            "database_path": "testdb",
+            "database_size_bytes": 0,
+            "database_size": "0 B",
+            "table_counts": {"users": 0, "searches": 0, "favorites": 0, "tracks": 0, "errors": 0},
+            "schema_version": "3.0.1",
+            "app_version": "3.0.1",
+        }
+
+    monkeypatch.setattr(admin_tools, "get_database_summary", fake_get_database_summary)
     monkeypatch.setattr(admin_tools, "get_spotify_status_text", lambda language="en": "доступний")
 
-    report = admin_tools.format_stats_report("uk")
+    report = await admin_tools.format_stats_report("uk")
 
     assert "Статистика бота" in report
     assert "Статус Spotify" in report

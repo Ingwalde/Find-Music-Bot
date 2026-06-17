@@ -1,53 +1,60 @@
 """
-Lightweight SQLite migrations.
+Lightweight incremental migrations for PostgreSQL.
 
-The project uses local SQLite, so migrations are intentionally simple:
-missing columns are added during startup. This keeps older local databases compatible
-with newer versions of the bot.
+On every startup, migrate_db() is called from init_db_pool() after create_tables_pg().
+For a fresh database create_tables_pg() already includes all current columns, so
+migrate_db() finds nothing missing and exits immediately (no-op).
+For an older live database that predates a column addition, migrate_db() adds the
+missing column via ALTER TABLE, making the startup path self-healing without manual DDL.
+
+All table_name / column_name values passed to add_column_if_missing are internal
+constants defined below — no user input reaches the f-string in that function.
 """
 
-import sqlite3
 
-
-def get_table_columns(cursor: sqlite3.Cursor, table_name: str) -> set[str]:
+async def get_table_columns(conn, table_name: str) -> set[str]:
     """
-    Returns existing table columns.
+    Returns the set of column names present in table_name (public schema).
+    Uses information_schema — the standard PostgreSQL introspection view.
     """
-    cursor.execute(f"PRAGMA table_info({table_name})")
-    rows = cursor.fetchall()
-    return {row[1] for row in rows}
+    rows = await conn.fetch(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND table_name = $1",
+        table_name,
+    )
+    return {r["column_name"] for r in rows}
 
 
-def add_column_if_missing(
-    cursor: sqlite3.Cursor,
+async def add_column_if_missing(
+    conn,
     table_name: str,
     column_name: str,
     column_definition: str,
 ) -> None:
     """
-    Adds a column to an existing SQLite table if it does not exist.
+    Adds column_name to table_name if it is not already present.
+    table_name and column_name are always hardcoded internal constants (see migrate_db).
     """
-    columns = get_table_columns(cursor, table_name)
-
+    columns = await get_table_columns(conn, table_name)
     if column_name not in columns:
-        cursor.execute(
-            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        await conn.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"  # noqa: S608
         )
 
 
-def migrate_db(cursor: sqlite3.Cursor) -> None:
+async def migrate_db(conn) -> None:
     """
-    Applies lightweight migrations for existing local databases.
+    Applies incremental column migrations for PostgreSQL.
+    Idempotent — safe to run on every startup.
+    Uses TIMESTAMPTZ to match the column types in create_tables_pg.
     """
-    add_column_if_missing(cursor, "users", "language", "TEXT DEFAULT 'en'")
+    await add_column_if_missing(conn, "users", "language", "TEXT DEFAULT 'en'")
+    await add_column_if_missing(conn, "users", "last_track_id", "TEXT")
 
-    add_column_if_missing(cursor, "tracks", "release_date", "TEXT")
-    add_column_if_missing(cursor, "tracks", "rank", "INTEGER")
-    add_column_if_missing(cursor, "tracks", "popularity", "TEXT")
-    add_column_if_missing(cursor, "tracks", "updated_at", "TIMESTAMP")
-
-    add_column_if_missing(cursor, "tracks", "spotify_track_id", "TEXT")
-    add_column_if_missing(cursor, "tracks", "spotify_link", "TEXT")
-    add_column_if_missing(cursor, "tracks", "spotify_updated_at", "TIMESTAMP")
-
-    add_column_if_missing(cursor, "users", "last_track_id", "TEXT")
+    await add_column_if_missing(conn, "tracks", "release_date", "TEXT")
+    await add_column_if_missing(conn, "tracks", "rank", "INTEGER")
+    await add_column_if_missing(conn, "tracks", "popularity", "TEXT")
+    await add_column_if_missing(conn, "tracks", "updated_at", "TIMESTAMPTZ")
+    await add_column_if_missing(conn, "tracks", "spotify_track_id", "TEXT")
+    await add_column_if_missing(conn, "tracks", "spotify_link", "TEXT")
+    await add_column_if_missing(conn, "tracks", "spotify_updated_at", "TIMESTAMPTZ")

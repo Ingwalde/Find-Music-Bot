@@ -89,7 +89,7 @@ async def test_get_cached_trending_does_not_cache_empty_result():
 @pytest.mark.asyncio
 async def test_get_db_recommendations_returns_db_tracks_when_available(monkeypatch):
     tracks = [make_track("Waterloo", "ABBA")]
-    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: tracks)
+    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", to_async(lambda **kwargs: tracks))
 
     result = await get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
 
@@ -99,7 +99,7 @@ async def test_get_db_recommendations_returns_db_tracks_when_available(monkeypat
 @pytest.mark.asyncio
 async def test_get_db_recommendations_falls_back_to_deezer_when_db_empty(monkeypatch):
     fallback = [make_track("Gimme", "ABBA")]
-    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: [])
+    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", to_async(lambda **kwargs: []))
     monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda **kwargs: fallback))
 
     result = await get_db_recommendations(artist="ABBA", exclude_deezer_id="99")
@@ -109,7 +109,7 @@ async def test_get_db_recommendations_falls_back_to_deezer_when_db_empty(monkeyp
 
 @pytest.mark.asyncio
 async def test_get_db_recommendations_returns_empty_when_both_empty(monkeypatch):
-    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", lambda **kwargs: [])
+    monkeypatch.setattr(recommendations_service, "get_tracks_by_artist", to_async(lambda **kwargs: []))
     monkeypatch.setattr(recommendations_service, "get_artist_top_tracks", to_async(lambda **kwargs: []))
 
     result = await get_db_recommendations(artist="Unknown", exclude_deezer_id="0")
@@ -270,7 +270,7 @@ async def test_get_similar_by_genre_step2_fills_with_related_tracks(monkeypatch)
         "get_related_artists",
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
+    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: None))
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_tracks)
     )
@@ -297,7 +297,7 @@ async def test_get_similar_by_genre_step2_dedupes_related_tracks(monkeypatch):
         "get_related_artists",
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
+    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: None))
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_returns)
     )
@@ -320,7 +320,7 @@ async def test_get_similar_by_genre_step2_rank_filter_excludes_out_of_range(monk
         "get_related_artists",
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": 500000})
+    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": 500000}))
     monkeypatch.setattr(
         recommendations_service,
         "get_artist_top_tracks_by_id",
@@ -343,7 +343,7 @@ async def test_get_similar_by_genre_step2_null_rank_track_included(monkeypatch):
         "get_related_artists",
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": 500000})
+    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": 500000}))
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [null_rank])
     )
@@ -400,7 +400,7 @@ async def test_get_similar_by_genre_step2_decade_filter_includes_same_decade(mon
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": "1976-01-01"})
     )
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [track_in_decade])
@@ -422,7 +422,7 @@ async def test_get_similar_by_genre_step2_pass_b_includes_different_decade_when_
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": "1976-01-01"})
     )
     monkeypatch.setattr(
         recommendations_service,
@@ -446,7 +446,7 @@ async def test_get_similar_by_genre_step2_null_date_track_included_when_decade_k
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": "1976-01-01"})
     )
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [no_date_track])
@@ -472,7 +472,7 @@ async def test_get_similar_by_genre_step2_pass_b_skipped_when_pass_a_sufficient(
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": "1976-01-01"})
     )
     monkeypatch.setattr(
         recommendations_service,
@@ -501,7 +501,7 @@ async def test_get_similar_by_genre_step2_pass_b_fills_when_pass_a_insufficient(
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": "1976-01-01"}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": "1976-01-01"})
     )
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: wrong_decade)
@@ -523,7 +523,7 @@ async def test_get_similar_by_genre_step2_no_decade_filter_when_source_date_unkn
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
     monkeypatch.setattr(
-        recommendations_service, "get_track_by_deezer_id", lambda tid: {"rank": None, "release_date": None}
+        recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: {"rank": None, "release_date": None})
     )
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: [track_1985])
@@ -547,7 +547,7 @@ async def test_get_similar_by_genre_respects_limit(monkeypatch):
         "get_related_artists",
         to_async(lambda aid, limit=3: [{"id": 8, "name": "Queen"}]),
     )
-    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", lambda tid: None)
+    monkeypatch.setattr(recommendations_service, "get_track_by_deezer_id", to_async(lambda tid: None))
     monkeypatch.setattr(
         recommendations_service, "get_artist_top_tracks_by_id", to_async(lambda aid, limit=10: related_tracks)
     )

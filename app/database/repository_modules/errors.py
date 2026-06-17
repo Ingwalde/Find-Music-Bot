@@ -1,67 +1,38 @@
-from app.database.db import get_connection
+from app.database.db import get_pool
 from app.database.repository_modules.common import row_to_dict
 
 
-def save_error(
+async def save_error(
     telegram_id: int | None,
     source: str,
     error_message: str,
 ) -> None:
-    """
-    Saves error to database.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             INSERT INTO errors (telegram_id, source, error_message)
-            VALUES (?, ?, ?)
+            VALUES ($1, $2, $3)
             """,
-            (telegram_id, source, error_message),
+            telegram_id,
+            source,
+            error_message,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def get_recent_errors(limit: int = 10) -> list[dict]:
-    """
-    Returns recent saved errors.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+async def get_recent_errors(limit: int = 10) -> list[dict]:
+    async with (await get_pool()).acquire() as conn:
+        rows = await conn.fetch(
             """
             SELECT telegram_id, source, error_message, created_at
             FROM errors
             ORDER BY id DESC
-            LIMIT ?
+            LIMIT $1
             """,
-            (limit,),
+            limit,
         )
-
-        rows = cursor.fetchall()
-    finally:
-        conn.close()
-
     return [row_to_dict(row) for row in rows]
 
 
-def clear_errors() -> None:
-    """
-    Clears saved errors.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute("DELETE FROM errors")
-
-        conn.commit()
-    finally:
-        conn.close()
+async def clear_errors() -> None:
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute("DELETE FROM errors")

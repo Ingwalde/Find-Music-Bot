@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot, Router
 from aiogram.types import CallbackQuery
 
@@ -54,7 +52,7 @@ router = Router(name="callbacks")
 @router.callback_query()
 async def callback_router(call: CallbackQuery, bot: Bot) -> None:
     data = call.data or ""
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     if data.startswith(f"{CB_LANGUAGE}:"):
         language_code = data.split(":", 1)[1]

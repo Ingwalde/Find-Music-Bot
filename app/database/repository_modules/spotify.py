@@ -1,27 +1,17 @@
-from app.database.db import get_connection
+from app.database.db import get_pool
 
 
-def get_spotify_data_by_deezer_id(deezer_track_id: str | int) -> dict | None:
-    """
-    Returns cached Spotify data for a Deezer track.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+async def get_spotify_data_by_deezer_id(deezer_track_id: str | int) -> dict | None:
+    async with (await get_pool()).acquire() as conn:
+        row = await conn.fetchrow(
             """
             SELECT spotify_track_id, spotify_link, spotify_updated_at
             FROM tracks
-            WHERE deezer_track_id = ?
+            WHERE deezer_track_id = $1
             LIMIT 1
             """,
-            (str(deezer_track_id),),
+            str(deezer_track_id),
         )
-
-        row = cursor.fetchone()
-    finally:
-        conn.close()
 
     if not row:
         return None
@@ -38,34 +28,22 @@ def get_spotify_data_by_deezer_id(deezer_track_id: str | int) -> dict | None:
     }
 
 
-def update_spotify_data_for_track(
+async def update_spotify_data_for_track(
     deezer_track_id: str | int,
     spotify_track_id: str,
     spotify_link: str,
 ) -> None:
-    """
-    Updates cached Spotify metadata for an existing Deezer track.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             UPDATE tracks
             SET
-                spotify_track_id = ?,
-                spotify_link = ?,
-                spotify_updated_at = CURRENT_TIMESTAMP
-            WHERE deezer_track_id = ?
+                spotify_track_id = $1,
+                spotify_link = $2,
+                spotify_updated_at = NOW()
+            WHERE deezer_track_id = $3
             """,
-            (
-                spotify_track_id,
-                spotify_link,
-                str(deezer_track_id),
-            ),
+            spotify_track_id,
+            spotify_link,
+            str(deezer_track_id),
         )
-
-        conn.commit()
-    finally:
-        conn.close()

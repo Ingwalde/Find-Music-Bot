@@ -62,8 +62,8 @@ async def is_admin(user_id: int | None) -> bool:
 
 
 async def get_user_context(message: Message) -> str:
-    await asyncio.to_thread(upsert_user, message.from_user)
-    return await asyncio.to_thread(get_user_language, message.from_user.id)
+    await upsert_user(message.from_user)
+    return await get_user_language(message.from_user.id)
 
 
 async def require_admin(bot: Bot, message: Message, language: str) -> bool:
@@ -74,7 +74,7 @@ async def require_admin(bot: Bot, message: Message, language: str) -> bool:
 
 
 async def format_recent_errors(language: str = "en") -> str:
-    errors = await asyncio.to_thread(get_recent_errors, limit=settings.ERROR_HISTORY_LIMIT)
+    errors = await get_recent_errors(limit=settings.ERROR_HISTORY_LIMIT)
 
     if not errors:
         return t("errors_empty", language)
@@ -123,31 +123,31 @@ async def handle_admin_action(bot: Bot, message: Message, action: str) -> None:
 
     if action == "admin_stats":
         await bot.send_message(
-            message.chat.id, await asyncio.to_thread(format_stats_report, language)
+            message.chat.id, await format_stats_report(language)
         )
         return
 
     if action == "admin_maintenance":
         await bot.send_message(
-            message.chat.id, await asyncio.to_thread(format_maintenance_report, language)
+            message.chat.id, await format_maintenance_report(language)
         )
         return
 
     if action == "admin_cleanup_errors":
         await bot.send_message(
-            message.chat.id, await asyncio.to_thread(cleanup_errors_report, language)
+            message.chat.id, await cleanup_errors_report(language)
         )
         return
 
     if action == "admin_cleanup_history":
         await bot.send_message(
-            message.chat.id, await asyncio.to_thread(cleanup_history_report, language)
+            message.chat.id, await cleanup_history_report(language)
         )
         return
 
     if action == "admin_health":
         await bot.send_message(
-            message.chat.id, await asyncio.to_thread(format_health_report)
+            message.chat.id, await format_health_report()
         )
         return
 
@@ -189,8 +189,7 @@ async def process_music_search(bot: Bot, message: Message) -> None:
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=message.from_user.id,
             source="music_search",
@@ -209,7 +208,7 @@ async def show_favorites(bot: Bot, message: Message) -> None:
             reply_markup=search_mode_keyboard(language),
         )
 
-        tracks = await asyncio.to_thread(get_favorite_tracks, message.from_user.id)
+        tracks = await get_favorite_tracks(message.from_user.id)
 
         if not tracks:
             await bot.send_message(message.chat.id, t("favorites_empty", language))
@@ -224,14 +223,13 @@ async def show_favorites(bot: Bot, message: Message) -> None:
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=message.from_user.id,
             source="favorites",
             error=error,
         )
-        language = await asyncio.to_thread(get_user_language, message.from_user.id)
+        language = await get_user_language(message.from_user.id)
         await bot.send_message(message.chat.id, t("could_not_load_favorites", language))
 
 
@@ -245,8 +243,7 @@ async def show_history(bot: Bot, message: Message) -> None:
             reply_markup=search_mode_keyboard(language),
         )
 
-        history = await asyncio.to_thread(
-            get_search_history,
+        history = await get_search_history(
             message.from_user.id,
             limit=settings.HISTORY_LIMIT,
         )
@@ -264,14 +261,13 @@ async def show_history(bot: Bot, message: Message) -> None:
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=message.from_user.id,
             source="history",
             error=error,
         )
-        language = await asyncio.to_thread(get_user_language, message.from_user.id)
+        language = await get_user_language(message.from_user.id)
         await bot.send_message(message.chat.id, t("could_not_load_history", language))
 
 
@@ -341,7 +337,7 @@ async def clear_errors_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language):
         return
 
-    await asyncio.to_thread(clear_errors)
+    await clear_errors()
     await bot.send_message(message.chat.id, t("errors_cleared", language))
 
 
@@ -352,7 +348,7 @@ async def health_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language):
         return
 
-    await bot.send_message(message.chat.id, await asyncio.to_thread(format_health_report))
+    await bot.send_message(message.chat.id, await format_health_report())
 
 
 @router.message(Command("stats"))
@@ -362,7 +358,7 @@ async def stats_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language):
         return
 
-    await bot.send_message(message.chat.id, await asyncio.to_thread(format_stats_report, language))
+    await bot.send_message(message.chat.id, await format_stats_report(language))
 
 
 @router.message(Command("maintenance"))
@@ -373,7 +369,7 @@ async def maintenance_handler(message: Message, bot: Bot) -> None:
         return
 
     await bot.send_message(
-        message.chat.id, await asyncio.to_thread(format_maintenance_report, language)
+        message.chat.id, await format_maintenance_report(language)
     )
 
 
@@ -385,7 +381,7 @@ async def cleanup_errors_handler(message: Message, bot: Bot) -> None:
         return
 
     await bot.send_message(
-        message.chat.id, await asyncio.to_thread(cleanup_errors_report, language)
+        message.chat.id, await cleanup_errors_report(language)
     )
 
 
@@ -397,7 +393,7 @@ async def cleanup_history_handler(message: Message, bot: Bot) -> None:
         return
 
     await bot.send_message(
-        message.chat.id, await asyncio.to_thread(cleanup_history_report, language)
+        message.chat.id, await cleanup_history_report(language)
     )
 
 
@@ -418,7 +414,7 @@ async def reload_admins_handler(message: Message, bot: Bot) -> None:
 async def similar_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    last_track_id = await asyncio.to_thread(get_last_track_id, message.from_user.id)
+    last_track_id = await get_last_track_id(message.from_user.id)
 
     if not last_track_id:
         await bot.send_message(message.chat.id, t("similar_no_context", language))
@@ -449,8 +445,7 @@ async def similar_handler(message: Message, bot: Bot) -> None:
         await bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=message.from_user.id,
             source="similar_handler",
@@ -480,8 +475,7 @@ async def trending_handler(message: Message, bot: Bot) -> None:
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=message.from_user.id,
             source="trending_handler",
@@ -495,7 +489,7 @@ async def trending_handler(message: Message, bot: Bot) -> None:
 
 @router.message(F.text)
 async def text_handler(message: Message, bot: Bot) -> None:
-    await asyncio.to_thread(upsert_user, message.from_user)
+    await upsert_user(message.from_user)
 
     if message.text and message.text.strip().startswith("/"):
         return

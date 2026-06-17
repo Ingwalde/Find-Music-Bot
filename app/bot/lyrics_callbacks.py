@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -22,7 +20,7 @@ async def handle_lyrics_callback(
     """
     Finds Genius lyrics page for selected track.
     """
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
     await bot.answer_callback_query(call.id)
 
     try:
@@ -32,7 +30,7 @@ async def handle_lyrics_callback(
             artist=track["artist"],
         )
     except Exception as error:
-        await asyncio.to_thread(log_and_save_error, logger, call.from_user.id, "lyrics_callback", error)
+        await log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
         await bot.send_message(call.message.chat.id, t("genius_error", language))
         return
 

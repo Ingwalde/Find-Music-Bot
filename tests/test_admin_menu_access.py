@@ -78,7 +78,7 @@ def test_admin_menu_buttons_are_detected_as_menu_actions():
 @pytest.mark.asyncio
 async def test_show_main_menu_uses_admin_visibility(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(actions, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(actions, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(actions, "is_admin_user", lambda user_id: user_id == 123)
 
     await actions.show_main_menu(bot, chat_id=10, user_id=123)
@@ -94,8 +94,8 @@ async def test_show_main_menu_uses_admin_visibility(monkeypatch):
 @pytest.mark.asyncio
 async def test_admin_button_opens_admin_menu(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: True))
 
     await handlers.text_handler(fake_message(t("btn_admin", "en")), bot)
@@ -107,10 +107,10 @@ async def test_admin_button_opens_admin_menu(monkeypatch):
 @pytest.mark.asyncio
 async def test_admin_menu_action_runs_report(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: True))
-    monkeypatch.setattr(handlers, "format_stats_report", lambda language="en": "stats report")
+    monkeypatch.setattr(handlers, "format_stats_report", to_async(lambda language="en": "stats report"))
 
     await handlers.text_handler(fake_message(t("btn_admin_stats", "en")), bot)
 
@@ -120,8 +120,8 @@ async def test_admin_menu_action_runs_report(monkeypatch):
 @pytest.mark.asyncio
 async def test_admin_menu_rejects_non_admin(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(handlers, "upsert_user", lambda user: None)
-    monkeypatch.setattr(handlers, "get_user_language", lambda user_id: "en")
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: False))
 
     await handlers.show_admin_menu(bot, fake_message(t("btn_admin", "en"), user_id=999))

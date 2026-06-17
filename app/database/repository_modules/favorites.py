@@ -1,141 +1,95 @@
-from app.database.db import get_connection
+from app.database.db import get_pool
 from app.database.repository_modules.common import row_to_dict
 from app.database.repository_modules.tracks import save_track
 from app.database.repository_modules.users import get_user_id
 
 
-def add_favorite(telegram_id: int, track: dict) -> None:
-    """
-    Adds selected track to user's favorites.
-    """
-    user_id = get_user_id(telegram_id)
+async def add_favorite(telegram_id: int, track: dict) -> None:
+    user_id = await get_user_id(telegram_id)
 
     if not user_id:
         return
 
-    track_id = save_track(track)
+    track_id = await save_track(track)
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
-            INSERT OR IGNORE INTO favorites (user_id, track_id)
-            VALUES (?, ?)
+            INSERT INTO favorites (user_id, track_id)
+            VALUES ($1, $2)
+            ON CONFLICT DO NOTHING
             """,
-            (user_id, track_id),
+            user_id,
+            track_id,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
-    """
-    Removes selected track from user's favorites.
-    """
-    user_id = get_user_id(telegram_id)
+async def remove_favorite(telegram_id: int, deezer_track_id: str) -> None:
+    user_id = await get_user_id(telegram_id)
 
     if not user_id:
         return
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             DELETE FROM favorites
-            WHERE user_id = ?
+            WHERE user_id = $1
             AND track_id = (
                 SELECT id FROM tracks
-                WHERE deezer_track_id = ?
+                WHERE deezer_track_id = $2
                 LIMIT 1
             )
             """,
-            (user_id, str(deezer_track_id)),
+            user_id,
+            str(deezer_track_id),
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def clear_favorites(telegram_id: int) -> None:
-    """
-    Removes all favorite tracks for current user.
-    Tracks remain saved in the tracks table as cache.
-    """
-    user_id = get_user_id(telegram_id)
+async def clear_favorites(telegram_id: int) -> None:
+    user_id = await get_user_id(telegram_id)
 
     if not user_id:
         return
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            DELETE FROM favorites
-            WHERE user_id = ?
-            """,
-            (user_id,),
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
+            "DELETE FROM favorites WHERE user_id = $1",
+            user_id,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
-    """
-    Checks if selected track is already in user's favorites.
-    """
-    user_id = get_user_id(telegram_id)
+async def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
+    user_id = await get_user_id(telegram_id)
 
     if not user_id:
         return False
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        row = await conn.fetchrow(
             """
             SELECT favorites.id
             FROM favorites
             JOIN tracks ON favorites.track_id = tracks.id
-            WHERE favorites.user_id = ?
-            AND tracks.deezer_track_id = ?
+            WHERE favorites.user_id = $1
+            AND tracks.deezer_track_id = $2
             LIMIT 1
             """,
-            (user_id, str(deezer_track_id)),
+            user_id,
+            str(deezer_track_id),
         )
-
-        row = cursor.fetchone()
-    finally:
-        conn.close()
 
     return row is not None
 
 
-def get_favorite_tracks(telegram_id: int) -> list[dict]:
-    """
-    Returns user's favorite tracks.
-    """
-    user_id = get_user_id(telegram_id)
+async def get_favorite_tracks(telegram_id: int) -> list[dict]:
+    user_id = await get_user_id(telegram_id)
 
     if not user_id:
         return []
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        rows = await conn.fetch(
             """
             SELECT
                 tracks.deezer_track_id,
@@ -157,14 +111,10 @@ def get_favorite_tracks(telegram_id: int) -> list[dict]:
                 favorites.created_at AS favorite_created_at
             FROM favorites
             JOIN tracks ON favorites.track_id = tracks.id
-            WHERE favorites.user_id = ?
+            WHERE favorites.user_id = $1
             ORDER BY favorites.created_at DESC
             """,
-            (user_id,),
+            user_id,
         )
-
-        rows = cursor.fetchall()
-    finally:
-        conn.close()
 
     return [row_to_dict(row) for row in rows]

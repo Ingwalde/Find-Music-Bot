@@ -27,21 +27,22 @@
 - `v2.7.0` — Bot Structure Refactor Update
 - `v3.0.0` — aiogram Migration Update
 - `v3.0.1` — Async Event-Loop Hygiene Patch
+- `v3.1.0` — PostgreSQL Migration
 
 ## Current admin/runtime foundation
 
 - Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable.
 - `config/admins.json` must stay local and is ignored by Git.
 - Admin language UX fixes are included: the admin button remains visible after language changes and admin menu buttons use localized labels.
-- v3.0.0 completes the async migration to aiogram 3.x. Deezer and lyrics integrations use httpx directly. All bot-layer code is fully async with `asyncio.to_thread` for sync DB calls.
+- v3.0.0 completes the async migration to aiogram 3.x. Deezer and lyrics integrations use httpx directly.
+- v3.1.0 completes the PostgreSQL migration. All database access is natively async via asyncpg. SQLite has been removed. Docker compose includes the Postgres service with healthcheck.
 
 ## Planned
 
-- Revisit long-term production deployment options post-async migration.
+- Revisit long-term production deployment options post-PostgreSQL cutover.
 
 ## Not Planned for v3.x
 
 - Additional music platforms.
 - Web dashboard.
 - Complex production orchestration.
-- Full PostgreSQL migration.

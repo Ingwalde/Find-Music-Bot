@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery, LinkPreviewOptions
 
@@ -22,7 +20,7 @@ async def handle_similar_callback(
     Handles the 🎯 Similar button — fetches and displays tracks similar to
     the selected track using the Deezer radio endpoint.
     """
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
     await bot.answer_callback_query(call.id)
 
     source_track = None
@@ -54,8 +52,7 @@ async def handle_similar_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error,
+        await log_and_save_error(
             logger=logger,
             telegram_id=call.from_user.id,
             source="similar_callback",
