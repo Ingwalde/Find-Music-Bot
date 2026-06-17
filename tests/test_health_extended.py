@@ -1,22 +1,46 @@
+import pytest
+
 from app import health
 from app.health import HealthItem
 
 
-def test_check_database_success(temp_database):
-    item = health.check_database()
+@pytest.mark.asyncio
+async def test_check_database_success(monkeypatch):
+    async def fake_get_pool():
+        class FakeConn:
+            async def fetchval(self, *args):
+                return "testdb"
+
+        class FakeAcquire:
+            async def __aenter__(self):
+                return FakeConn()
+
+            async def __aexit__(self, *args):
+                pass
+
+        class FakePool:
+            def acquire(self):
+                return FakeAcquire()
+
+        return FakePool()
+
+    monkeypatch.setattr(health, "get_pool", fake_get_pool)
+
+    item = await health.check_database()
 
     assert item.name == "Database"
     assert item.ok is True
     assert "OK" in item.message
 
 
-def test_check_database_failure(monkeypatch):
-    def raise_database_error():
+@pytest.mark.asyncio
+async def test_check_database_failure(monkeypatch):
+    async def raise_database_error():
         raise RuntimeError("database is locked")
 
-    monkeypatch.setattr(health, "get_connection", raise_database_error)
+    monkeypatch.setattr(health, "get_pool", raise_database_error)
 
-    item = health.check_database()
+    item = await health.check_database()
 
     assert item.name == "Database"
     assert item.ok is False
@@ -83,12 +107,16 @@ def test_check_genius_not_configured(monkeypatch):
     assert "Optional token" in item.message
 
 
-def test_get_health_items_uses_all_checks(monkeypatch):
-    monkeypatch.setattr(health, "check_database", lambda: HealthItem("Database", True, "OK"))
+@pytest.mark.asyncio
+async def test_get_health_items_uses_all_checks(monkeypatch):
+    async def fake_check_database():
+        return HealthItem("Database", True, "OK")
+
+    monkeypatch.setattr(health, "check_database", fake_check_database)
     monkeypatch.setattr(health, "check_deezer", lambda: HealthItem("Deezer", True, "OK"))
     monkeypatch.setattr(health, "check_spotify", lambda: HealthItem("Spotify", True, "OK"))
     monkeypatch.setattr(health, "check_genius", lambda: HealthItem("Genius", True, "OK"))
 
-    item_names = [item.name for item in health.get_health_items()]
+    item_names = [item.name for item in await health.get_health_items()]
 
     assert item_names == ["Bot", "Database", "Deezer", "Spotify", "Genius"]

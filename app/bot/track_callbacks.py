@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -15,19 +13,19 @@ logger = setup_logger(__name__)
 
 async def get_track_from_cache_or_deezer(track_id: str) -> dict:
     """
-    Loads track from SQLite cache first.
+    Loads track from the database cache first.
     Falls back to Deezer API only if the track is not cached yet.
     """
-    cached_track = await asyncio.to_thread(get_track_by_deezer_id, track_id)
+    cached_track = await get_track_by_deezer_id(track_id)
 
     if cached_track:
-        logger.info("Track %s loaded from SQLite cache.", track_id)
+        logger.info("Track %s loaded from DB cache.", track_id)
         return cached_track
 
     logger.info("Track %s was not cached. Loading from Deezer.", track_id)
 
     track = await get_track(track_id)
-    await asyncio.to_thread(save_track, track)
+    await save_track(track)
 
     return track
 
@@ -41,7 +39,7 @@ async def handle_track_callback(
     Handles selected track button.
     Uses cached track metadata when possible.
     """
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
         await bot.answer_callback_query(call.id)
@@ -56,5 +54,5 @@ async def handle_track_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(log_and_save_error, logger, call.from_user.id, "track_callback", error)
+        await log_and_save_error(logger, call.from_user.id, "track_callback", error)
         await bot.send_message(call.message.chat.id, t("could_not_load_track", language))

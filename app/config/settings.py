@@ -34,7 +34,11 @@ class Settings:
     BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
     GENIUS_TOKEN: str | None = os.getenv("GENIUS_TOKEN") or os.getenv("GENIUS")
 
+    # DATABASE_PATH — migration-only; used by scripts/migrate_sqlite_to_postgres.py.
+    # Remove in a later cleanup once migration has run on all environments.
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/music_bot.db")
+
+    DATABASE_URL: str | None = os.getenv("DATABASE_URL")
 
     MAX_SEARCH_RESULTS: int = int(os.getenv("MAX_SEARCH_RESULTS", "15"))
     RESULTS_PER_PAGE: int = int(os.getenv("RESULTS_PER_PAGE", "5"))
@@ -108,6 +112,12 @@ class Settings:
 
         if self.SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS < 60:
             raise ValueError("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS should be at least 60.")
+
+        if not self.DATABASE_URL:
+            raise ValueError(
+                "DATABASE_URL is not set. Add it to your .env file. "
+                "Example: DATABASE_URL=postgresql://user:pass@localhost:5432/dbname"
+            )
 
 
 settings = Settings()

@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -31,8 +29,8 @@ async def handle_language_callback(
             )
             return
 
-        await asyncio.to_thread(upsert_user, call.from_user)
-        await asyncio.to_thread(set_user_language, call.from_user.id, language_code)
+        await upsert_user(call.from_user)
+        await set_user_language(call.from_user.id, language_code)
 
         await bot.answer_callback_query(call.id)
 
@@ -46,5 +44,5 @@ async def handle_language_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(log_and_save_error, logger, call.from_user.id, "language_callback", error)
+        await log_and_save_error(logger, call.from_user.id, "language_callback", error)
         await bot.answer_callback_query(call.id, t("unknown_action", "en"), show_alert=True)

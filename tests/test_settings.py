@@ -6,6 +6,7 @@ from app.config.settings import Settings, parse_bool, parse_optional_int
 def make_valid_settings(**overrides):
     values = {
         "BOT_TOKEN": "test-token",
+        "DATABASE_URL": "postgresql://user:pass@localhost:5432/testdb",
         "MAX_SEARCH_RESULTS": 30,
         "RESULTS_PER_PAGE": 5,
         "HISTORY_LIMIT": 10,
@@ -92,6 +93,7 @@ def test_settings_validate_accepts_valid_config():
             30,
             "SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS should be at least 60",
         ),
+        ("DATABASE_URL", None, "DATABASE_URL is not set"),
     ],
 )
 def test_settings_validate_rejects_invalid_config(field, value, message):

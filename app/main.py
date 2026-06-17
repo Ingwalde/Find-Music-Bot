@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from app.bot.callbacks import router as callbacks_router
 from app.bot.handlers import router as handlers_router
 from app.config.settings import settings
-from app.database.db import init_db
+from app.database.db import close_db_pool, init_db_pool
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 
@@ -18,7 +18,7 @@ def create_bot() -> Bot:
 
 
 async def run_bot() -> None:
-    init_db()
+    await init_db_pool()
 
     bot = create_bot()
     dp = Dispatcher()
@@ -32,7 +32,7 @@ async def run_bot() -> None:
         await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot)
     except Exception as error:
-        log_and_save_error(
+        await log_and_save_error(
             logger=logger,
             telegram_id=None,
             source="start_polling",
@@ -41,6 +41,7 @@ async def run_bot() -> None:
         raise
     finally:
         await bot.session.close()
+        await close_db_pool()
 
 
 def main() -> None:

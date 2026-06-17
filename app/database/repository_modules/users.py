@@ -1,62 +1,49 @@
 from aiogram.types import User
 
-from app.database.db import get_connection
+from app.database.db import get_pool
 from app.localization.languages import DEFAULT_LANGUAGE, is_supported_language
 
 
-def upsert_user(user: User) -> None:
+async def upsert_user(user: User) -> None:
     """
     Saves Telegram user or updates existing one.
     Existing language is preserved.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             INSERT INTO users (telegram_id, username, first_name)
-            VALUES (?, ?, ?)
-            ON CONFLICT(telegram_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (telegram_id)
             DO UPDATE SET
-                username = excluded.username,
-                first_name = excluded.first_name
+                username = EXCLUDED.username,
+                first_name = EXCLUDED.first_name
             """,
-            (user.id, user.username, user.first_name),
+            user.id,
+            user.username,
+            user.first_name,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def get_user_id(telegram_id: int) -> int | None:
+async def get_user_id(telegram_id: int) -> int | None:
     """
     Returns internal database user ID by Telegram ID.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        result = await conn.fetchval(
             """
             SELECT id FROM users
-            WHERE telegram_id = ?
+            WHERE telegram_id = $1
             """,
-            (telegram_id,),
+            telegram_id,
         )
 
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    if not row:
+    if result is None:
         return None
+    return int(result)
 
-    return int(row["id"])
 
-
-def get_user_language(telegram_id: int | None) -> str:
+async def get_user_language(telegram_id: int | None) -> str:
     """
     Returns user's selected language.
     English is used as default/fallback.
@@ -64,28 +51,19 @@ def get_user_language(telegram_id: int | None) -> str:
     if not telegram_id:
         return DEFAULT_LANGUAGE
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        language = await conn.fetchval(
             """
             SELECT language
             FROM users
-            WHERE telegram_id = ?
+            WHERE telegram_id = $1
             LIMIT 1
             """,
-            (telegram_id,),
+            telegram_id,
         )
 
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    if not row:
+    if not language:
         return DEFAULT_LANGUAGE
-
-    language = row["language"] or DEFAULT_LANGUAGE
 
     if not is_supported_language(language):
         return DEFAULT_LANGUAGE
@@ -93,76 +71,52 @@ def get_user_language(telegram_id: int | None) -> str:
     return language
 
 
-def set_user_language(telegram_id: int, language: str) -> None:
+async def set_user_language(telegram_id: int, language: str) -> None:
     """
     Saves user's selected language.
     """
     if not is_supported_language(language):
         language = DEFAULT_LANGUAGE
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             UPDATE users
-            SET language = ?
-            WHERE telegram_id = ?
+            SET language = $1
+            WHERE telegram_id = $2
             """,
-            (language, telegram_id),
+            language,
+            telegram_id,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def save_last_track_id(telegram_id: int, deezer_track_id: str) -> None:
+async def save_last_track_id(telegram_id: int, deezer_track_id: str) -> None:
     """
     Saves last viewed Deezer track ID for the user.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
             """
             UPDATE users
-            SET last_track_id = ?
-            WHERE telegram_id = ?
+            SET last_track_id = $1
+            WHERE telegram_id = $2
             """,
-            (str(deezer_track_id), telegram_id),
+            str(deezer_track_id),
+            telegram_id,
         )
 
-        conn.commit()
-    finally:
-        conn.close()
 
-
-def get_last_track_id(telegram_id: int) -> str | None:
+async def get_last_track_id(telegram_id: int) -> str | None:
     """
     Returns last viewed Deezer track ID for the user.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        return await conn.fetchval(
             """
             SELECT last_track_id
             FROM users
-            WHERE telegram_id = ?
+            WHERE telegram_id = $1
             LIMIT 1
             """,
-            (telegram_id,),
+            telegram_id,
         )
-
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    if not row:
-        return None
-
-    return row["last_track_id"]

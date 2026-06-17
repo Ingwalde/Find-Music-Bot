@@ -26,11 +26,11 @@ def get_spotify_status_text(language: str = "en") -> str:
     return t("admin_spotify_available", language)
 
 
-def format_stats_report(language: str = "en") -> str:
+async def format_stats_report(language: str = "en") -> str:
     """
     Formats database statistics for the admin /stats command.
     """
-    summary = get_database_summary()
+    summary = await get_database_summary()
     counts = summary["table_counts"]
 
     return "\n".join(
@@ -47,11 +47,11 @@ def format_stats_report(language: str = "en") -> str:
     )
 
 
-def format_maintenance_report(language: str = "en") -> str:
+async def format_maintenance_report(language: str = "en") -> str:
     """
     Formats maintenance diagnostics for the admin /maintenance command.
     """
-    summary = get_database_summary()
+    summary = await get_database_summary()
     counts = summary["table_counts"]
 
     rows = t(
@@ -91,24 +91,24 @@ def format_cleanup_result(title: str, result: dict[str, int], language: str = "e
     )
 
 
-def cleanup_errors_report(language: str = "en") -> str:
+async def cleanup_errors_report(language: str = "en") -> str:
     """
     Runs saved error cleanup and returns a readable admin report.
     """
     return format_cleanup_result(
         t("admin_cleanup_errors_completed", language),
-        cleanup_old_errors(),
+        await cleanup_old_errors(),
         language,
     )
 
 
-def cleanup_history_report(language: str = "en") -> str:
+async def cleanup_history_report(language: str = "en") -> str:
     """
     Runs search history cleanup and returns a readable admin report.
     """
     return format_cleanup_result(
         t("admin_cleanup_history_completed", language),
-        cleanup_search_history(),
+        await cleanup_search_history(),
         language,
     )
 

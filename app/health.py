@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from app.config.settings import settings
-from app.database.db import get_connection, get_database_path
+from app.database.db import get_pool
 from app.platforms.spotify.auth import (
     get_spotify_block_reason,
     is_spotify_configured,
@@ -23,20 +22,17 @@ class HealthItem:
     message: str
 
 
-def check_database() -> HealthItem:
+async def check_database() -> HealthItem:
     """
-    Checks whether the SQLite database is reachable.
+    Checks whether the PostgreSQL database is reachable.
     """
     try:
-        db_path = get_database_path()
-
-        with get_connection() as conn:
-            conn.execute("SELECT 1")
-
+        async with (await get_pool()).acquire() as conn:
+            db_name = await conn.fetchval("SELECT current_database()")
         return HealthItem(
             name="Database",
             ok=True,
-            message=f"OK ({Path(db_path).as_posix()})",
+            message=f"OK ({db_name})",
         )
     except Exception as error:
         return HealthItem(
@@ -87,26 +83,26 @@ def check_genius() -> HealthItem:
     return HealthItem(name="Genius", ok=True, message="Optional token is not configured")
 
 
-def get_health_items() -> list[HealthItem]:
+async def get_health_items() -> list[HealthItem]:
     """
     Returns health diagnostics used by the admin /health command.
     """
     return [
         HealthItem(name="Bot", ok=True, message="OK"),
-        check_database(),
+        await check_database(),
         check_deezer(),
         check_spotify(),
         check_genius(),
     ]
 
 
-def format_health_report() -> str:
+async def format_health_report() -> str:
     """
     Formats health diagnostics for Telegram.
     """
     lines = ["🩺 Find Music Bot health check"]
 
-    for item in get_health_items():
+    for item in await get_health_items():
         icon = "✅" if item.ok else "⚠️"
         lines.append(f"{icon} {item.name}: {item.message}")
 

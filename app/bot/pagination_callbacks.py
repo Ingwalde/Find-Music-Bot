@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -24,7 +22,7 @@ async def handle_page_callback(
     call: CallbackQuery,
     page: int,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
         context = await get_search_context(call.from_user.id)
@@ -73,9 +71,7 @@ async def handle_page_callback(
         await bot.answer_callback_query(call.id)
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "pagination_callback", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "pagination_callback", error)
         await bot.answer_callback_query(
             call.id, t("could_not_change_page", language), show_alert=True
         )
@@ -87,7 +83,7 @@ async def handle_back_to_results_callback(
 ) -> None:
     from app.bot.actions import send_current_results_page
 
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
         await bot.answer_callback_query(call.id)
@@ -99,9 +95,7 @@ async def handle_back_to_results_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "back_to_results_callback", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "back_to_results_callback", error)
         await bot.answer_callback_query(
             call.id, t("could_not_return_results", language), show_alert=True
         )

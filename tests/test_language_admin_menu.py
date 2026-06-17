@@ -2,7 +2,7 @@ import pytest
 
 from app.bot.language_callbacks import handle_language_callback
 from app.localization.translations import get_menu_action_by_text, t
-from tests.conftest import AsyncFakeBot, fake_call
+from tests.conftest import AsyncFakeBot, fake_call, to_async
 
 
 def reply_button_texts(markup):
@@ -22,8 +22,8 @@ def reply_button_texts(markup):
 async def test_language_change_keeps_admin_button_for_admin_user(monkeypatch):
     bot = AsyncFakeBot()
 
-    monkeypatch.setattr("app.bot.language_callbacks.upsert_user", lambda user: None)
-    monkeypatch.setattr("app.bot.language_callbacks.set_user_language", lambda user_id, language: None)
+    monkeypatch.setattr("app.bot.language_callbacks.upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr("app.bot.language_callbacks.set_user_language", to_async(lambda user_id, language: None))
     monkeypatch.setattr("app.bot.language_callbacks.is_admin_user", lambda user_id: user_id == 123)
 
     await handle_language_callback(bot, fake_call(user_id=123), "uk")
@@ -36,8 +36,8 @@ async def test_language_change_keeps_admin_button_for_admin_user(monkeypatch):
 async def test_language_change_hides_admin_button_for_regular_user(monkeypatch):
     bot = AsyncFakeBot()
 
-    monkeypatch.setattr("app.bot.language_callbacks.upsert_user", lambda user: None)
-    monkeypatch.setattr("app.bot.language_callbacks.set_user_language", lambda user_id, language: None)
+    monkeypatch.setattr("app.bot.language_callbacks.upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr("app.bot.language_callbacks.set_user_language", to_async(lambda user_id, language: None))
     monkeypatch.setattr("app.bot.language_callbacks.is_admin_user", lambda user_id: False)
 
     await handle_language_callback(bot, fake_call(user_id=999), "uk")

@@ -1,5 +1,3 @@
-import asyncio
-
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -25,11 +23,10 @@ async def handle_history_search_callback(
     call: CallbackQuery,
     search_id: str,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
-        query = await asyncio.to_thread(
-            get_search_query_by_id,
+        query = await get_search_query_by_id(
             telegram_id=call.from_user.id,
             search_id=int(search_id),
         )
@@ -41,7 +38,7 @@ async def handle_history_search_callback(
             return
 
         await bot.answer_callback_query(call.id, t("searching_again", language))
-        await asyncio.to_thread(upsert_user, call.from_user)
+        await upsert_user(call.from_user)
 
         await send_search_results(
             bot=bot,
@@ -52,9 +49,7 @@ async def handle_history_search_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "history_search_callback", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "history_search_callback", error)
         await bot.send_message(call.message.chat.id, t("could_not_repeat_search", language))
 
 
@@ -62,7 +57,7 @@ async def handle_clear_history_request_callback(
     bot: Bot,
     call: CallbackQuery,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
         await bot.edit_message_text(
@@ -73,9 +68,7 @@ async def handle_clear_history_request_callback(
         )
         await bot.answer_callback_query(call.id)
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "clear_history_request", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "clear_history_request", error)
         await bot.answer_callback_query(
             call.id, t("could_not_open_confirmation", language), show_alert=True
         )
@@ -85,10 +78,10 @@ async def handle_clear_history_confirm_callback(
     bot: Bot,
     call: CallbackQuery,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
-        await asyncio.to_thread(clear_search_history, call.from_user.id)
+        await clear_search_history(call.from_user.id)
 
         await bot.edit_message_text(
             chat_id=call.message.chat.id,
@@ -101,9 +94,7 @@ async def handle_clear_history_confirm_callback(
         )
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "clear_history_callback", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "clear_history_callback", error)
         await bot.answer_callback_query(
             call.id, t("could_not_clear_history", language), show_alert=True
         )
@@ -113,11 +104,10 @@ async def handle_clear_history_cancel_callback(
     bot: Bot,
     call: CallbackQuery,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, call.from_user.id)
+    language = await get_user_language(call.from_user.id)
 
     try:
-        history = await asyncio.to_thread(
-            get_search_history,
+        history = await get_search_history(
             call.from_user.id,
             limit=settings.HISTORY_LIMIT,
         )
@@ -141,9 +131,7 @@ async def handle_clear_history_cancel_callback(
         await bot.answer_callback_query(call.id, t("cancelled", language))
 
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, call.from_user.id, "clear_history_cancel", error
-        )
+        await log_and_save_error(logger, call.from_user.id, "clear_history_cancel", error)
         await bot.answer_callback_query(
             call.id, t("could_not_cancel", language), show_alert=True
         )

@@ -1,17 +1,15 @@
-from app.database.db import get_connection
+from app.database.db import get_pool
 from app.database.repository_modules.common import row_to_dict
 
 
-def save_track(track: dict) -> int:
+async def save_track(track: dict) -> int:
     """
     Saves track to database and returns internal track ID.
     Updates cached metadata when the same Deezer track already exists.
+    Uses RETURNING id to collapse the insert + id-lookup into one statement.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        track_id = await conn.fetchval(
             """
             INSERT INTO tracks (
                 deezer_track_id,
@@ -26,54 +24,38 @@ def save_track(track: dict) -> int:
                 rank,
                 popularity
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(deezer_track_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (deezer_track_id)
             DO UPDATE SET
-                title = excluded.title,
-                artist = excluded.artist,
-                album = excluded.album,
-                duration = excluded.duration,
-                duration_seconds = excluded.duration_seconds,
-                deezer_link = excluded.deezer_link,
-                cover_url = excluded.cover_url,
-                release_date = excluded.release_date,
-                rank = excluded.rank,
-                popularity = excluded.popularity,
-                updated_at = CURRENT_TIMESTAMP
+                title = EXCLUDED.title,
+                artist = EXCLUDED.artist,
+                album = EXCLUDED.album,
+                duration = EXCLUDED.duration,
+                duration_seconds = EXCLUDED.duration_seconds,
+                deezer_link = EXCLUDED.deezer_link,
+                cover_url = EXCLUDED.cover_url,
+                release_date = EXCLUDED.release_date,
+                rank = EXCLUDED.rank,
+                popularity = EXCLUDED.popularity,
+                updated_at = NOW()
+            RETURNING id
             """,
-            (
-                str(track.get("deezer_track_id")),
-                track.get("title"),
-                track.get("artist"),
-                track.get("album"),
-                track.get("duration"),
-                track.get("duration_seconds"),
-                track.get("deezer_link"),
-                track.get("cover_url"),
-                track.get("release_date"),
-                track.get("rank"),
-                track.get("popularity"),
-            ),
+            str(track.get("deezer_track_id")),
+            track.get("title"),
+            track.get("artist"),
+            track.get("album"),
+            track.get("duration"),
+            track.get("duration_seconds"),
+            track.get("deezer_link"),
+            track.get("cover_url"),
+            track.get("release_date"),
+            track.get("rank"),
+            track.get("popularity"),
         )
-
-        conn.commit()
-
-        cursor.execute(
-            """
-            SELECT id FROM tracks
-            WHERE deezer_track_id = ?
-            """,
-            (str(track.get("deezer_track_id")),),
-        )
-
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    return int(row["id"])
+    return int(track_id)
 
 
-def get_tracks_by_artist(
+async def get_tracks_by_artist(
     artist: str,
     exclude_deezer_id: str,
     limit: int = 3,
@@ -82,37 +64,28 @@ def get_tracks_by_artist(
     Returns cached tracks by artist from local DB, excluding the given track.
     Ordered by rank descending so the most popular tracks appear first.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        rows = await conn.fetch(
             """
             SELECT deezer_track_id, title, artist, album, duration, deezer_link, cover_url
             FROM tracks
-            WHERE artist = ? AND deezer_track_id != ?
+            WHERE artist = $1 AND deezer_track_id != $2
             ORDER BY rank DESC
-            LIMIT ?
+            LIMIT $3
             """,
-            (artist, str(exclude_deezer_id), limit),
+            artist,
+            str(exclude_deezer_id),
+            limit,
         )
-
-        rows = cursor.fetchall()
-    finally:
-        conn.close()
-
     return [row_to_dict(row) for row in rows]
 
 
-def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
+async def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
     """
-    Returns cached track by Deezer ID from SQLite.
+    Returns cached track by Deezer ID from PostgreSQL.
     """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
+    async with (await get_pool()).acquire() as conn:
+        row = await conn.fetchrow(
             """
             SELECT
                 deezer_track_id,
@@ -132,17 +105,11 @@ def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
                 created_at,
                 updated_at
             FROM tracks
-            WHERE deezer_track_id = ?
+            WHERE deezer_track_id = $1
             LIMIT 1
             """,
-            (str(deezer_track_id),),
+            str(deezer_track_id),
         )
-
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
     if not row:
         return None
-
     return row_to_dict(row)

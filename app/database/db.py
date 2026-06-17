@@ -1,69 +1,72 @@
-import sqlite3
-from pathlib import Path
+import asyncpg
 
 from app.config.settings import settings
-from app.database.indexes import create_indexes
-from app.database.migrations import add_column_if_missing, get_table_columns, migrate_db
-from app.database.schema import create_tables
+from app.database.indexes import create_indexes_pg
+from app.database.migrations import migrate_db
+from app.database.schema import create_tables_pg
 from app.version import __version__
 
 
-def get_database_path() -> Path:
+async def record_schema_version_pg(conn, version: str = __version__) -> None:
     """
-    Returns database path and creates parent directory if needed.
+    Records the current schema version in PostgreSQL.
+    Uses ON CONFLICT DO NOTHING — PostgreSQL equivalent of INSERT OR IGNORE.
     """
-    db_path = Path(settings.DATABASE_PATH)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    return db_path
-
-
-def get_connection() -> sqlite3.Connection:
-    """
-    Creates SQLite connection.
-    """
-    conn = sqlite3.connect(get_database_path())
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def record_schema_version(cursor: sqlite3.Cursor, version: str = __version__) -> None:
-    """
-    Stores the current application schema version if it is not already recorded.
-    """
-    cursor.execute(
+    await conn.execute(
         """
-        INSERT OR IGNORE INTO schema_migrations (version)
-        VALUES (?)
+        INSERT INTO schema_migrations (version) VALUES ($1)
+        ON CONFLICT (version) DO NOTHING
         """,
-        (version,),
+        version,
     )
 
 
-def init_db() -> None:
-    """
-    Creates all required tables, applies migrations and creates indexes.
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
+# ── pool singleton ────────────────────────────────────────────────────────────
 
-        create_tables(cursor)
-        migrate_db(cursor)
-        create_indexes(cursor)
-        record_schema_version(cursor)
+_pool: asyncpg.Pool | None = None
 
-        conn.commit()
-    finally:
-        conn.close()
+
+async def get_pool() -> asyncpg.Pool:
+    """
+    Returns the active asyncpg pool.
+    Raises RuntimeError if init_db_pool() has not been called.
+    """
+    if _pool is None:
+        raise RuntimeError("Pool not initialized — call init_db_pool() first")
+    return _pool
+
+
+async def init_db_pool() -> None:
+    """
+    Creates the asyncpg connection pool and initialises the PostgreSQL schema.
+    Idempotent — calling more than once is safe and has no effect.
+    """
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(
+            settings.DATABASE_URL, min_size=2, max_size=10
+        )
+        async with _pool.acquire() as conn:
+            await create_tables_pg(conn)
+            await migrate_db(conn)
+            await create_indexes_pg(conn)
+            await record_schema_version_pg(conn)
+
+
+async def close_db_pool() -> None:
+    """
+    Closes the asyncpg pool and resets the singleton.
+    Safe to call when the pool has not been initialised.
+    """
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
 
 __all__ = [
-    "get_database_path",
-    "get_connection",
-    "get_table_columns",
-    "add_column_if_missing",
-    "migrate_db",
-    "create_indexes",
-    "record_schema_version",
-    "init_db",
+    "get_pool",
+    "init_db_pool",
+    "close_db_pool",
+    "record_schema_version_pg",
 ]

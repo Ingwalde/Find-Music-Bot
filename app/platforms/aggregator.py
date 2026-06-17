@@ -10,7 +10,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def enrich_track_with_platform_links(track: dict) -> dict:
+async def enrich_track_with_platform_links(track: dict) -> dict:
     """
     Adds optional platform links to track dictionary.
 
@@ -25,7 +25,7 @@ def enrich_track_with_platform_links(track: dict) -> dict:
     if not deezer_track_id:
         return track
 
-    cached_spotify_data = get_spotify_data_by_deezer_id(deezer_track_id)
+    cached_spotify_data = await get_spotify_data_by_deezer_id(deezer_track_id)
 
     if cached_spotify_data:
         track["spotify_track_id"] = cached_spotify_data.get("spotify_track_id")
@@ -33,7 +33,7 @@ def enrich_track_with_platform_links(track: dict) -> dict:
         return track
 
     try:
-        spotify_track = search_spotify_track(
+        spotify_track = await search_spotify_track(
             title=track.get("title", ""),
             artist=track.get("artist"),
         )
@@ -41,7 +41,7 @@ def enrich_track_with_platform_links(track: dict) -> dict:
         if not spotify_track:
             return track
 
-        update_spotify_data_for_track(
+        await update_spotify_data_for_track(
             deezer_track_id=deezer_track_id,
             spotify_track_id=spotify_track["spotify_track_id"],
             spotify_link=spotify_track["spotify_link"],
@@ -63,8 +63,8 @@ def enrich_track_with_platform_links(track: dict) -> dict:
         return track
 
 
-def enrich_track_with_spotify_link(track: dict) -> dict:
+async def enrich_track_with_spotify_link(track: dict) -> dict:
     """
     Backward-compatible alias for the old service name.
     """
-    return enrich_track_with_platform_links(track)
+    return await enrich_track_with_platform_links(track)

@@ -46,7 +46,7 @@ async def show_main_menu(
     user_id: int | None = None,
 ) -> None:
     if user_id:
-        language = await asyncio.to_thread(get_user_language, user_id)
+        language = await get_user_language(user_id)
         is_admin = await asyncio.to_thread(is_admin_user, user_id)
     else:
         language = "en"
@@ -64,7 +64,7 @@ async def ask_for_music(
     chat_id: int,
     user_id: int | None = None,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, user_id) if user_id else "en"
+    language = await get_user_language(user_id) if user_id else "en"
 
     await bot.send_message(
         chat_id,
@@ -80,7 +80,7 @@ async def send_search_results(
     query: str,
     save_to_history: bool = True,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, user_id)
+    language = await get_user_language(user_id)
     query = query.strip()
 
     if not query:
@@ -89,7 +89,7 @@ async def send_search_results(
         return
 
     if save_to_history:
-        await asyncio.to_thread(save_search, user_id, query)
+        await save_search(user_id, query)
 
     tracks = await search_tracks(
         query=query,
@@ -132,7 +132,7 @@ async def send_current_results_page(
     chat_id: int,
     user_id: int,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, user_id)
+    language = await get_user_language(user_id)
     context = await get_search_context(user_id)
 
     if not context:
@@ -178,24 +178,20 @@ async def send_track_card(
     telegram_id: int,
     track: dict,
 ) -> None:
-    language = await asyncio.to_thread(get_user_language, telegram_id)
+    language = await get_user_language(telegram_id)
 
-    # sync but does DB + Spotify I/O — wrap in thread
-    track = await asyncio.to_thread(enrich_track_with_spotify_link, track)
+    track = await enrich_track_with_spotify_link(track)
 
     deezer_id = track.get("deezer_track_id")
     if deezer_id:
         try:
-            await asyncio.to_thread(save_last_track_id, telegram_id, deezer_id)
+            await save_last_track_id(telegram_id, deezer_id)
         except Exception as error:
-            await asyncio.to_thread(
-                log_and_save_error, logger, telegram_id, "send_track_card_last_track_id", error
-            )
+            await log_and_save_error(logger, telegram_id, "send_track_card_last_track_id", error)
 
     text = format_track_card(track)
 
-    is_favorite = await asyncio.to_thread(
-        is_track_favorite,
+    is_favorite = await is_track_favorite(
         telegram_id=telegram_id,
         deezer_track_id=track["deezer_track_id"],
     )
@@ -218,9 +214,7 @@ async def send_track_card(
                 reply_markup=markup,
             )
         except Exception as error:
-            await asyncio.to_thread(
-                log_and_save_error, logger, telegram_id, "send_track_card_cover_image", error
-            )
+            await log_and_save_error(logger, telegram_id, "send_track_card_cover_image", error)
             await bot.send_message(
                 chat_id=chat_id,
                 text=text,
@@ -247,6 +241,4 @@ async def send_track_card(
                     link_preview_options=LinkPreviewOptions(is_disabled=True),
                 )
     except Exception as error:
-        await asyncio.to_thread(
-            log_and_save_error, logger, telegram_id, "send_track_card_recommendations", error
-        )
+        await log_and_save_error(logger, telegram_id, "send_track_card_recommendations", error)

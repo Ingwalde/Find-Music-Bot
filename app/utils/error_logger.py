@@ -15,22 +15,16 @@ def error_to_message(error: Exception) -> str:
     return message or str(error)
 
 
-def log_and_save_error(
+async def log_and_save_error(
     logger: logging.Logger,
     telegram_id: int | None,
     source: str,
     error: Exception,
 ) -> None:
-    """
-    Logs exception to console/file and saves short error info to SQLite.
-
-    Database write errors are logged but not raised, so the bot does not crash
-    while trying to log another error.
-    """
     logger.exception("%s error: %s", source, error)
 
     try:
-        save_error(
+        await save_error(
             telegram_id=telegram_id,
             source=source,
             error_message=error_to_message(error),

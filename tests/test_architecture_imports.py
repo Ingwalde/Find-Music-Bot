@@ -28,10 +28,10 @@ def test_translation_facade_imports():
 
 
 def test_database_modules_imports():
-    from app.database.indexes import create_indexes
+    from app.database.indexes import create_indexes_pg
     from app.database.migrations import migrate_db
-    from app.database.schema import create_tables
+    from app.database.schema import create_tables_pg
 
-    assert callable(create_tables)
+    assert callable(create_tables_pg)
     assert callable(migrate_db)
-    assert callable(create_indexes)
+    assert callable(create_indexes_pg)

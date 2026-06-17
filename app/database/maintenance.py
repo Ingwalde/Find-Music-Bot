@@ -1,11 +1,10 @@
-from pathlib import Path
 from typing import Any
 
 from app.config.settings import settings
-from app.database.db import get_connection, get_database_path
+from app.database.db import get_pool
 from app.version import __version__
 
-DEFAULT_MAINTENANCE_TABLES = (
+MAINTENANCE_TABLES = (
     "users",
     "searches",
     "tracks",
@@ -15,31 +14,29 @@ DEFAULT_MAINTENANCE_TABLES = (
 )
 
 
-def get_maintenance_table_names() -> tuple[str, ...]:
+async def get_maintenance_table_names() -> tuple[str, ...]:
     """
-    Returns user-defined SQLite tables visible in maintenance reports.
+    Returns PostgreSQL tables visible in maintenance reports.
 
-    The list is discovered from sqlite_master so admin diagnostics stay in sync
-    with schema changes without manually updating a hardcoded tuple.
+    Queries information_schema.tables so admin diagnostics stay in sync with
+    schema changes. Falls back to MAINTENANCE_TABLES on any DB failure — the
+    static tuple is always the security floor for get_table_count's allowlist.
     """
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-            AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-            """
-        )
-        table_names = tuple(str(row["name"]) for row in cursor.fetchall())
-        conn.close()
+        async with (await get_pool()).acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+                """
+            )
+        table_names = tuple(str(row["table_name"]) for row in rows)
     except Exception:
-        return DEFAULT_MAINTENANCE_TABLES
+        return MAINTENANCE_TABLES
 
-    return table_names or DEFAULT_MAINTENANCE_TABLES
+    return table_names or MAINTENANCE_TABLES
 
 
 def format_bytes(size_bytes: int) -> str:
@@ -62,86 +59,86 @@ def format_bytes(size_bytes: int) -> str:
     return f"{size:.1f} GB"
 
 
-def get_database_size_bytes(path: str | Path | None = None) -> int:
+async def get_database_size_bytes() -> int:
     """
-    Returns SQLite database file size in bytes.
+    Returns PostgreSQL database size in bytes via pg_database_size.
     """
-    db_path = Path(path) if path is not None else get_database_path()
-
-    if not db_path.exists():
-        return 0
-
-    return db_path.stat().st_size
+    async with (await get_pool()).acquire() as conn:
+        return await conn.fetchval("SELECT pg_database_size(current_database())")
 
 
-def get_table_count(table_name: str) -> int:
+async def get_table_count(table_name: str) -> int:
     """
     Returns row count for a known table.
+
+    The allowlist check runs against get_maintenance_table_names() (dynamic
+    information_schema query) which falls back to the static MAINTENANCE_TABLES
+    tuple on any DB failure. Either way the guard is in force — an unknown
+    table_name raises ValueError before the f-string query executes.
     """
-    if table_name not in get_maintenance_table_names():
+    if table_name not in await get_maintenance_table_names():
         raise ValueError(f"Unsupported table for maintenance stats: {table_name}")
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT COUNT(*) AS count FROM {table_name}")
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    return int(row["count"])
+    async with (await get_pool()).acquire() as conn:
+        return int(await conn.fetchval(f"SELECT COUNT(*) FROM {table_name}"))
 
 
-def get_table_counts() -> dict[str, int]:
+async def get_table_counts() -> dict[str, int]:
     """
-    Returns row counts for maintenance-visible tables.
+    Returns row counts for all maintenance-visible tables.
     """
-    return {table_name: get_table_count(table_name) for table_name in get_maintenance_table_names()}
+    table_names = await get_maintenance_table_names()
+    result = {}
+    for table_name in table_names:
+        result[table_name] = await get_table_count(table_name)
+    return result
 
 
-def get_schema_version() -> str:
+async def get_schema_version() -> str:
     """
     Returns latest recorded schema version or current app version as a safe fallback.
     """
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT version
-            FROM schema_migrations
-            ORDER BY id DESC
-            LIMIT 1
-            """
-        )
-        row = cursor.fetchone()
-        conn.close()
+        async with (await get_pool()).acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT version
+                FROM schema_migrations
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            )
+        if not val:
+            return __version__
+        return str(val)
     except Exception:
         return __version__
 
-    if not row:
-        return __version__
 
-    return str(row["version"])
-
-
-def get_database_summary() -> dict[str, Any]:
+async def get_database_summary() -> dict[str, Any]:
     """
     Builds a database maintenance summary used by admin commands.
+
+    "database_path" key is kept for admin_tools.format_maintenance_report
+    compatibility — populated with current_database() (the PG db name) instead
+    of a file path, which does not exist in PostgreSQL.
     """
-    size_bytes = get_database_size_bytes()
+    size_bytes = await get_database_size_bytes()
+
+    async with (await get_pool()).acquire() as conn:
+        db_name = await conn.fetchval("SELECT current_database()")
 
     return {
-        "database_path": str(get_database_path()),
+        "database_path": db_name,
         "database_size_bytes": size_bytes,
         "database_size": format_bytes(size_bytes),
-        "table_counts": get_table_counts(),
-        "schema_version": get_schema_version(),
+        "table_counts": await get_table_counts(),
+        "schema_version": await get_schema_version(),
         "app_version": __version__,
     }
 
 
-def cleanup_old_errors(keep_latest: int | None = None) -> dict[str, int]:
+async def cleanup_old_errors(keep_latest: int | None = None) -> dict[str, int]:
     """
     Keeps the newest error rows and removes older saved errors.
     """
@@ -151,40 +148,34 @@ def cleanup_old_errors(keep_latest: int | None = None) -> dict[str, int]:
     if keep_latest < 0:
         raise ValueError("keep_latest cannot be negative")
 
-    before = get_table_count("errors")
+    before = await get_table_count("errors")
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
+    async with (await get_pool()).acquire() as conn:
         if keep_latest == 0:
-            cursor.execute("DELETE FROM errors")
+            await conn.execute("DELETE FROM errors")
         else:
-            cursor.execute(
+            await conn.execute(
                 """
                 DELETE FROM errors
                 WHERE id NOT IN (
                     SELECT id
                     FROM errors
                     ORDER BY id DESC
-                    LIMIT ?
+                    LIMIT $1
                 )
                 """,
-                (keep_latest,),
+                keep_latest,
             )
 
-        conn.commit()
-    finally:
-        conn.close()
-
-    after = get_table_count("errors")
+    after = await get_table_count("errors")
 
     return {"before": before, "after": after, "deleted": before - after}
 
 
-def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[str, int]:
+async def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[str, int]:
     """
     Keeps the newest search rows per user and removes older history entries.
+    Uses a single connection for the per-user delete loop.
     """
     if max_rows_per_user is None:
         max_rows_per_user = settings.MAX_HISTORY_PER_USER
@@ -192,38 +183,36 @@ def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[str, in
     if max_rows_per_user < 0:
         raise ValueError("max_rows_per_user cannot be negative")
 
-    before = get_table_count("searches")
+    before = await get_table_count("searches")
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users")
-        user_ids = [int(row["id"]) for row in cursor.fetchall()]
+    async with (await get_pool()).acquire() as conn:
+        rows = await conn.fetch("SELECT id FROM users")
+        user_ids = [int(row["id"]) for row in rows]
 
         for user_id in user_ids:
             if max_rows_per_user == 0:
-                cursor.execute("DELETE FROM searches WHERE user_id = ?", (user_id,))
-                continue
-
-            cursor.execute(
-                """
-                DELETE FROM searches
-                WHERE user_id = ?
-                AND id NOT IN (
-                    SELECT id
-                    FROM searches
-                    WHERE user_id = ?
-                    ORDER BY id DESC
-                    LIMIT ?
+                await conn.execute(
+                    "DELETE FROM searches WHERE user_id = $1",
+                    user_id,
                 )
-                """,
-                (user_id, user_id, max_rows_per_user),
-            )
+            else:
+                await conn.execute(
+                    """
+                    DELETE FROM searches
+                    WHERE user_id = $1
+                    AND id NOT IN (
+                        SELECT id
+                        FROM searches
+                        WHERE user_id = $2
+                        ORDER BY id DESC
+                        LIMIT $3
+                    )
+                    """,
+                    user_id,
+                    user_id,
+                    max_rows_per_user,
+                )
 
-        conn.commit()
-    finally:
-        conn.close()
-
-    after = get_table_count("searches")
+    after = await get_table_count("searches")
 
     return {"before": before, "after": after, "deleted": before - after}
