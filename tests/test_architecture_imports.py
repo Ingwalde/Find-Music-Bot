@@ -25,13 +25,3 @@ def test_translation_facade_imports():
 
     assert t("btn_music", "en") == "🎵 Music"
     assert get_menu_action_by_text("🎵 Music") == "music"
-
-
-def test_database_modules_imports():
-    from app.database.indexes import create_indexes_pg
-    from app.database.migrations import migrate_db
-    from app.database.schema import create_tables_pg
-
-    assert callable(create_tables_pg)
-    assert callable(migrate_db)
-    assert callable(create_indexes_pg)

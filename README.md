@@ -2,11 +2,22 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.1.0 — PostgreSQL Migration`
+**Current version:** `v3.1.1 — Alembic Migration Tooling`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.1.1
+
+- Replaced the hand-built schema-migration mechanism with Alembic (industry-standard tooling).
+  Alembic now owns the database schema; the app runtime stays on asyncpg.
+- Schema is applied via `alembic upgrade head` at container start.
+- `init_db_pool()` now only creates the connection pool — schema setup moved to Alembic.
+- Fixed a facade-rule violation in `aggregator.py`.
+- No user-facing feature changes.
 
 ---
 
@@ -246,7 +257,9 @@ docker compose -f deploy/docker-compose.yml down
 
 Docker Compose mounts:
 
-- `data/` to persist SQLite database.
+- `data/` — read-only access to the historical SQLite backup file, used only by the one-time
+  `scripts/migrate_sqlite_to_postgres.py` migration script. The live database is PostgreSQL,
+  managed by its own named volume (`postgres-data`), not this mount.
 - `logs/` to persist logs.
 - `config/` as read-only config for admin IDs.
 
@@ -255,13 +268,15 @@ Docker Compose mounts:
 ## Tech Stack
 
 - Python
-- pyTelegramBotAPI
-- Deezer Python API client
+- aiogram
+- httpx (Deezer search, Genius lyrics)
 - Spotify Web API
-- Genius / lyricsgenius
-- SQLite
+- PostgreSQL (asyncpg)
+- Alembic
 - pytest
 - pytest-cov
+- pytest-asyncio
+- testcontainers
 - Ruff
 - GitHub Actions
 - Docker
@@ -275,7 +290,7 @@ Docker Compose mounts:
 app/
 ├── bot/                 # Telegram handlers, callbacks, keyboards and user flows
 ├── config/              # Environment settings and admin access config
-├── database/            # SQLite schema, migrations, indexes, maintenance and repositories
+├── database/            # PostgreSQL repositories and maintenance helpers (schema owned by Alembic — see migrations/)
 ├── localization/        # Translations, languages and fallback translator
 ├── platforms/           # Platform integrations, Spotify modules and aggregator
 ├── services/            # Deezer, lyrics, formatting and platform service facades
@@ -293,6 +308,7 @@ deploy/
 └── docker-compose.yml   # Local Docker Compose startup
 
 docs/                    # Architecture, deployment, roadmap and release workflow docs
+migrations/              # Alembic schema migrations (versions/, env.py) — schema source of truth
 requirements/
 ├── base.txt             # Production dependencies
 └── dev.txt              # Development and test dependencies

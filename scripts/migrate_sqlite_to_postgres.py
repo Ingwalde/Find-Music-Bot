@@ -34,8 +34,6 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv()
 
 from app.config.settings import settings  # noqa: E402
-from app.database.indexes import create_indexes_pg  # noqa: E402
-from app.database.schema import create_tables_pg  # noqa: E402
 
 # Timestamp columns per table — explicit for precise type conversion.
 # SQLite stores TIMESTAMPTZ values as plain strings; asyncpg requires datetime objects.
@@ -144,12 +142,6 @@ async def migrate(sqlite_path: str, database_url: str, force: bool) -> None:
 
     conn = await asyncpg.connect(database_url)
     try:
-        # Create PG schema (idempotent — IF NOT EXISTS).
-        print("Creating PostgreSQL schema...")
-        await create_tables_pg(conn)
-        await create_indexes_pg(conn)
-        print("Schema ready.\n")
-
         # Safety check: abort if target is non-empty.
         if await _pg_any_rows(conn):
             if not force:
@@ -221,6 +213,22 @@ async def migrate(sqlite_path: str, database_url: str, force: bool) -> None:
         await conn.close()
 
 
+def _run_alembic_upgrade() -> None:
+    """
+    Runs alembic upgrade head to ensure the target schema exists before
+    migrating data. Must run in a sync context, before asyncio.run(migrate(...))
+    starts — alembic's async template calls asyncio.run() internally
+    (via migrations/env.py), which cannot be nested inside an already-running
+    event loop.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    command.upgrade(cfg, "head")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Migrate SQLite data to PostgreSQL.")
     parser.add_argument(
@@ -244,6 +252,10 @@ def main() -> None:
     if not database_url:
         print("ERROR: DATABASE_URL is not set.")
         sys.exit(1)
+
+    print("Creating PostgreSQL schema (alembic upgrade head)...")
+    _run_alembic_upgrade()
+    print("Schema ready.\n")
 
     asyncio.run(migrate(sqlite_path, database_url, force=args.force))
 

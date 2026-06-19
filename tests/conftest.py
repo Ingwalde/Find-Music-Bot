@@ -186,20 +186,50 @@ def pg_dsn(pg_container):
     return url.replace("+psycopg2", "")
 
 
+@pytest.fixture(scope="session")
+def pg_schema(pg_dsn):
+    """
+    Builds the PostgreSQL schema ONCE per test session via Alembic's
+    baseline revision (alembic upgrade head). Schema setup is owned by
+    Alembic exclusively since v3.1.1 — create_tables_pg/create_indexes_pg
+    were retired from the app runtime in Stage 4.
+
+    Session-scoped deliberately: running the full Alembic upgrade machinery
+    per test function would be needlessly slow across ~69 PG tests. Schema
+    build happens once; live_pg (function-scoped) only truncates per test.
+    """
+    import os
+
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+
+    os.environ["ALEMBIC_DATABASE_URL"] = pg_dsn
+    try:
+        command.upgrade(cfg, "head")
+    finally:
+        os.environ.pop("ALEMBIC_DATABASE_URL", None)
+
+    return pg_dsn
+
+
 @pytest_asyncio.fixture
-async def live_pg(pg_dsn, monkeypatch):
+async def live_pg(pg_schema, monkeypatch):
     """
     Function-scoped asyncpg pool against the testcontainers PostgreSQL instance.
+    Schema is built once per session by pg_schema (via Alembic); this fixture
+    only truncates per test for isolation and patches get_pool.
 
     Per-test lifecycle:
       1. Create pool (min_size=1, max_size=3).
-      2. Run DDL — CREATE TABLE/INDEX IF NOT EXISTS (idempotent).
-      3. TRUNCATE users, tracks RESTART IDENTITY CASCADE
+      2. TRUNCATE users, tracks RESTART IDENTITY CASCADE
          (cascades to searches and favorites, ensuring a clean slate).
-      4. Patch get_pool in every migrated repo module so all DB calls
+      3. Patch get_pool in every migrated repo module so all DB calls
          use this pool instead of the production singleton.
-      5. Yield pool for direct use in assertions.
-      6. Close pool on teardown.
+      4. Yield pool for direct use in assertions.
+      5. Close pool on teardown.
 
     All tests use PostgreSQL — SQLite fixtures removed in Stage 10.
     """
@@ -213,14 +243,8 @@ async def live_pg(pg_dsn, monkeypatch):
     import app.database.repository_modules.tracks as tracks_module
     import app.database.repository_modules.users as users_module
     import app.health as health_module
-    from app.database.indexes import create_indexes_pg
-    from app.database.schema import create_tables_pg
 
-    pool = await asyncpg.create_pool(pg_dsn, min_size=1, max_size=3)
-
-    async with pool.acquire() as conn:
-        await create_tables_pg(conn)
-        await create_indexes_pg(conn)
+    pool = await asyncpg.create_pool(pg_schema, min_size=1, max_size=3)
 
     async with pool.acquire() as conn:
         await conn.execute(

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.1.1] - 2026-06-19
+
+### Changed
+- Replaced the hand-built schema-migration mechanism with Alembic (industry-standard tooling).
+  Alembic now owns the database schema; the app runtime stays on asyncpg. Schema is applied via
+  `alembic upgrade head` at container start.
+- Retired `create_tables_pg`/`create_indexes_pg`/`migrate_db`; `init_db_pool()` now only creates
+  the connection pool.
+- `get_schema_version()` now returns the app version directly.
+- Fixed a facade-rule violation: `aggregator.py` now imports through the `spotify_repository`
+  facade.
+
+### Notes
+- Backend tooling change, no user-facing effect. Existing data untouched; the live database was
+  stamped at the Alembic baseline.
+
+---
+
 ## [v3.1.0] - 2026-06-17
 
 ### Changed

@@ -153,7 +153,10 @@ logs/   -> /app/logs
 config/ -> /app/config:ro
 ```
 
-This keeps the SQLite database, logs and local admin configuration outside the container image.
+This keeps logs and local admin configuration outside the container image. `data/` is mounted
+read-only for the historical SQLite backup file used only by the one-time
+`scripts/migrate_sqlite_to_postgres.py` script — the live database is PostgreSQL, managed by its
+own named volume (`postgres-data`), not this mount.
 
 ## GitHub Actions
 

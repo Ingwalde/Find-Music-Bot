@@ -9,8 +9,8 @@ def _fake_summary():
         "database_size_bytes": 1024,
         "database_size": "1.0 KB",
         "table_counts": {"users": 1, "searches": 1, "favorites": 1, "tracks": 1, "errors": 1},
-        "schema_version": "3.0.1",
-        "app_version": "3.0.1",
+        "schema_version": "0.0.0-test",
+        "app_version": "0.0.0-test",
     }
 
 
@@ -107,8 +107,8 @@ async def test_admin_reports_support_ukrainian_labels(monkeypatch):
             "database_size_bytes": 0,
             "database_size": "0 B",
             "table_counts": {"users": 0, "searches": 0, "favorites": 0, "tracks": 0, "errors": 0},
-            "schema_version": "3.0.1",
-            "app_version": "3.0.1",
+            "schema_version": "0.0.0-test",
+            "app_version": "0.0.0-test",
         }
 
     monkeypatch.setattr(admin_tools, "get_database_summary", fake_get_database_summary)

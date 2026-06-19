@@ -96,23 +96,13 @@ async def get_table_counts() -> dict[str, int]:
 
 async def get_schema_version() -> str:
     """
-    Returns latest recorded schema version or current app version as a safe fallback.
+    Returns the current app version.
+
+    Schema versioning is owned by Alembic (v3.1.1+) — schema_migrations is a
+    legacy table nothing writes to anymore, so the running app version is the
+    only value that's ever actually current.
     """
-    try:
-        async with (await get_pool()).acquire() as conn:
-            val = await conn.fetchval(
-                """
-                SELECT version
-                FROM schema_migrations
-                ORDER BY id DESC
-                LIMIT 1
-                """
-            )
-        if not val:
-            return __version__
-        return str(val)
-    except Exception:
-        return __version__
+    return __version__
 
 
 async def get_database_summary() -> dict[str, Any]:

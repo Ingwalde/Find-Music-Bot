@@ -96,21 +96,9 @@ async def test_get_database_size_bytes_returns_positive_int(live_pg):
 
 
 @pytest.mark.asyncio
-async def test_get_schema_version_falls_back_when_empty(live_pg):
+async def test_get_schema_version_returns_app_version():
     version = await get_schema_version()
     assert version == __version__
-
-
-@pytest.mark.asyncio
-async def test_get_schema_version_returns_recorded_version(live_pg):
-    async with live_pg.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING",
-            "3.0.1-test",
-        )
-
-    version = await get_schema_version()
-    assert version == "3.0.1-test"
 
 
 # ── get_database_summary ─────────────────────────────────────────────────────

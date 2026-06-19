@@ -28,6 +28,7 @@
 - `v3.0.0` — aiogram Migration Update
 - `v3.0.1` — Async Event-Loop Hygiene Patch
 - `v3.1.0` — PostgreSQL Migration
+- `v3.1.1` — Alembic Migration Tooling
 
 ## Current admin/runtime foundation
 
@@ -36,6 +37,7 @@
 - Admin language UX fixes are included: the admin button remains visible after language changes and admin menu buttons use localized labels.
 - v3.0.0 completes the async migration to aiogram 3.x. Deezer and lyrics integrations use httpx directly.
 - v3.1.0 completes the PostgreSQL migration. All database access is natively async via asyncpg. SQLite has been removed. Docker compose includes the Postgres service with healthcheck.
+- v3.1.1 replaces the hand-built schema-migration mechanism with Alembic. Schema is owned by `migrations/versions/`; the container entrypoint runs `alembic upgrade head` before the bot starts.
 
 ## Planned
 

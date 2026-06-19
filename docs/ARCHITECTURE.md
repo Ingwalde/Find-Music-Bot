@@ -67,12 +67,14 @@ app/database/
 Database logic is split into:
 
 ```text
-schema.py       → CREATE TABLE statements (PostgreSQL, async)
-migrations.py   → SQLite PRAGMA migrations (kept for reference, unreferenced in v3.1.0+)
-indexes.py      → CREATE INDEX statements (PostgreSQL, async)
-db.py           → asyncpg pool singleton, init_db_pool(), close_db_pool(), schema version
+db.py           → asyncpg pool singleton, init_db_pool(), close_db_pool()
 maintenance.py  → database size, table counts, cleanup helpers and schema version visibility
 ```
+
+Schema is owned by Alembic (v3.1.1+) — see `migrations/versions/` at the project root, not
+`app/database/`. `schema.py`, `indexes.py`, and `migrations.py` were retired in v3.1.1;
+`init_db_pool()` now only creates the connection pool. See "v3.1.1 Alembic Migration Tooling"
+below.
 
 Repository functions are split by domain:
 
@@ -89,9 +91,13 @@ repository_modules/spotify.py
 
 ## Schema Version Visibility
 
-Version `v2.5.0` adds a lightweight `schema_migrations` table.
-
-It records application schema versions during `init_db()` and allows the admin `/maintenance` command to show the current schema version.
+Version `v2.5.0` added a lightweight `schema_migrations` table, written by the app on every
+startup. As of v3.1.1, schema versioning is owned by Alembic (its own `alembic_version` table),
+and nothing in the app writes to `schema_migrations` anymore — it is kept in place as an
+untouched legacy table. `get_schema_version()` (`app/database/maintenance.py`) now returns the
+running app version directly instead of querying it, since that query could only ever return a
+frozen, increasingly stale value. The admin `/maintenance` command still shows a "schema
+version" — it now means "the version of code currently running," not a separate schema history.
 
 ## Localization Layer
 
@@ -302,19 +308,21 @@ await dp.start_polling(bot)
 
 Version `v3.1.0` replaces SQLite with PostgreSQL (asyncpg) as the persistence layer.
 
-**Connection pool lifecycle:**
+**Connection pool lifecycle (schema setup superseded by v3.1.1 — see below):**
 
 ```python
 # startup — app/main.py
-await init_db_pool()     # creates pool, runs DDL, records schema version
+await init_db_pool()     # creates the connection pool
 
 # shutdown — app/main.py finally block
 await close_db_pool()    # drains pool and resets singleton
 ```
 
-`init_db_pool()` runs `create_tables_pg`, `create_indexes_pg`, and `record_schema_version_pg`
-against a fresh connection from the pool. The pool is a module-level singleton in `app/database/db.py`;
-all repository modules call `get_pool()` to acquire a connection.
+At v3.1.0, `init_db_pool()` also ran `create_tables_pg`, `create_indexes_pg`, and
+`record_schema_version_pg` against a fresh connection from the pool. As of v3.1.1, schema setup
+moved to Alembic and `init_db_pool()` only creates the pool — see "v3.1.1 Alembic Migration
+Tooling" below. The pool itself is still a module-level singleton in `app/database/db.py`; all
+repository modules call `get_pool()` to acquire a connection.
 
 **Type changes from SQLite to PostgreSQL:**
 
@@ -340,8 +348,62 @@ tables, and monkeypatches `get_pool` in every repository module before each test
 
 `scripts/migrate_sqlite_to_postgres.py` is a one-time standalone script that:
 1. Opens the SQLite file read-only.
-2. Calls `create_tables_pg` + `create_indexes_pg` on the PG target.
+2. Built the PG schema via `create_tables_pg` + `create_indexes_pg` at v3.1.0 — as of v3.1.1,
+   this step runs `alembic upgrade head` instead (see "v3.1.1 Alembic Migration Tooling" below).
 3. Migrates tables in FK-safe order (`schema_migrations → users → tracks → searches → favorites → errors`), preserving explicit `id` values.
 4. Resets each BIGSERIAL sequence with `SELECT setval(pg_get_serial_sequence(...))` after bulk insert.
 5. Verifies row counts and exits non-zero on mismatch.
 6. Aborts if target tables are non-empty (pass `--force` to override).
+
+## v3.1.1 Alembic Migration Tooling
+
+Version `v3.1.1` replaces the hand-built schema-migration mechanism (`create_tables_pg`,
+`create_indexes_pg`, `migrate_db`/`add_column_if_missing`) with Alembic, the industry-standard
+migration tool. The app runtime stays on asyncpg — Alembic is used with raw SQL migrations only
+(`op.execute(...)` inside revision files); no SQLAlchemy ORM/Core models describe the schema.
+
+**Schema ownership:**
+
+- `migrations/versions/` is the single source of truth for the database schema. The baseline
+  revision (`bf5069cbb1be`) mirrors what `create_tables_pg` + `create_indexes_pg` used to create,
+  verified identical via direct structural comparison (`information_schema`/`\d+` diff) before
+  being adopted.
+- `app/database/schema.py`, `indexes.py`, and `migrations.py` are retired and deleted.
+- `init_db_pool()` (`app/database/db.py`) now only creates the asyncpg connection pool — it makes
+  no schema assumptions beyond "the schema already exists."
+
+**Deploy-time schema setup:**
+
+```dockerfile
+CMD ["sh", "-c", "alembic upgrade head && python run.py"]
+```
+
+The container entrypoint (`deploy/Dockerfile`) runs `alembic upgrade head` before the bot starts.
+This is idempotent — a no-op once already at head — so it is safe on every container start or
+restart.
+
+**Test isolation:**
+
+The `live_pg` fixture (`tests/conftest.py`) builds the test schema once per session via
+`alembic upgrade head` (the `pg_schema` fixture), instead of calling `create_tables_pg`/
+`create_indexes_pg` directly. Functional equivalence was proven by running the full `*_pg.py`
+test suite unchanged against the Alembic-built schema.
+
+**Adopting the existing live database:**
+
+The schema in the existing production database was already identical to the Alembic baseline
+(verified via structural comparison against a fresh database built by `alembic upgrade head`).
+It was adopted non-destructively with `alembic stamp head`, which writes only a tracking row
+into a new `alembic_version` table — it runs no DDL and never touches existing data.
+
+**Schema version reporting:**
+
+`get_schema_version()` (`app/database/maintenance.py`) now returns the running app version
+directly — see "Schema Version Visibility" above.
+
+**Data migration script:**
+
+`scripts/migrate_sqlite_to_postgres.py` now bootstraps its target schema via
+`alembic upgrade head` (the programmatic API, run synchronously before the async migration logic
+starts — Alembic's async template calls `asyncio.run()` internally, which cannot nest inside an
+already-running event loop) instead of calling `create_tables_pg`/`create_indexes_pg` directly.

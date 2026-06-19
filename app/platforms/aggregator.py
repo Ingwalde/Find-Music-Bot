@@ -1,5 +1,5 @@
 from app.config.settings import settings
-from app.database.repository_modules.spotify import (
+from app.database.spotify_repository import (
     get_spotify_data_by_deezer_id,
     update_spotify_data_for_track,
 )

@@ -1,25 +1,6 @@
 import asyncpg
 
 from app.config.settings import settings
-from app.database.indexes import create_indexes_pg
-from app.database.migrations import migrate_db
-from app.database.schema import create_tables_pg
-from app.version import __version__
-
-
-async def record_schema_version_pg(conn, version: str = __version__) -> None:
-    """
-    Records the current schema version in PostgreSQL.
-    Uses ON CONFLICT DO NOTHING — PostgreSQL equivalent of INSERT OR IGNORE.
-    """
-    await conn.execute(
-        """
-        INSERT INTO schema_migrations (version) VALUES ($1)
-        ON CONFLICT (version) DO NOTHING
-        """,
-        version,
-    )
-
 
 # ── pool singleton ────────────────────────────────────────────────────────────
 
@@ -38,19 +19,18 @@ async def get_pool() -> asyncpg.Pool:
 
 async def init_db_pool() -> None:
     """
-    Creates the asyncpg connection pool and initialises the PostgreSQL schema.
+    Creates the asyncpg connection pool.
     Idempotent — calling more than once is safe and has no effect.
+
+    Schema setup (tables, indexes, column migrations) is owned by Alembic,
+    not this function — run `alembic upgrade head` before the bot starts
+    (see deploy/Dockerfile). This function assumes the schema already exists.
     """
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
             settings.DATABASE_URL, min_size=2, max_size=10
         )
-        async with _pool.acquire() as conn:
-            await create_tables_pg(conn)
-            await migrate_db(conn)
-            await create_indexes_pg(conn)
-            await record_schema_version_pg(conn)
 
 
 async def close_db_pool() -> None:
@@ -68,5 +48,4 @@ __all__ = [
     "get_pool",
     "init_db_pool",
     "close_db_pool",
-    "record_schema_version_pg",
 ]
