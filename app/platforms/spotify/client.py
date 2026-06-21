@@ -12,6 +12,7 @@ from app.platforms.spotify.matcher import (
     format_spotify_track,
     score_spotify_candidate,
 )
+from app.utils.http_retry import get_with_retry
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -39,12 +40,12 @@ async def request_spotify_search(
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 SPOTIFY_SEARCH_URL,
                 headers={"Authorization": f"Bearer {token}"},
                 params=params,
             )
-            response.raise_for_status()
     except httpx.HTTPStatusError as error:
         try:
             handle_spotify_http_error(error, "track search")

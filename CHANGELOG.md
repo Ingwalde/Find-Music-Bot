@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.1.2] - 2026-06-19
+
+### Added
+- Per-user rate limiting (20 requests / 60s sliding window) on API-calling
+  commands and callbacks, with a localized warning.
+- Automatic retry (3 attempts) on transient external-API failures (timeout,
+  connection error, 5xx, 429 with Retry-After).
+- Search result caching in PostgreSQL (24h TTL) to reduce redundant
+  external API calls.
+
+### Changed
+- Log rotation switched from size-based to daily (5 days retained).
+
+### Notes
+- `search_cache` table added via a new Alembic revision — the first
+  schema evolution since Alembic took ownership in v3.1.1.
+
+---
+
 ## [v3.1.1] - 2026-06-19
 
 ### Changed

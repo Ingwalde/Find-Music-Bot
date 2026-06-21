@@ -2,11 +2,25 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.1.1 — Alembic Migration Tooling`
+**Current version:** `v3.1.2 — Rate Limiting, Retry Logic, Log Rotation & Search Cache`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.1.2
+
+- Added per-user rate limiting (20 requests / 60s sliding window) on commands and
+  callbacks that call an external API, with a localized warning message.
+- Added automatic retry (3 attempts) for transient external-API failures (timeout,
+  connection error, 5xx, and 429 with Retry-After support).
+- Added a PostgreSQL-backed search result cache (24h TTL) to reduce redundant
+  external API calls — the first schema change applied through a new Alembic
+  revision since v3.1.1.
+- Switched log rotation from size-based to daily, keeping 5 days.
+- No user-facing feature changes beyond the new rate-limit message.
 
 ---
 

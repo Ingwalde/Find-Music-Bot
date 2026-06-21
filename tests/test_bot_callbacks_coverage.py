@@ -487,6 +487,158 @@ async def test_clear_history_cancel_handles_error(monkeypatch):
     assert bot.answers[-1][1]["show_alert"] is True
 
 
+# ── rate limiting ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_track_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(track_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(track_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        track_callbacks,
+        "get_track_from_cache_or_deezer",
+        to_async(lambda track_id: called.update(called=True)),
+    )
+
+    await track_callbacks.handle_track_callback(bot, fake_call(), "671298")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+@pytest.mark.asyncio
+async def test_favorite_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        favorites_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
+    )
+
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+@pytest.mark.asyncio
+async def test_remove_favorite_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        favorites_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
+    )
+
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+@pytest.mark.asyncio
+async def test_lyrics_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(lyrics_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(lyrics_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        lyrics_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
+    )
+
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+@pytest.mark.asyncio
+async def test_history_search_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(history_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(history_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        history_callbacks,
+        "get_search_query_by_id",
+        to_async(lambda **kwargs: called.update(called=True)),
+    )
+
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+
+
+@pytest.mark.asyncio
+async def test_track_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(track_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(track_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await track_callbacks.handle_track_callback(bot, fake_call(), "671298")
+
+    assert bot.answers[-1] == (("call-id",), {})
+
+
+@pytest.mark.asyncio
+async def test_favorite_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+
+    assert bot.answers[-1] == (("call-id",), {})
+
+
+@pytest.mark.asyncio
+async def test_remove_favorite_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+
+    assert bot.answers[-1] == (("call-id",), {})
+
+
+@pytest.mark.asyncio
+async def test_lyrics_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(lyrics_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(lyrics_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+
+    assert bot.answers[-1] == (("call-id",), {})
+
+
+@pytest.mark.asyncio
+async def test_history_search_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(history_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(history_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+
+    assert bot.answers[-1] == (("call-id",), {})
+
+
 # ── callback router ───────────────────────────────────────────────────────────
 
 

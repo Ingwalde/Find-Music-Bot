@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 
 from app.config.settings import settings
+from app.utils.http_retry import get_with_retry
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -25,12 +26,12 @@ async def find_lyrics_url(title: str, artist: str | None = None) -> str | None:
         logger.info("Searching Genius page for: %s - %s", title, artist)
 
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 GENIUS_SEARCH_URL,
                 headers={"Authorization": f"Bearer {settings.GENIUS_TOKEN}"},
                 params={"q": query},
             )
-            response.raise_for_status()
     except httpx.HTTPError as error:
         logger.warning("Genius search error: %s", error)
         return None

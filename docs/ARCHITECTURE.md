@@ -26,6 +26,9 @@ Contains Telegram handlers, callbacks and keyboard builders.
 
 Admin-only commands are registered in `app/bot/handlers.py` and use `ADMIN_ID` from settings.
 
+`app/bot/rate_limit.py` (v3.1.2+) provides a per-user, in-memory, asyncio.Lock-guarded sliding-window
+rate limiter, applied at the top of every handler/callback that calls an external API.
+
 ## Admin Tools Layer
 
 ```text
@@ -85,6 +88,7 @@ repository_modules/tracks.py
 repository_modules/favorites.py
 repository_modules/errors.py
 repository_modules/spotify.py
+repository_modules/search_cache.py  → v3.1.2, search result cache (24h TTL)
 ```
 
 `repositories.py` remains as a compatibility facade.
@@ -407,3 +411,18 @@ directly — see "Schema Version Visibility" above.
 `alembic upgrade head` (the programmatic API, run synchronously before the async migration logic
 starts — Alembic's async template calls `asyncio.run()` internally, which cannot nest inside an
 already-running event loop) instead of calling `create_tables_pg`/`create_indexes_pg` directly.
+
+## v3.1.2 Rate Limiting, Retry Logic, Log Rotation & Search Cache
+
+- `app/bot/rate_limit.py` — per-user sliding-window rate limiter (20 req/60s), in-memory only,
+  applied to every handler/callback that calls an external API.
+- `app/utils/http_retry.py` — shared retry helper (`get_with_retry`/`post_with_retry`) for all
+  11 httpx call sites across `deezer_service.py`, `lyrics_service.py`, and `platforms/spotify/`.
+  Lives in `utils/` rather than `services/` because `platforms/` cannot import from `services/`
+  under the one-way layering; `utils/` is the only layer both reach.
+- `app/database/repository_modules/search_cache.py` + `app/services/search_cache_service.py` —
+  a PostgreSQL-backed search result cache (24h TTL, lazy staleness check on read). The
+  `search_cache` table was added via a new Alembic revision (`63ab83bf2873`, chained off the
+  baseline) — the first schema evolution since Alembic took ownership in v3.1.1.
+- `app/utils/logger.py` — log rotation switched from size-based (`RotatingFileHandler`) to daily
+  (`TimedRotatingFileHandler`, `when="midnight"`, 5 days retained).

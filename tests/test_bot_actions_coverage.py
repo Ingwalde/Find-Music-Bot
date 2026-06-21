@@ -48,7 +48,7 @@ async def test_send_search_results_handles_no_results(monkeypatch):
     called = {"saved": False, "ask": False}
     monkeypatch.setattr(actions, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(actions, "save_search", to_async(lambda user_id, query: called.update(saved=True)))
-    monkeypatch.setattr(actions, "search_tracks", to_async(lambda query, limit: []))
+    monkeypatch.setattr(actions, "search_tracks_cached", to_async(lambda query, limit: []))
     monkeypatch.setattr(
         actions, "ask_for_music", to_async(lambda *args, **kwargs: called.update(ask=True))
     )
@@ -66,7 +66,7 @@ async def test_send_search_results_saves_context_and_sends_keyboard(monkeypatch,
 
     monkeypatch.setattr(actions, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(actions, "save_search", to_async(lambda user_id, query: None))
-    monkeypatch.setattr(actions, "search_tracks", to_async(lambda query, limit: tracks))
+    monkeypatch.setattr(actions, "search_tracks_cached", to_async(lambda query, limit: tracks))
 
     await actions.send_search_results(bot, chat_id=10, user_id=123, query="SOS")
 

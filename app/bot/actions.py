@@ -25,8 +25,8 @@ from app.database.repositories import (
     save_search,
 )
 from app.localization.translations import t
-from app.services.deezer_service import search_tracks
 from app.services.recommendations_service import format_recommendations_text, get_db_recommendations
+from app.services.search_cache_service import search_tracks_cached
 from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.error_logger import log_and_save_error
@@ -91,7 +91,7 @@ async def send_search_results(
     if save_to_history:
         await save_search(user_id, query)
 
-    tracks = await search_tracks(
+    tracks = await search_tracks_cached(
         query=query,
         limit=settings.MAX_SEARCH_RESULTS,
     )
