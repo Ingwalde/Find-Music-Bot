@@ -7,6 +7,7 @@ from app.bot.keyboards import (
     favorites_keyboard,
     track_actions_keyboard,
 )
+from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.database.repositories import (
     add_favorite,
     clear_favorites,
@@ -30,6 +31,13 @@ async def handle_favorite_callback(
     track_id: str,
 ) -> None:
     language = await get_user_language(call.from_user.id)
+
+    if not await check_rate_limit(call.from_user.id):
+        if await should_warn_once(call.from_user.id):
+            await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
+        else:
+            await bot.answer_callback_query(call.id)
+        return
 
     try:
         await upsert_user(call.from_user)
@@ -64,6 +72,13 @@ async def handle_remove_favorite_callback(
     track_id: str,
 ) -> None:
     language = await get_user_language(call.from_user.id)
+
+    if not await check_rate_limit(call.from_user.id):
+        if await should_warn_once(call.from_user.id):
+            await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
+        else:
+            await bot.answer_callback_query(call.id)
+        return
 
     try:
         track = await get_track(track_id)

@@ -1,5 +1,5 @@
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from app.config.settings import settings
@@ -39,9 +39,9 @@ def setup_logging() -> None:
     log_path = Path(settings.LOG_FILE_PATH)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    file_handler = RotatingFileHandler(
+    file_handler = TimedRotatingFileHandler(
         filename=log_path,
-        maxBytes=1_000_000,
+        when="midnight",
         backupCount=5,
         encoding="utf-8",
     )

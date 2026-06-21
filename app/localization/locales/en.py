@@ -34,6 +34,7 @@ TRANSLATIONS = {
     "favorite_remove_failed": "Could not remove from favorites.",
     "lyrics_not_found": "Lyrics page was not found.",
     "genius_error": "Could not get lyrics information right now. Please try again later.",
+    "rate_limit_exceeded": "⏳ Too many requests — please wait a moment before trying again.",
     "back_to_results_empty": "Search results are not available anymore. Please start a new search.",
     "history_clear_confirm": "Are you sure you want to clear your search history?",
     "history_cleared": "🗑 Search history cleared.",

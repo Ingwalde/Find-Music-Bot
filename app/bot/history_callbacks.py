@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery
 
 from app.bot.actions import send_search_results
 from app.bot.keyboards import confirm_clear_history_keyboard, history_keyboard
+from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.config.settings import settings
 from app.database.repositories import (
     clear_search_history,
@@ -24,6 +25,13 @@ async def handle_history_search_callback(
     search_id: str,
 ) -> None:
     language = await get_user_language(call.from_user.id)
+
+    if not await check_rate_limit(call.from_user.id):
+        if await should_warn_once(call.from_user.id):
+            await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
+        else:
+            await bot.answer_callback_query(call.id)
+        return
 
     try:
         query = await get_search_query_by_id(

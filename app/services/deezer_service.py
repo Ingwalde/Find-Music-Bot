@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 
+from app.utils.http_retry import get_with_retry
 from app.utils.logger import setup_logger
 from app.utils.time import convert_duration
 
@@ -95,11 +96,11 @@ async def search_tracks(query: str, limit: int = 10) -> list[dict]:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/search",
                 params={"q": query, "limit": limit},
             )
-            response.raise_for_status()
             raw_tracks = response.json().get("data", [])
     except Exception as error:
         logger.warning("Deezer search failed for %r: %s", query, error)
@@ -126,8 +127,7 @@ async def get_track(track_id: str | int) -> dict:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(f"{DEEZER_API_BASE}/track/{track_id}")
-            response.raise_for_status()
+            response = await get_with_retry(http_client, f"{DEEZER_API_BASE}/track/{track_id}")
             data = response.json()
 
         if "error" in data:
@@ -148,11 +148,11 @@ async def get_trending_tracks(limit: int = 10) -> list[dict]:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/chart/0/tracks",
                 params={"limit": limit},
             )
-            response.raise_for_status()
             raw_tracks = response.json().get("data", [])
     except Exception as error:
         logger.warning("Deezer chart endpoint failed: %s", error)
@@ -177,11 +177,11 @@ async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            search_response = await http_client.get(
+            search_response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/search",
                 params={"q": artist_name, "type": "artist", "limit": 1},
             )
-            search_response.raise_for_status()
             artists = search_response.json().get("data", [])
 
             if not artists:
@@ -197,11 +197,11 @@ async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            top_response = await http_client.get(
+            top_response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/artist/{artist_id}/top",
                 params={"limit": limit},
             )
-            top_response.raise_for_status()
             raw_tracks = top_response.json().get("data", [])
     except Exception as error:
         logger.warning("Deezer artist top failed for artist_id=%s: %s", artist_id, error)
@@ -221,11 +221,11 @@ async def get_artist_top_tracks_by_id(artist_id: int, limit: int = 10) -> list[d
     """Returns top tracks for an artist by Deezer artist ID."""
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/artist/{artist_id}/top",
                 params={"limit": limit},
             )
-            response.raise_for_status()
             raw_tracks = response.json().get("data", [])
     except Exception as error:
         logger.warning("Deezer artist top (id=%s) failed: %s", artist_id, error)
@@ -247,11 +247,11 @@ async def get_artist_id(artist_name: str) -> int | None:
         return None
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(
+            response = await get_with_retry(
+                http_client,
                 f"{DEEZER_API_BASE}/search",
                 params={"q": artist_name, "type": "artist"},
             )
-            response.raise_for_status()
             data = response.json().get("data", [])
             if not data:
                 return None
@@ -265,8 +265,9 @@ async def get_related_artists(artist_id: int, limit: int = 3) -> list[dict]:
     """Returns related artists for the given Deezer artist ID."""
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await http_client.get(f"{DEEZER_API_BASE}/artist/{artist_id}/related")
-            response.raise_for_status()
+            response = await get_with_retry(
+                http_client, f"{DEEZER_API_BASE}/artist/{artist_id}/related"
+            )
             artists = response.json().get("data", [])
             return [{"id": a.get("id"), "name": a.get("name")} for a in artists[:limit]]
     except Exception as error:

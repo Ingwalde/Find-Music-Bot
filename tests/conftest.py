@@ -167,6 +167,53 @@ def clear_search_contexts():
     search_contexts.clear()
 
 
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """
+    Clears in-memory rate-limit state between tests.
+
+    Without this, the module-level dicts persist across the whole test
+    session — many tests call handlers with fake_call()'s default
+    user_id=123, so accumulated calls across unrelated tests would
+    eventually trip the 20-request limit and break tests that have
+    nothing to do with rate limiting.
+    """
+    from app.bot.rate_limit import _request_timestamps, _warned_users
+
+    _request_timestamps.clear()
+    _warned_users.clear()
+    yield
+    _request_timestamps.clear()
+    _warned_users.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_retry_sleep(monkeypatch):
+    """
+    Replaces asyncio.sleep inside the HTTP retry helper with an instant,
+    recording no-op.
+
+    Without this, any test simulating a retryable httpx error (ConnectError,
+    TimeoutException, a 5xx response, or 429) — including pre-existing tests
+    in test_deezer_service_more_coverage.py, test_lyrics_service.py, and
+    test_spotify_auth_client_more_coverage.py that predate the retry helper —
+    would incur real 1-5s delays per retry attempt. Autouse so this applies
+    everywhere, not just tests written specifically for the retry helper.
+
+    Returns the list of requested pause durations, for tests asserting on
+    retry timing (e.g. confirming a 429 used the Retry-After value).
+    """
+    import app.utils.http_retry as http_retry_module
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(http_retry_module.asyncio, "sleep", fake_sleep)
+    return sleeps
+
+
 # ── PostgreSQL testcontainers fixtures ────────────────────────────────────────
 # Shared by test_users_pg, test_tracks_pg, test_searches_pg (and future modules).
 # Stage 10 finalises this fixture set; we consolidate here as modules migrate.
@@ -238,6 +285,7 @@ async def live_pg(pg_schema, monkeypatch):
     import app.database.maintenance as maintenance_module
     import app.database.repository_modules.errors as errors_module
     import app.database.repository_modules.favorites as favorites_module
+    import app.database.repository_modules.search_cache as search_cache_module
     import app.database.repository_modules.searches as searches_module
     import app.database.repository_modules.spotify as spotify_module
     import app.database.repository_modules.tracks as tracks_module
@@ -248,7 +296,7 @@ async def live_pg(pg_schema, monkeypatch):
 
     async with pool.acquire() as conn:
         await conn.execute(
-            "TRUNCATE users, tracks, errors, schema_migrations RESTART IDENTITY CASCADE"
+            "TRUNCATE users, tracks, errors, schema_migrations, search_cache RESTART IDENTITY CASCADE"
         )
 
     async def _get_pool():
@@ -262,6 +310,7 @@ async def live_pg(pg_schema, monkeypatch):
     monkeypatch.setattr(spotify_module, "get_pool", _get_pool)
     monkeypatch.setattr(maintenance_module, "get_pool", _get_pool)
     monkeypatch.setattr(health_module, "get_pool", _get_pool)
+    monkeypatch.setattr(search_cache_module, "get_pool", _get_pool)
 
     yield pool
 
