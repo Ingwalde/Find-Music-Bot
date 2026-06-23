@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.2.0] - 2026-06-23
+
+### Added
+- HTTP monitoring endpoints via FastAPI alongside the bot's polling: GET /health (liveness)
+  and GET /ready (PostgreSQL readiness), port 9090.
+
+### Changed
+- `docker-compose.yml` moved from `deploy/` to the project root (plain `docker compose`, no
+  `-f`/`--env-file` flags). Dockerfile stays in `deploy/`.
+- Dockerfile execs the bot as PID 1 so SIGTERM reaches it (graceful shutdown now works).
+
+### Notes
+- No user-facing change; the bot stays on aiogram polling. Endpoints are for Docker
+  healthchecks and external uptime monitoring. Webhooks remain a future release.
+
+---
+
 ## [v3.1.1] - 2026-06-19
 
 ### Changed

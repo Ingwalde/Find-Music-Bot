@@ -122,25 +122,25 @@ docker run --env-file .env -v "$(pwd)/data:/app/data" -v "$(pwd)/logs:/app/logs"
 Start the bot:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build
+docker compose up --build
 ```
 
 Run in the background:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build -d
+docker compose up --build -d
 ```
 
 Stop the bot:
 
 ```bash
-docker compose -f deploy/docker-compose.yml down
+docker compose down
 ```
 
 View logs:
 
 ```bash
-docker compose -f deploy/docker-compose.yml logs -f
+docker compose logs -f
 ```
 
 ## Data, Logs and Config
