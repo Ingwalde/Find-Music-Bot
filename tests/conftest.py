@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+os.environ.setdefault("TESTCONTAINERS_RYUK_CONTAINER_IMAGE", "testcontainers/ryuk:0.11.0")
 
 
 def make_httpx_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:

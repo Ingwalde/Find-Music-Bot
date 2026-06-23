@@ -4,8 +4,8 @@ from app.localization.languages import DEFAULT_LANGUAGE, get_language_label, is_
 from app.services import track_platform_service
 
 
-def test_version_is_312():
-    assert version.__version__ == "3.1.2"
+def test_version_is_320():
+    assert version.__version__ == "3.2.0"
 
 
 def test_track_platform_service_facade_exports_expected_functions():

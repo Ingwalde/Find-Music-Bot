@@ -4,22 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v3.1.2] - 2026-06-19
+## [v3.2.0] - 2026-06-23
 
 ### Added
-- Per-user rate limiting (20 requests / 60s sliding window) on API-calling
-  commands and callbacks, with a localized warning.
-- Automatic retry (3 attempts) on transient external-API failures (timeout,
-  connection error, 5xx, 429 with Retry-After).
-- Search result caching in PostgreSQL (24h TTL) to reduce redundant
-  external API calls.
+- HTTP monitoring endpoints via FastAPI alongside the bot's polling: GET /health (liveness)
+  and GET /ready (PostgreSQL readiness), port 9090.
 
 ### Changed
-- Log rotation switched from size-based to daily (5 days retained).
+- `docker-compose.yml` moved from `deploy/` to the project root (plain `docker compose`, no
+  `-f`/`--env-file` flags). Dockerfile stays in `deploy/`.
+- Dockerfile execs the bot as PID 1 so SIGTERM reaches it (graceful shutdown now works).
 
 ### Notes
-- `search_cache` table added via a new Alembic revision — the first
-  schema evolution since Alembic took ownership in v3.1.1.
+- No user-facing change; the bot stays on aiogram polling. Endpoints are for Docker
+  healthchecks and external uptime monitoring. Webhooks remain a future release.
 
 ---
 

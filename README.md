@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.1.2 — Rate Limiting, Retry Logic, Log Rotation & Search Cache`
+**Current version:** `v3.2.0 — Health & Readiness Monitoring Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
@@ -10,17 +10,16 @@ The project is built as a backend-style portfolio project with modular architect
 
 ---
 
-## What Changed in v3.1.2
+## What Changed in v3.2.0
 
-- Added per-user rate limiting (20 requests / 60s sliding window) on commands and
-  callbacks that call an external API, with a localized warning message.
-- Added automatic retry (3 attempts) for transient external-API failures (timeout,
-  connection error, 5xx, and 429 with Retry-After support).
-- Added a PostgreSQL-backed search result cache (24h TTL) to reduce redundant
-  external API calls — the first schema change applied through a new Alembic
-  revision since v3.1.1.
-- Switched log rotation from size-based to daily, keeping 5 days.
-- No user-facing feature changes beyond the new rate-limit message.
+- Added HTTP monitoring endpoints via FastAPI, running alongside the bot's aiogram polling
+  in the same process: `GET /health` (liveness) and `GET /ready` (PostgreSQL readiness),
+  served on port 9090.
+- `docker-compose.yml` moved from `deploy/` to the project root — `docker compose` commands
+  no longer need `-f`/`--env-file` flags. The Dockerfile stays in `deploy/`.
+- The Dockerfile now execs the bot as PID 1, so `docker stop`/`docker compose down` delivers
+  SIGTERM directly and the bot shuts down gracefully instead of being hard-killed.
+- No user-facing feature changes.
 
 ---
 
@@ -254,19 +253,19 @@ docker build -f deploy/Dockerfile -t find-music-bot:test .
 Run with Docker Compose:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build
+docker compose up --build
 ```
 
 Run in background:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build -d
+docker compose up --build -d
 ```
 
 Stop:
 
 ```bash
-docker compose -f deploy/docker-compose.yml down
+docker compose down
 ```
 
 Docker Compose mounts:
@@ -461,25 +460,25 @@ docker build -f deploy/Dockerfile -t find-music-bot:test .
 Start with Compose:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build
+docker compose up --build
 ```
 
 Start in background:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build -d
+docker compose up --build -d
 ```
 
 View logs:
 
 ```bash
-docker compose -f deploy/docker-compose.yml logs -f
+docker compose logs -f
 ```
 
 Stop:
 
 ```bash
-docker compose -f deploy/docker-compose.yml down
+docker compose down
 ```
 
 ---

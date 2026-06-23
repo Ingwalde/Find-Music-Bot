@@ -21,4 +21,7 @@ USER botuser
 # Schema setup is owned by Alembic (v3.1.1+) — run the migration chain
 # before the bot starts. Idempotent: alembic upgrade head is a no-op if
 # already at head, so this is safe on every container start/restart.
-CMD ["sh", "-c", "alembic upgrade head && python run.py"]
+# `exec` replaces the shell with the Python process (same PID) so SIGTERM
+# from `docker stop`/`compose down` reaches it directly instead of being
+# swallowed by dash, letting the graceful-shutdown logic in app/main.py run.
+CMD ["sh", "-c", "alembic upgrade head && exec python run.py"]

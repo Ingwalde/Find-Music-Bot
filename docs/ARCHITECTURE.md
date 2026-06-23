@@ -182,7 +182,7 @@ Docker build
 
 ```text
 deploy/Dockerfile
-deploy/docker-compose.yml
+docker-compose.yml
 .dockerignore
 docs/DEPLOYMENT.md
 ```
@@ -196,7 +196,30 @@ logs/ -> runtime logs
 
 Docker Compose uses `.env` for configuration and mounts `data/` and `logs/` as local volumes.
 The Postgres service uses a named volume (`postgres-data`) for persistent data and a `pg_isready`
-healthcheck; the bot service depends on `service_healthy`.
+healthcheck; the bot service depends on `service_healthy`. The bot service itself now also has a
+healthcheck, hitting the Monitoring Layer's `/health` endpoint (see below).
+
+---
+
+## Monitoring Layer
+
+```text
+app/monitoring.py
+```
+
+A small FastAPI app, served by `uvicorn` alongside the bot's aiogram polling loop in the same
+process and event loop (`run_bot()` in `app/main.py`), on port 9090:
+
+```text
+GET /health -> liveness: process is alive, always 200, zero external calls
+GET /ready  -> readiness: PostgreSQL reachable via the asyncpg pool, 200/503
+```
+
+The bot still runs polling-only — these endpoints exist for the Docker healthcheck and external
+uptime monitoring, not webhooks. `run_bot()` races the polling task and the uvicorn server task
+with `asyncio.wait(..., return_when=FIRST_COMPLETED)`; whichever finishes first causes the other
+to be cancelled, so a clean shutdown (or a failure in either) always falls through to the existing
+cleanup (`bot.session.close()`, `close_db_pool()`).
 
 ---
 

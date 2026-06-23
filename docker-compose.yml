@@ -6,7 +6,7 @@ services:
     container_name: music-bot-db
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,19 +23,27 @@ services:
 
   music-bot:
     build:
-      context: ..
+      context: .
       dockerfile: deploy/Dockerfile
     image: tg-bot
     container_name: telegram-music-finder-bot
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "9090:9090"  # exposed for host-side uptime monitoring / docker healthcheck
     volumes:
-      - ../data:/app/data
-      - ../logs:/app/logs
-      - ../config:/app/config:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
