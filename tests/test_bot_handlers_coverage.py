@@ -216,6 +216,36 @@ async def test_process_music_search_handles_search_error(monkeypatch):
     assert bot.messages
 
 
+@pytest.mark.asyncio
+async def test_process_music_search_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(handlers, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        handlers, "send_search_results", to_async(lambda **kwargs: called.update(kwargs))
+    )
+
+    await handlers.process_music_search(bot, fake_message(text="SOS"))
+
+    assert called == {}
+    assert bot.messages
+    assert "wait" in bot.messages[-1][0][1].lower() or "⏳" in bot.messages[-1][0][1]
+
+
+@pytest.mark.asyncio
+async def test_process_music_search_second_block_sends_no_message(monkeypatch):
+    bot = AsyncFakeBot()
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(handlers, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await handlers.process_music_search(bot, fake_message(text="SOS"))
+
+    assert bot.messages == []
+
+
 # ── 7C: admin commands ────────────────────────────────────────────────────────
 
 
@@ -276,6 +306,24 @@ async def test_similar_handler_sends_empty_message_when_no_similar_tracks(monkey
 
 
 @pytest.mark.asyncio
+async def test_similar_handler_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "get_last_track_id", to_async(lambda uid: "42"))
+    monkeypatch.setattr(handlers, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(handlers, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        handlers, "deezer_get_track", to_async(lambda tid: called.update(called=True))
+    )
+
+    await handlers.similar_handler(fake_message(), bot)
+
+    assert "called" not in called
+    assert bot.messages
+
+
+@pytest.mark.asyncio
 async def test_similar_handler_handles_exception(monkeypatch):
     bot = AsyncFakeBot()
     _setup_common(monkeypatch)
@@ -308,6 +356,23 @@ async def test_trending_handler_sends_tracks(monkeypatch):
     assert bot.messages
     text = bot.messages[-1][0][1]
     assert "Track 0" in text
+
+
+@pytest.mark.asyncio
+async def test_trending_handler_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    _setup_common(monkeypatch)
+    monkeypatch.setattr(handlers, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(handlers, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        handlers, "get_cached_trending", to_async(lambda fetch_fn: called.update(called=True))
+    )
+
+    await handlers.trending_handler(fake_message(), bot)
+
+    assert "called" not in called
+    assert bot.messages
 
 
 @pytest.mark.asyncio

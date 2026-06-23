@@ -19,6 +19,7 @@ from app.database.repository_modules.favorites import (
     is_track_favorite,
     remove_favorite,
 )
+from app.database.repository_modules.search_cache import get_cached_search, save_search_cache
 from app.database.repository_modules.searches import (
     clear_search_history,
     get_search_history,
@@ -64,4 +65,6 @@ __all__ = [
     "get_database_summary",
     "cleanup_old_errors",
     "cleanup_search_history",
+    "get_cached_search",
+    "save_search_cache",
 ]

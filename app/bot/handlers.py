@@ -24,6 +24,7 @@ from app.bot.keyboards import (
     main_menu_keyboard,
     search_mode_keyboard,
 )
+from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.config.admins import is_admin_user
 from app.config.settings import settings
 from app.database.repositories import (
@@ -177,6 +178,11 @@ async def process_music_search(bot: Bot, message: Message) -> None:
     text = message.text.strip()
 
     if text.startswith("/"):
+        return
+
+    if not await check_rate_limit(message.from_user.id):
+        if await should_warn_once(message.from_user.id):
+            await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
 
     try:
@@ -420,6 +426,11 @@ async def similar_handler(message: Message, bot: Bot) -> None:
         await bot.send_message(message.chat.id, t("similar_no_context", language))
         return
 
+    if not await check_rate_limit(message.from_user.id):
+        if await should_warn_once(message.from_user.id):
+            await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
+        return
+
     source = None
     try:
         try:
@@ -457,6 +468,11 @@ async def similar_handler(message: Message, bot: Bot) -> None:
 @router.message(Command("trending"))
 async def trending_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
+
+    if not await check_rate_limit(message.from_user.id):
+        if await should_warn_once(message.from_user.id):
+            await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
+        return
 
     try:
         tracks = await get_cached_trending(get_trending_tracks)

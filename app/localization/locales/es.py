@@ -1,4 +1,5 @@
 TRANSLATIONS = {
+    'rate_limit_exceeded': '⏳ Demasiadas solicitudes — espera un momento antes de intentarlo de nuevo.',
     'btn_music': '🎵 Música',
     'btn_favorites': '⭐ Favoritos',
     'btn_history': '🕘 Historial',

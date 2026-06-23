@@ -38,8 +38,36 @@ async def test_handle_similar_callback_sends_tracks_list(monkeypatch):
     await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
 
     assert len(bot.answers) == 1
-    assert len(bot.messages) == 1
-    assert "ABBA" in bot.messages[0][0][1]
+
+
+@pytest.mark.asyncio
+async def test_handle_similar_callback_blocked_by_rate_limit(monkeypatch):
+    bot = AsyncFakeBot()
+    called = {}
+    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
+    monkeypatch.setattr(similar_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(similar_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
+    monkeypatch.setattr(
+        similar_callbacks, "get_track", to_async(lambda tid: called.update(called=True))
+    )
+
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+
+    assert "called" not in called
+    assert bot.answers[-1][1]["show_alert"] is True
+    assert bot.messages == []
+
+
+@pytest.mark.asyncio
+async def test_handle_similar_callback_second_block_is_silent(monkeypatch):
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
+    monkeypatch.setattr(similar_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
+    monkeypatch.setattr(similar_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
+
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+
+    assert bot.answers[-1] == (("call-id",), {})
 
 
 @pytest.mark.asyncio

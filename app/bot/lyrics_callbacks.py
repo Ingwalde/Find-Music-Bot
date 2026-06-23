@@ -2,6 +2,7 @@ from aiogram import Bot
 from aiogram.types import CallbackQuery
 
 from app.bot.keyboards import genius_url_keyboard
+from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.database.repositories import get_user_language
 from app.localization.translations import t
 from app.services.deezer_service import get_track
@@ -21,6 +22,14 @@ async def handle_lyrics_callback(
     Finds Genius lyrics page for selected track.
     """
     language = await get_user_language(call.from_user.id)
+
+    if not await check_rate_limit(call.from_user.id):
+        if await should_warn_once(call.from_user.id):
+            await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
+        else:
+            await bot.answer_callback_query(call.id)
+        return
+
     await bot.answer_callback_query(call.id)
 
     try:

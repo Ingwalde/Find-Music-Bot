@@ -29,7 +29,7 @@
 - `v3.0.1` — Async Event-Loop Hygiene Patch
 - `v3.1.0` — PostgreSQL Migration
 - `v3.1.1` — Alembic Migration Tooling
-- `v3.2.0` — Health & Readiness Monitoring Update
+- `v3.1.2` — Rate Limiting, Retry Logic, Log Rotation & Search Cache
 
 ## Current admin/runtime foundation
 
@@ -39,7 +39,7 @@
 - v3.0.0 completes the async migration to aiogram 3.x. Deezer and lyrics integrations use httpx directly.
 - v3.1.0 completes the PostgreSQL migration. All database access is natively async via asyncpg. SQLite has been removed. Docker compose includes the Postgres service with healthcheck.
 - v3.1.1 replaces the hand-built schema-migration mechanism with Alembic. Schema is owned by `migrations/versions/`; the container entrypoint runs `alembic upgrade head` before the bot starts.
-- v3.2.0 adds HTTP monitoring endpoints (FastAPI, `GET /health` and `GET /ready`) alongside the bot's aiogram polling, on port 9090. The bot still runs polling-only with no webhooks.
+- v3.1.2 adds per-user rate limiting, automatic retry on transient external-API failures, daily log rotation, and a PostgreSQL-backed search result cache (24h TTL) — the first schema change applied through a new Alembic revision since v3.1.1 took ownership.
 
 ## Planned
 
