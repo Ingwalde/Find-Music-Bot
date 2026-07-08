@@ -12,8 +12,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-os.environ.setdefault("TESTCONTAINERS_RYUK_CONTAINER_IMAGE", "testcontainers/ryuk:0.11.0")
-
 
 def make_httpx_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:
     """
@@ -217,23 +215,14 @@ def mock_retry_sleep(monkeypatch):
     return sleeps
 
 
-# ── PostgreSQL testcontainers fixtures ────────────────────────────────────────
-# Shared by test_users_pg, test_tracks_pg, test_searches_pg (and future modules).
-# Stage 10 finalises this fixture set; we consolidate here as modules migrate.
+# ── PostgreSQL integration fixtures ───────────────────────────────────────────
+# Shared by all *_pg test modules. Requires DATABASE_URL env var pointing at
+# a running postgres instance (locally: docker compose up -d test-postgres).
 
 
 @pytest.fixture(scope="session")
-def pg_container():
-    from testcontainers.postgres import PostgresContainer
-
-    with PostgresContainer("postgres:16") as pg:
-        yield pg
-
-
-@pytest.fixture(scope="session")
-def pg_dsn(pg_container):
-    url = pg_container.get_connection_url()
-    return url.replace("+psycopg2", "")
+def pg_dsn() -> str:
+    return os.environ["DATABASE_URL"]
 
 
 @pytest.fixture(scope="session")
@@ -268,7 +257,7 @@ def pg_schema(pg_dsn):
 @pytest_asyncio.fixture
 async def live_pg(pg_schema, monkeypatch):
     """
-    Function-scoped asyncpg pool against the testcontainers PostgreSQL instance.
+    Function-scoped asyncpg pool against the PostgreSQL instance at DATABASE_URL.
     Schema is built once per session by pg_schema (via Alembic); this fixture
     only truncates per test for isolation and patches get_pool.
 
