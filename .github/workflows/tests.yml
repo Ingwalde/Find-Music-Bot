@@ -15,6 +15,21 @@ jobs:
     name: Ruff, Pytest Coverage, Release Cleanup and Docker Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
     env:
       BOT_TOKEN: test-token
       GENIUS_TOKEN: test-token
@@ -22,7 +37,7 @@ jobs:
       SPOTIFY_CLIENT_ID: test-client-id
       SPOTIFY_CLIENT_SECRET: test-client-secret
       ADMIN_ID: "123456789"
-      DATABASE_PATH: data/test_music_bot.db
+      DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
       LOG_FILE_PATH: logs/test_bot.log
 
     steps:
@@ -42,6 +57,9 @@ jobs:
 
       - name: Run Ruff
         run: python -m ruff check .
+
+      - name: Run database migrations
+        run: alembic upgrade head
 
       - name: Run tests with coverage
         run: python -m pytest

@@ -495,6 +495,26 @@ python scripts/check_locale_coverage.py
 python -c "from app.version import __version__; print(__version__)"
 ```
 
+`python -m pytest` runs the full suite including PostgreSQL integration tests
+and requires `DATABASE_URL` to be set. Start the test database first:
+
+Bash:
+
+```bash
+docker compose up -d test-postgres
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb python -m pytest
+```
+
+PowerShell:
+
+```powershell
+docker compose up -d test-postgres
+$env:DATABASE_URL = "postgresql://testuser:testpass@localhost:5433/testdb"
+python -m pytest
+```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full integration test details.
+
 Docker check:
 
 ```bash

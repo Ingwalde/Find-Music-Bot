@@ -97,6 +97,40 @@ This keeps `config/admins.json` outside the Docker image while still making it a
 python run.py
 ```
 
+## Running Integration Tests
+
+The nine `test_*_pg.py` files are PostgreSQL integration tests. They require
+a running Postgres instance exposed via the `DATABASE_URL` environment variable.
+Use the `test-postgres` Docker Compose service (port 5433, separate from the
+bot's own Postgres on 5432):
+
+**Bash / Linux / macOS:**
+
+```bash
+docker compose up -d test-postgres
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb python -m pytest
+docker compose stop test-postgres
+```
+
+**Windows PowerShell:**
+
+```powershell
+docker compose up -d test-postgres
+$env:DATABASE_URL = "postgresql://testuser:testpass@localhost:5433/testdb"
+python -m pytest
+docker compose stop test-postgres
+```
+
+To run only the non-PG tests (no database needed):
+
+```bash
+python -m pytest --ignore=tests/test_users_pg.py --ignore=tests/test_tracks_pg.py --ignore=tests/test_searches_pg.py --ignore=tests/test_favorites_pg.py --ignore=tests/test_errors_pg.py --ignore=tests/test_health_pg.py --ignore=tests/test_maintenance_pg.py --ignore=tests/test_search_cache_pg.py --ignore=tests/test_spotify_pg.py
+```
+
+The `test-postgres` service uses the `test` Docker Compose profile so it does
+not start on plain `docker compose up`. Its data is ephemeral (no named volume)
+and safe to discard between sessions.
+
 ## Docker Run
 
 Build the image:
@@ -160,15 +194,20 @@ own named volume (`postgres-data`), not this mount.
 
 ## GitHub Actions
 
-The workflow runs:
+The workflow (`.github/workflows/tests.yml`) runs on every push and pull request:
 
-```bash
-python -m ruff check .
-python -m pytest --cov=app --cov-report=xml --cov-report=term-missing
-docker build -f deploy/Dockerfile -t find-music-bot:test .
-```
+1. **Ruff** — lint check
+2. **`alembic upgrade head`** — applies the schema against the CI Postgres service
+3. **pytest with coverage** — full suite including the 9 `test_*_pg.py` integration tests
+4. **Release cleanup check** — `scripts/check_release_clean.py`
+5. **Locale coverage check** — `scripts/check_locale_coverage.py`
+6. **Docker build** — `docker build -f deploy/Dockerfile -t find-music-bot:test .`
 
-This checks code style, tests, coverage and Docker image build on every push or pull request.
+CI provisions a `postgres:16-alpine` service container
+(`testuser`/`testpass`/`testdb`, port 5432) and injects
+`DATABASE_URL=postgresql://testuser:testpass@localhost:5432/testdb` so the
+integration tests run against it — the same credentials as the local
+`test-postgres` service, only the port differs (5432 on CI, 5433 locally).
 
 ## Security Notes
 
