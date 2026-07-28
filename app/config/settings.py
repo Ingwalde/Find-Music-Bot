@@ -58,6 +58,23 @@ class Settings:
         os.getenv("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS", "3600")
     )
 
+    # Webhook mode (v3.3.0+) — polling stays the default; only used when BOT_MODE=webhook.
+    BOT_MODE: str = os.getenv("BOT_MODE", "polling")
+    WEBHOOK_PUBLIC_URL: str | None = os.getenv("WEBHOOK_PUBLIC_URL")
+    WEBHOOK_SECRET_PATH: str | None = os.getenv("WEBHOOK_SECRET_PATH")
+    WEBHOOK_SECRET_TOKEN: str | None = os.getenv("WEBHOOK_SECRET_TOKEN")
+    WEBHOOK_CERT_PATH: str | None = os.getenv("WEBHOOK_CERT_PATH")
+    WEBHOOK_KEY_PATH: str | None = os.getenv("WEBHOOK_KEY_PATH")
+    WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8443"))
+
+    @property
+    def webhook_enabled(self) -> bool:
+        """
+        True only when BOT_MODE is explicitly set to "webhook". Any other
+        value (including unset) keeps the default polling behavior.
+        """
+        return self.BOT_MODE == "webhook"
+
     @property
     def spotify_enabled(self) -> bool:
         """
@@ -118,6 +135,24 @@ class Settings:
                 "DATABASE_URL is not set. Add it to your .env file. "
                 "Example: DATABASE_URL=postgresql://user:pass@localhost:5432/dbname"
             )
+
+        if self.BOT_MODE not in {"polling", "webhook"}:
+            raise ValueError("BOT_MODE must be 'polling' or 'webhook'.")
+
+        if self.webhook_enabled:
+            required = {
+                "WEBHOOK_PUBLIC_URL": self.WEBHOOK_PUBLIC_URL,
+                "WEBHOOK_SECRET_PATH": self.WEBHOOK_SECRET_PATH,
+                "WEBHOOK_SECRET_TOKEN": self.WEBHOOK_SECRET_TOKEN,
+                "WEBHOOK_CERT_PATH": self.WEBHOOK_CERT_PATH,
+                "WEBHOOK_KEY_PATH": self.WEBHOOK_KEY_PATH,
+            }
+            missing = [name for name, value in required.items() if not value]
+
+            if missing:
+                raise ValueError(
+                    "BOT_MODE=webhook requires: " + ", ".join(missing)
+                )
 
 
 settings = Settings()

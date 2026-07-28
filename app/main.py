@@ -2,6 +2,7 @@ import asyncio
 
 import uvicorn
 from aiogram import Bot, Dispatcher
+from aiogram.types import FSInputFile
 
 from app.bot.callbacks import router as callbacks_router
 from app.bot.handlers import router as handlers_router
@@ -10,6 +11,7 @@ from app.database.db import close_db_pool, init_db_pool
 from app.monitoring import create_app
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
+from app.webhook import run_webhook_server, webhook_url
 
 logger = setup_logger(__name__)
 
@@ -42,29 +44,40 @@ async def run_bot() -> None:
     dp.include_router(callbacks_router)
 
     monitoring_server = _create_monitoring_server()
+    monitoring_task = asyncio.create_task(monitoring_server.serve())
+    task_sources = {monitoring_task: "monitoring_server"}
 
     logger.info("Bot started successfully.")
 
-    source = "start_polling"
+    source = "webhook_server" if settings.webhook_enabled else "start_polling"
 
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
-
-        polling_task = asyncio.create_task(dp.start_polling(bot))
-        monitoring_task = asyncio.create_task(monitoring_server.serve())
-        task_sources = {
-            polling_task: "start_polling",
-            monitoring_task: "monitoring_server",
-        }
-
         logger.info(
             "Monitoring server starting on %s:%s.",
             MONITORING_HOST,
             MONITORING_PORT,
         )
 
+        # Polling and webhook are mutually exclusive at Telegram's API level
+        # (an active webhook rejects getUpdates) — exactly one of them runs,
+        # monitoring always runs alongside it. Two tasks either way.
+        if settings.webhook_enabled:
+            await bot.set_webhook(
+                webhook_url(),
+                certificate=FSInputFile(settings.WEBHOOK_CERT_PATH),
+                secret_token=settings.WEBHOOK_SECRET_TOKEN,
+                drop_pending_updates=True,
+            )
+            primary_task = asyncio.create_task(run_webhook_server(bot, dp))
+            task_sources[primary_task] = "webhook_server"
+            logger.info("Webhook server starting on port %s.", settings.WEBHOOK_PORT)
+        else:
+            await bot.delete_webhook(drop_pending_updates=True)
+            primary_task = asyncio.create_task(dp.start_polling(bot))
+            task_sources[primary_task] = "start_polling"
+
         done, pending = await asyncio.wait(
-            {polling_task, monitoring_task},
+            set(task_sources),
             return_when=asyncio.FIRST_COMPLETED,
         )
 

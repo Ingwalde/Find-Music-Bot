@@ -18,6 +18,10 @@ RUN mkdir -p data logs \
 
 USER botuser
 
+# Cosmetic only — actual publishing is docker-compose.yml's job. Documents
+# the webhook-mode (v3.3.0+) TLS port the app listens on when BOT_MODE=webhook.
+EXPOSE 8443
+
 # Schema setup is owned by Alembic (v3.1.1+) — run the migration chain
 # before the bot starts. Idempotent: alembic upgrade head is a no-op if
 # already at head, so this is safe on every container start/restart.

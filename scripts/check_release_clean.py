@@ -21,6 +21,7 @@ FORBIDDEN_EXACT = {
 FORBIDDEN_DIRS = (
     "data/",
     "logs/",
+    "certs/",
     ".pytest_cache/",
     ".ruff_cache/",
     ".mypy_cache/",
