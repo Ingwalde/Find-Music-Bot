@@ -74,6 +74,54 @@ def test_settings_validate_accepts_valid_config():
     make_valid_settings().validate()
 
 
+def test_webhook_enabled_true_only_for_webhook_mode():
+    assert make_valid_settings(BOT_MODE="polling").webhook_enabled is False
+    assert make_valid_settings(BOT_MODE="webhook").webhook_enabled is True
+
+
+def test_settings_validate_rejects_invalid_bot_mode():
+    settings = make_valid_settings(BOT_MODE="carrier-pigeon")
+
+    with pytest.raises(ValueError, match="BOT_MODE must be 'polling' or 'webhook'"):
+        settings.validate()
+
+
+def test_settings_validate_polling_mode_does_not_require_webhook_fields():
+    """
+    Never-break check: BOT_MODE=polling (the default) must validate cleanly
+    with every WEBHOOK_* field left unset.
+    """
+    settings = make_valid_settings(BOT_MODE="polling")
+    settings.validate()
+
+
+def test_settings_validate_webhook_mode_requires_all_webhook_fields():
+    settings = make_valid_settings(BOT_MODE="webhook")
+
+    with pytest.raises(ValueError, match="BOT_MODE=webhook requires") as excinfo:
+        settings.validate()
+
+    for field in (
+        "WEBHOOK_PUBLIC_URL",
+        "WEBHOOK_SECRET_PATH",
+        "WEBHOOK_SECRET_TOKEN",
+        "WEBHOOK_CERT_PATH",
+        "WEBHOOK_KEY_PATH",
+    ):
+        assert field in str(excinfo.value)
+
+
+def test_settings_validate_webhook_mode_accepts_complete_config():
+    make_valid_settings(
+        BOT_MODE="webhook",
+        WEBHOOK_PUBLIC_URL="https://example.com:8443",
+        WEBHOOK_SECRET_PATH="secret-path",
+        WEBHOOK_SECRET_TOKEN="secret-token",
+        WEBHOOK_CERT_PATH="/certs/cert.pem",
+        WEBHOOK_KEY_PATH="/certs/key.pem",
+    ).validate()
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

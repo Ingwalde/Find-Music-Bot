@@ -7,6 +7,9 @@
 config/admins.json
 !config/admins.example.json
 
+# Webhook TLS certificate + private key (v3.3.0+) — never commit real certs
+certs/
+
 # Python cache / bytecode
 __pycache__/
 *.py[cod]

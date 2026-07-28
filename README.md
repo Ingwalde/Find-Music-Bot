@@ -2,11 +2,25 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.2.0 — Health & Readiness Monitoring Update`
+**Current version:** `v3.3.0 — Webhook Mode Update`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.3.0
+
+- Added optional Telegram webhook mode as an alternative to polling, selected with
+  `BOT_MODE=webhook` in `.env`. Default stays `BOT_MODE=polling` — no config change
+  means no behavior change.
+- Webhook mode terminates TLS itself with a self-signed certificate (no reverse proxy)
+  and listens on port 8443. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for setup,
+  certificate generation, and required firewall rules.
+- `docker-compose.yml` publishes port 8443 and mounts `./certs` read-only for the
+  certificate and private key.
+- No user-facing feature changes — polling remains the default transport.
 
 ---
 
@@ -481,6 +495,12 @@ Stop:
 docker compose down
 ```
 
+### Webhook Mode (optional)
+
+Polling is the default and needs no extra setup. To run in webhook mode instead
+(`BOT_MODE=webhook`), including self-signed certificate generation and required
+firewall rules, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#webhook-mode).
+
 ---
 
 ## Development Checks
@@ -530,6 +550,7 @@ Do not commit or upload local/private files:
 ```text
 .env
 config/admins.json
+certs/
 .git/
 data/
 logs/

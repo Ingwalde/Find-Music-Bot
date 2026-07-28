@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.3.0] - 2026-07-28
+
+### Added
+- Optional Telegram webhook mode, selected with `BOT_MODE=webhook` (default stays
+  `polling` — no config change means no behavior change). Terminates TLS itself with
+  a self-signed certificate, listens on port 8443.
+- `app/webhook.py` — webhook aiohttp app (`SimpleRequestHandler` with `secret_token`
+  validation) and the non-blocking `AppRunner`/`TCPSite` server task.
+- `BOT_MODE` and `WEBHOOK_*` settings in `app/config/settings.py`, validated only
+  when `BOT_MODE=webhook`.
+
+### Changed
+- `app/main.py`'s task wiring now builds `{webhook_task, monitoring_task}` or
+  `{polling_task, monitoring_task}` depending on `BOT_MODE` — polling and webhook
+  are mutually exclusive at Telegram's API level, monitoring always runs. Same
+  `FIRST_COMPLETED`/cancel/shutdown logic as before, generalized over the task set.
+- `docker-compose.yml` publishes port 8443 and mounts `./certs` read-only.
+
+### Notes
+- No user-facing change; polling remains the default. See docs/DEPLOYMENT.md for
+  webhook setup, certificate generation, and required firewall rules.
+
+---
+
 ## [v3.2.0] - 2026-06-23
 
 ### Added

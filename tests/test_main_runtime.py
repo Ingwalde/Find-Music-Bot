@@ -18,9 +18,13 @@ class FakeBot:
         self.token = token
         self.session = FakeSession()
         self.deleted_webhook_kwargs: dict = {}
+        self.set_webhook_kwargs: dict = {}
 
     async def delete_webhook(self, **kwargs):
         self.deleted_webhook_kwargs.update(kwargs)
+
+    async def set_webhook(self, url, **kwargs):
+        self.set_webhook_kwargs = {"url": url, **kwargs}
 
 
 class FakeMonitoringServer:
@@ -70,6 +74,37 @@ class HangingPolling:
         except asyncio.CancelledError:
             self.cancelled = True
             raise
+
+
+class HangingWebhookServer:
+    """
+    Stand-in for app.webhook.run_webhook_server: hangs until cancelled, so
+    tests can verify the webhook task is actually cancelled (not leaked)
+    when the monitoring task finishes first — mirrors HangingPolling.
+    """
+
+    def __init__(self):
+        self.cancelled = False
+        self.called_with = None
+
+    async def __call__(self, bot, dispatcher):
+        self.called_with = (bot, dispatcher)
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+
+
+def _set_webhook_mode(monkeypatch):
+    monkeypatch.setattr(main.settings, "BOT_MODE", "webhook")
+    monkeypatch.setattr(main.settings, "WEBHOOK_PUBLIC_URL", "https://example.com:8443")
+    monkeypatch.setattr(main.settings, "WEBHOOK_SECRET_PATH", "secret-path")
+    monkeypatch.setattr(main.settings, "WEBHOOK_SECRET_TOKEN", "secret-token")
+    monkeypatch.setattr(main.settings, "WEBHOOK_CERT_PATH", "/certs/cert.pem")
+    monkeypatch.setattr(main.settings, "WEBHOOK_KEY_PATH", "/certs/key.pem")
+    monkeypatch.setattr(main.settings, "WEBHOOK_PORT", 8443)
+    monkeypatch.setattr(main, "FSInputFile", lambda path: f"cert:{path}")
 
 
 def test_create_bot_validates_settings_and_uses_token(monkeypatch):
@@ -310,6 +345,98 @@ async def test_run_bot_clean_shutdown_cancels_hanging_polling_without_raising(mo
 
     assert captured == {}
     assert hanging_polling.cancelled is True
+    assert bot.session.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_bot_webhook_mode_sets_webhook_and_cancels_cleanly(monkeypatch):
+    """
+    Mirror of test_run_bot_clean_shutdown_cancels_hanging_polling_without_raising,
+    for webhook mode: monitoring finishes cleanly, the webhook task must be
+    cancelled (not leaked), bot.set_webhook (not delete_webhook) must have
+    been called with the secret token and certificate, and start_polling
+    must never run.
+    """
+    bot = FakeBot()
+    fake_server = FakeMonitoringServer(serve_behavior="return")
+    hanging_webhook = HangingWebhookServer()
+    captured = {}
+
+    async def fake_init_db_pool():
+        pass
+
+    async def fake_close_db_pool():
+        pass
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    async def fail_if_polling_starts(self, *bots, **kwargs):
+        pytest.fail("start_polling must not run in webhook mode")
+
+    _set_webhook_mode(monkeypatch)
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
+    monkeypatch.setattr(main, "create_bot", lambda: bot)
+    monkeypatch.setattr(main.Dispatcher, "include_router", lambda self, router: None)
+    monkeypatch.setattr(main, "_create_monitoring_server", lambda: fake_server)
+    monkeypatch.setattr(main, "run_webhook_server", hanging_webhook)
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
+    monkeypatch.setattr(main.Dispatcher, "start_polling", fail_if_polling_starts)
+
+    await main.run_bot()
+
+    assert captured == {}
+    assert bot.set_webhook_kwargs["url"] == "https://example.com:8443/secret-path"
+    assert bot.set_webhook_kwargs["secret_token"] == "secret-token"
+    assert bot.set_webhook_kwargs["certificate"] == "cert:/certs/cert.pem"
+    assert bot.set_webhook_kwargs["drop_pending_updates"] is True
+    assert bot.deleted_webhook_kwargs == {}
+    assert hanging_webhook.cancelled is True
+    assert hanging_webhook.called_with[0] is bot
+    assert bot.session.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_bot_logs_webhook_error_and_cancels_running_monitoring(monkeypatch):
+    """
+    Mirror of test_run_bot_logs_polling_error_and_cancels_running_monitoring,
+    for webhook mode: source must be "webhook_server" on failure, not the
+    stale "start_polling" default.
+    """
+    bot = FakeBot()
+    captured = {}
+    fake_server = FakeMonitoringServer(serve_behavior="hang")
+
+    async def fake_init_db_pool():
+        pass
+
+    async def fake_close_db_pool():
+        pass
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    async def failing_webhook_server(bot, dispatcher):
+        raise RuntimeError("webhook failed")
+
+    _set_webhook_mode(monkeypatch)
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
+    monkeypatch.setattr(main, "create_bot", lambda: bot)
+    monkeypatch.setattr(main.Dispatcher, "include_router", lambda self, router: None)
+    monkeypatch.setattr(main, "_create_monitoring_server", lambda: fake_server)
+    monkeypatch.setattr(main, "run_webhook_server", failing_webhook_server)
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
+
+    with pytest.raises(RuntimeError, match="webhook failed"):
+        await main.run_bot()
+
+    assert captured["telegram_id"] is None
+    assert captured["source"] == "webhook_server"
+    assert isinstance(captured["error"], RuntimeError)
+    assert fake_server.started is True
+    assert fake_server.cancelled is True
     assert bot.session.closed is True
 
 

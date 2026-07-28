@@ -34,10 +34,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - "9090:9090"  # exposed for host-side uptime monitoring / docker healthcheck
+      - "8443:8443"  # webhook mode (v3.3.0+) — TLS terminated by the app itself
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./config:/app/config:ro
+      - ./certs:/app/certs:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9090/health')"]
       interval: 10s

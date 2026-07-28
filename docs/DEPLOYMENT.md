@@ -177,6 +177,75 @@ View logs:
 docker compose logs -f
 ```
 
+## Webhook Mode
+
+Polling (`BOT_MODE=polling`, the default) needs no extra setup — skip this
+section unless you specifically want webhook mode (added in v3.3.0).
+
+Webhook mode (`BOT_MODE=webhook`) terminates TLS itself with a self-signed
+certificate — there is no reverse proxy in front of it. Required `.env` values:
+
+```env
+BOT_MODE=webhook
+WEBHOOK_PUBLIC_URL=https://your_public_ip_or_domain:8443
+WEBHOOK_SECRET_PATH=your_random_secret_path
+WEBHOOK_SECRET_TOKEN=your_random_secret_token
+WEBHOOK_CERT_PATH=/app/certs/cert.pem
+WEBHOOK_KEY_PATH=/app/certs/key.pem
+WEBHOOK_PORT=8443
+```
+
+`WEBHOOK_SECRET_PATH` and `WEBHOOK_SECRET_TOKEN` should each be a long random
+string you generate yourself — they are not values Telegram gives you.
+
+### Generate the self-signed certificate
+
+Run on the server, with `CN` set to its public IP address:
+
+```bash
+mkdir -p certs
+openssl req -newkey rsa:2048 -sha256 -nodes -keyout certs/key.pem -x509 -days 365 \
+  -out certs/cert.pem -subj "/CN=your_public_ip"
+```
+
+`docker-compose.yml` mounts `./certs` read-only into the container at
+`/app/certs`, matching `WEBHOOK_CERT_PATH`/`WEBHOOK_KEY_PATH` above. Keep
+`certs/key.pem` private — never commit it (see Security Notes below).
+
+Telegram needs the public certificate registered once, via `set_webhook`'s
+`certificate` parameter — the bot does this itself at startup in webhook mode
+using `WEBHOOK_CERT_PATH`. No separate manual upload step is required.
+
+### Certificate renewal
+
+The certificate is valid 365 days from generation. Regenerate it yearly with
+the same command above and restart the bot — set your own reminder, expiry is
+not currently monitored automatically.
+
+### Monitoring webhook health
+
+Call `getWebhookInfo` on the Bot API to check the webhook's live state:
+
+```bash
+curl "https://api.telegram.org/bot<your_bot_token>/getWebhookInfo"
+```
+
+Watch `last_error_message` (set when Telegram's last delivery attempt failed)
+and `pending_update_count` (updates queued because delivery is failing) —
+either one being non-empty/non-zero means Telegram currently cannot reach the
+webhook.
+
+### Firewall
+
+`docker-compose.yml` publishes both ports without a host-IP restriction —
+restrict them at the network/cloud-firewall layer instead (e.g. Oracle Cloud's
+Security List):
+
+- **8443** (webhook) — open only to Telegram's webhook IP ranges:
+  `149.154.160.0/20` and `91.108.4.0/22`. No other source needs access.
+- **9090** (health/readiness) — open only to your own monitoring source's IP,
+  never to `0.0.0.0`/the whole internet.
+
 ## Data, Logs and Config
 
 The compose configuration mounts local folders:
@@ -185,6 +254,7 @@ The compose configuration mounts local folders:
 data/   -> /app/data
 logs/   -> /app/logs
 config/ -> /app/config:ro
+certs/  -> /app/certs:ro
 ```
 
 This keeps logs and local admin configuration outside the container image. `data/` is mounted
@@ -216,6 +286,7 @@ Never commit or publish:
 ```text
 .env
 config/admins.json
+certs/
 data/
 logs/
 *.db
