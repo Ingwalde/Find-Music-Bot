@@ -61,3 +61,6 @@ dist/
 # Claude Code local configuration and agent instructions
 .claude/
 CLAUDE.md
+
+# graphify knowledge-graph output (local tooling artifact, not project source)
+graphify-out/
