@@ -2,11 +2,20 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.3.0 — Webhook Mode Update`
+**Current version:** `v3.3.1 — Documentation Fixes`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.3.1
+
+- Backfilled the missing v3.1.2 CHANGELOG entry.
+- Removed a stale `testcontainers` line from Tech Stack and replaced the stale Roadmap
+  block with a pointer to [docs/ROADMAP.md](docs/ROADMAP.md).
+- Documentation-only patch. No code behavior changes.
 
 ---
 
@@ -303,7 +312,6 @@ Docker Compose mounts:
 - pytest
 - pytest-cov
 - pytest-asyncio
-- testcontainers
 - Ruff
 - GitHub Actions
 - Docker
@@ -576,12 +584,7 @@ Avoid sharing raw `docker compose config` output because it can expose secrets f
 
 ## Roadmap
 
-Planned next stages:
-
-```text
-v2.6.1 - Localization & Error Logging Fixes Update
-v3.0.0 - aiogram Migration
-```
+See [docs/ROADMAP.md](docs/ROADMAP.md) for completed releases and planned next stages.
 
 ---
 

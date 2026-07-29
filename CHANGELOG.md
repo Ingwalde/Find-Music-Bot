@@ -28,6 +28,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.3.1] - 2026-07-29
+
+### Fixed
+- Backfilled the missing v3.1.2 CHANGELOG entry (was documented in `docs/ROADMAP.md` and
+  `docs/ARCHITECTURE.md`, never made it into `CHANGELOG.md`).
+- Removed the stale `testcontainers` line from README's Tech Stack section (removed from
+  `requirements/dev.txt` by the compose-postgres chore, no longer used).
+- Replaced README's stale "Roadmap" block (still listed v2.6.1/v3.0.0 as planned; both
+  shipped long ago) with a pointer to `docs/ROADMAP.md`.
+
+### Changed
+- `.gitignore` now excludes `graphify-out/` (local tooling output, not project source).
+
+### Notes
+- Documentation-only patch. No code behavior changes.
+
+---
+
 ## [v3.2.0] - 2026-06-23
 
 ### Added
@@ -42,6 +60,26 @@ All notable changes to this project will be documented in this file.
 ### Notes
 - No user-facing change; the bot stays on aiogram polling. Endpoints are for Docker
   healthchecks and external uptime monitoring. Webhooks remain a future release.
+
+---
+
+## [v3.1.2] - 2026-06-21
+
+### Added
+- Per-user rate limiting (`app/bot/rate_limit.py`) — sliding-window (20 req/60s), in-memory,
+  applied to every handler/callback that calls an external API.
+- Shared HTTP retry helper (`app/utils/http_retry.py`) for all httpx call sites across
+  Deezer, lyrics, and Spotify platform code.
+- PostgreSQL-backed search result cache (24h TTL) — `search_cache` table added via a new
+  Alembic revision, the first schema change since Alembic took ownership in v3.1.1.
+
+### Changed
+- Log rotation switched from size-based to daily rotation (5 days retained).
+
+### Notes
+- Backfilled in v3.3.1 — this entry was missing from CHANGELOG.md despite being documented
+  as shipped in docs/ROADMAP.md and docs/ARCHITECTURE.md. Date is the real v3.1.2 merge
+  commit date, not invented.
 
 ---
 
