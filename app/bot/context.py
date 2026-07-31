@@ -68,14 +68,6 @@ async def cleanup_expired_search_contexts(now: float | None = None) -> int:
         return _cleanup_expired_unlocked(current_time)
 
 
-async def clear_search_context(user_id: int) -> None:
-    """
-    Removes one user's search context.
-    """
-    async with _search_context_lock:
-        search_contexts.pop(user_id, None)
-
-
 async def save_search_context(user_id: int, query: str, tracks: list[dict]) -> None:
     """
     Saves last search results for user.

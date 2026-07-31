@@ -1,6 +1,6 @@
 """
 Integration tests for async PostgreSQL searches.py repository.
-Uses testcontainers (Option A) via the shared live_pg fixture from conftest.py.
+Uses the compose "test-postgres" service via the shared live_pg fixture from conftest.py.
 
 searches.py has FK dependency on users (get_user_id), so each test
 creates a user first via users_module.

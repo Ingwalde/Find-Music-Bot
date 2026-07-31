@@ -10,7 +10,7 @@ def test_file_handler_is_timed_rotating_daily_keeping_5_backups(monkeypatch):
 
     setup_logging()'s own _LOGGING_CONFIGURED guard makes a plain re-call
     a no-op once already True — but other libraries used elsewhere in the
-    suite (e.g. docker/testcontainers, used by the live_pg fixture) can
+    suite (e.g. asyncpg/the compose test-postgres service, used by the live_pg fixture) can
     reconfigure the root logger's handlers as their own side effect,
     bypassing this module's guard entirely since they never call
     setup_logging(). Resetting the guard here forces a real

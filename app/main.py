@@ -2,7 +2,7 @@ import asyncio
 
 import uvicorn
 from aiogram import Bot, Dispatcher
-from aiogram.types import FSInputFile
+from aiogram.types import ErrorEvent, FSInputFile
 
 from app.bot.callbacks import router as callbacks_router
 from app.bot.handlers import router as handlers_router
@@ -24,6 +24,36 @@ def create_bot() -> Bot:
     return Bot(token=settings.BOT_TOKEN)
 
 
+async def handle_dispatcher_error(event: ErrorEvent) -> bool:
+    """
+    Global safety net for exceptions that escape a handler/callback unhandled
+    (e.g. a DB hiccup during get_user_context, before any local try/except
+    starts). Without this, aiogram logs internally and drops the update
+    silently — no user feedback, no entry in the admin-visible errors table.
+
+    Registered once on the Dispatcher's own `.errors` observer, which wraps
+    the entire routing chain as an outer middleware (confirmed against the
+    installed aiogram 3.29.0 source — ErrorsMiddleware is attached to
+    dp.update, not per-router), so this catches escapes from every handler
+    in every included router.
+    """
+    update = event.update
+    telegram_id = None
+
+    if update.message and update.message.from_user:
+        telegram_id = update.message.from_user.id
+    elif update.callback_query and update.callback_query.from_user:
+        telegram_id = update.callback_query.from_user.id
+
+    await log_and_save_error(
+        logger=logger,
+        telegram_id=telegram_id,
+        source="dispatcher_error_handler",
+        error=event.exception,
+    )
+    return True
+
+
 def _create_monitoring_server() -> uvicorn.Server:
     config = uvicorn.Config(
         create_app(),
@@ -39,6 +69,7 @@ async def run_bot() -> None:
 
     bot = create_bot()
     dp = Dispatcher()
+    dp.errors.register(handle_dispatcher_error)
 
     dp.include_router(handlers_router)
     dp.include_router(callbacks_router)

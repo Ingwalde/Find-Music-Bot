@@ -32,6 +32,8 @@ async def handle_lyrics_callback(
 
     await bot.answer_callback_query(call.id)
 
+    status_message = await bot.send_message(call.message.chat.id, t("searching_lyrics", language))
+
     try:
         track = await get_track(track_id)
         lyrics_url = await find_lyrics_url(
@@ -40,15 +42,24 @@ async def handle_lyrics_callback(
         )
     except Exception as error:
         await log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
-        await bot.send_message(call.message.chat.id, t("genius_error", language))
+        await bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=status_message.message_id,
+            text=t("genius_error", language),
+        )
         return
 
     if not lyrics_url:
-        await bot.send_message(call.message.chat.id, t("lyrics_not_found", language))
+        await bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=status_message.message_id,
+            text=t("lyrics_not_found", language),
+        )
         return
 
-    await bot.send_message(
-        call.message.chat.id,
-        t("lyrics_page_found", language),
+    await bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=status_message.message_id,
+        text=t("lyrics_page_found", language),
         reply_markup=genius_url_keyboard(lyrics_url, language),
     )

@@ -132,7 +132,10 @@ async def test_lyrics_callback_sends_genius_link(monkeypatch):
     await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
 
     assert bot.answers
-    assert bot.messages[-1][1]["reply_markup"] is not None
+    # A "searching..." status message is sent first, then edited in place with
+    # the result — the final text/markup lands in edited_texts, not messages.
+    assert bot.messages[-1][0][1] == "Searching lyrics..."
+    assert bot.edited_texts[-1][1]["reply_markup"] is not None
 
 
 @pytest.mark.asyncio
@@ -145,6 +148,7 @@ async def test_lyrics_callback_handles_missing_lyrics(monkeypatch):
     await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
 
     assert bot.messages
+    assert bot.edited_texts[-1][1]["text"] == "Lyrics page was not found."
 
 
 @pytest.mark.asyncio
@@ -161,7 +165,10 @@ async def test_lyrics_callback_handles_get_track_error(monkeypatch):
     await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
 
     assert bot.answers
+    # Exactly one send_message call — the status message. The error result
+    # goes to edited_texts, not a second send_message.
     assert len(bot.messages) == 1
+    assert bot.edited_texts[-1][1]["text"] == "Could not get lyrics information right now. Please try again later."
 
 
 # ── pagination callbacks ──────────────────────────────────────────────────────

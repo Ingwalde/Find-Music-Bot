@@ -58,6 +58,13 @@ class Settings:
         os.getenv("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS", "3600")
     )
 
+    # Circuit breaker for network-level outages (Spotify/Deezer/Genius) —
+    # separate from SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS above, which only
+    # covers Spotify's 403 access-restriction case.
+    EXTERNAL_SERVICE_COOLDOWN_SECONDS: int = int(
+        os.getenv("EXTERNAL_SERVICE_COOLDOWN_SECONDS", "60")
+    )
+
     # Webhook mode (v3.3.0+) — polling stays the default; only used when BOT_MODE=webhook.
     BOT_MODE: str = os.getenv("BOT_MODE", "polling")
     WEBHOOK_PUBLIC_URL: str | None = os.getenv("WEBHOOK_PUBLIC_URL")
@@ -129,6 +136,9 @@ class Settings:
 
         if self.SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS < 60:
             raise ValueError("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS should be at least 60.")
+
+        if self.EXTERNAL_SERVICE_COOLDOWN_SECONDS < 60:
+            raise ValueError("EXTERNAL_SERVICE_COOLDOWN_SECONDS should be at least 60.")
 
         if not self.DATABASE_URL:
             raise ValueError(

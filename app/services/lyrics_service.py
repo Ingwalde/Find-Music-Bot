@@ -29,14 +29,14 @@ async def find_lyrics_url(title: str, artist: str | None = None) -> str | None:
             response = await get_with_retry(
                 http_client,
                 GENIUS_SEARCH_URL,
+                service="genius",
                 headers={"Authorization": f"Bearer {settings.GENIUS_TOKEN}"},
                 params={"q": query},
             )
-    except httpx.HTTPError as error:
+        hits = response.json().get("response", {}).get("hits", [])
+    except Exception as error:
         logger.warning("Genius search error: %s", error)
         return None
-
-    hits = response.json().get("response", {}).get("hits", [])
 
     if not hits:
         return None

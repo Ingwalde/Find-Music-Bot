@@ -10,6 +10,7 @@ MAINTENANCE_TABLES = (
     "tracks",
     "favorites",
     "errors",
+    "search_cache",
     "schema_migrations",
 )
 
@@ -18,9 +19,12 @@ async def get_maintenance_table_names() -> tuple[str, ...]:
     """
     Returns PostgreSQL tables visible in maintenance reports.
 
-    Queries information_schema.tables so admin diagnostics stay in sync with
-    schema changes. Falls back to MAINTENANCE_TABLES on any DB failure — the
-    static tuple is always the security floor for get_table_count's allowlist.
+    Queries information_schema.tables so a table dropped from the schema
+    doesn't linger here, but the result is intersected with MAINTENANCE_TABLES
+    — that tuple is the actual allowlist ceiling for get_table_count, not just
+    a DB-failure fallback, so a real-but-unlisted table (e.g. alembic_version)
+    is never returned. Falls back to MAINTENANCE_TABLES outright on any DB
+    failure.
     """
     try:
         async with (await get_pool()).acquire() as conn:
@@ -32,9 +36,11 @@ async def get_maintenance_table_names() -> tuple[str, ...]:
                 ORDER BY table_name
                 """
             )
-        table_names = tuple(str(row["table_name"]) for row in rows)
+        existing = {str(row["table_name"]) for row in rows}
     except Exception:
         return MAINTENANCE_TABLES
+
+    table_names = tuple(name for name in MAINTENANCE_TABLES if name in existing)
 
     return table_names or MAINTENANCE_TABLES
 
