@@ -34,18 +34,23 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(title="Find Music Bot Monitoring")
 
-    @app.get("/health")
+    @app.api_route("/health", methods=["GET", "HEAD"])
     async def health() -> dict[str, str]:
         """
         Liveness probe. Always returns 200 with no external calls.
+
+        Accepts HEAD as well as GET — some uptime monitors (e.g. UptimeRobot's
+        free tier) only send HEAD requests. Starlette strips the body for HEAD
+        responses automatically; no extra handling needed here.
         """
         return {"status": "ok"}
 
-    @app.get("/ready")
+    @app.api_route("/ready", methods=["GET", "HEAD"])
     async def ready() -> JSONResponse:
         """
         Readiness probe. Returns 200 if the database is reachable,
-        503 otherwise.
+        503 otherwise. Accepts HEAD as well as GET, for consistency with
+        /health.
         """
         if await _check_database_ready():
             return JSONResponse(status_code=200, content={"status": "ok"})
