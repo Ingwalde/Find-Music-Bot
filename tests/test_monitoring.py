@@ -12,6 +12,47 @@ def test_health_returns_ok_status():
     assert response.json() == {"status": "ok"}
 
 
+def test_health_head_returns_ok_status():
+    """
+    Some uptime monitors (e.g. UptimeRobot's free tier) only send HEAD
+    requests. HEAD must return 200 with no body, not 405.
+    """
+    client = TestClient(monitoring.create_app())
+
+    response = client.head("/health")
+
+    assert response.status_code == 200
+    assert response.content == b""
+
+
+def test_ready_head_returns_ok_when_database_is_reachable(monkeypatch):
+    class FakeConnection:
+        async def fetchval(self, *args, **kwargs):
+            return 1
+
+    class FakeAcquireContext:
+        async def __aenter__(self):
+            return FakeConnection()
+
+        async def __aexit__(self, *args):
+            return False
+
+    class FakePool:
+        def acquire(self):
+            return FakeAcquireContext()
+
+    async def fake_get_pool():
+        return FakePool()
+
+    monkeypatch.setattr(monitoring, "get_pool", fake_get_pool)
+
+    client = TestClient(monitoring.create_app())
+    response = client.head("/ready")
+
+    assert response.status_code == 200
+    assert response.content == b""
+
+
 def test_ready_returns_ok_when_database_is_reachable(monkeypatch):
     class FakeConnection:
         async def fetchval(self, *args, **kwargs):
