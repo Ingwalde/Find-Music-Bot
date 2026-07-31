@@ -99,6 +99,7 @@ async def search_tracks(query: str, limit: int = 10) -> list[dict]:
             response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/search",
+                service="deezer",
                 params={"q": query, "limit": limit},
             )
             raw_tracks = response.json().get("data", [])
@@ -127,7 +128,9 @@ async def get_track(track_id: str | int) -> dict:
 
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await get_with_retry(http_client, f"{DEEZER_API_BASE}/track/{track_id}")
+            response = await get_with_retry(
+                http_client, f"{DEEZER_API_BASE}/track/{track_id}", service="deezer"
+            )
             data = response.json()
 
         if "error" in data:
@@ -151,6 +154,7 @@ async def get_trending_tracks(limit: int = 10) -> list[dict]:
             response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/chart/0/tracks",
+                service="deezer",
                 params={"limit": limit},
             )
             raw_tracks = response.json().get("data", [])
@@ -180,6 +184,7 @@ async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
             search_response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/search",
+                service="deezer",
                 params={"q": artist_name, "type": "artist", "limit": 1},
             )
             artists = search_response.json().get("data", [])
@@ -200,6 +205,7 @@ async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
             top_response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/artist/{artist_id}/top",
+                service="deezer",
                 params={"limit": limit},
             )
             raw_tracks = top_response.json().get("data", [])
@@ -224,6 +230,7 @@ async def get_artist_top_tracks_by_id(artist_id: int, limit: int = 10) -> list[d
             response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/artist/{artist_id}/top",
+                service="deezer",
                 params={"limit": limit},
             )
             raw_tracks = response.json().get("data", [])
@@ -250,6 +257,7 @@ async def get_artist_id(artist_name: str) -> int | None:
             response = await get_with_retry(
                 http_client,
                 f"{DEEZER_API_BASE}/search",
+                service="deezer",
                 params={"q": artist_name, "type": "artist"},
             )
             data = response.json().get("data", [])
@@ -266,7 +274,7 @@ async def get_related_artists(artist_id: int, limit: int = 3) -> list[dict]:
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:
             response = await get_with_retry(
-                http_client, f"{DEEZER_API_BASE}/artist/{artist_id}/related"
+                http_client, f"{DEEZER_API_BASE}/artist/{artist_id}/related", service="deezer"
             )
             artists = response.json().get("data", [])
             return [{"id": a.get("id"), "name": a.get("name")} for a in artists[:limit]]

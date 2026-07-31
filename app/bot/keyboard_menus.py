@@ -1,4 +1,4 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from app.localization.translations import t
@@ -59,10 +59,3 @@ def search_mode_keyboard(language: str = "en") -> ReplyKeyboardMarkup:
     Creates bottom keyboard for secondary screens and music search mode.
     """
     return back_to_main_menu_keyboard(language)
-
-
-def remove_keyboard() -> ReplyKeyboardRemove:
-    """
-    Removes bottom reply keyboard.
-    """
-    return ReplyKeyboardRemove()

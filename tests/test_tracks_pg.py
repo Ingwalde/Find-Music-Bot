@@ -1,6 +1,6 @@
 """
 Integration tests for async PostgreSQL tracks.py repository.
-Uses testcontainers (Option A) via the shared live_pg fixture from conftest.py.
+Uses the compose "test-postgres" service via the shared live_pg fixture from conftest.py.
 """
 
 import pytest

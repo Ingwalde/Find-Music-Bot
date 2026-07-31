@@ -43,6 +43,7 @@ async def request_spotify_search(
             response = await get_with_retry(
                 http_client,
                 SPOTIFY_SEARCH_URL,
+                service="spotify",
                 headers={"Authorization": f"Bearer {token}"},
                 params=params,
             )

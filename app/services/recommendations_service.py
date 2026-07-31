@@ -184,6 +184,19 @@ def _format_grouped(tracks: list[dict], source_artist: str) -> str:
     return "\n\n".join(sections)
 
 
+def _format_numbered(tracks: list[dict]) -> str:
+    lines = []
+    for i, track in enumerate(tracks, start=1):
+        title = track.get("title", "Unknown")
+        artist = track.get("artist", "Unknown artist")
+        link = track.get("deezer_link", "")
+        if link:
+            lines.append(f"{i}. [{artist} — {title}]({link})")
+        else:
+            lines.append(f"{i}. {artist} — {title}")
+    return "\n".join(lines)
+
+
 def format_recommendations_text(tracks: list[dict], source_artist: str = "") -> str:
     """
     Formats recommendation tracks as a text list.
@@ -195,16 +208,7 @@ def format_recommendations_text(tracks: list[dict], source_artist: str = "") -> 
         return ""
 
     if not source_artist:
-        lines = []
-        for i, track in enumerate(tracks, start=1):
-            title = track.get("title", "Unknown")
-            artist = track.get("artist", "Unknown artist")
-            link = track.get("deezer_link", "")
-            if link:
-                lines.append(f"{i}. [{artist} — {title}]({link})")
-            else:
-                lines.append(f"{i}. {artist} — {title}")
-        return "\n".join(lines)
+        return _format_numbered(tracks)
 
     return _format_grouped(tracks, source_artist)
 
@@ -219,18 +223,6 @@ def format_similar_text(header: str, tracks: list[dict], source_artist: str = ""
     if not tracks:
         return header
 
-    if source_artist:
-        body = _format_grouped(tracks, source_artist)
-    else:
-        lines = []
-        for i, track in enumerate(tracks, start=1):
-            title = track.get("title", "Unknown")
-            artist = track.get("artist", "Unknown artist")
-            link = track.get("deezer_link", "")
-            if link:
-                lines.append(f"{i}. [{artist} — {title}]({link})")
-            else:
-                lines.append(f"{i}. {artist} — {title}")
-        body = "\n".join(lines)
+    body = _format_grouped(tracks, source_artist) if source_artist else _format_numbered(tracks)
 
     return f"{header}\n\n{body}"

@@ -1,6 +1,6 @@
 """
 Integration tests for async PostgreSQL maintenance.py.
-Uses testcontainers (Option A) via the shared live_pg fixture from conftest.py.
+Uses the compose "test-postgres" service via the shared live_pg fixture from conftest.py.
 
 format_bytes (pure sync) is tested in the existing test_database_maintenance.py.
 All functions tested here require a live pool — each test gets a clean slate

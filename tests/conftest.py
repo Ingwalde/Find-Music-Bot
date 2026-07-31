@@ -139,6 +139,7 @@ class AsyncFakeBot:
 
     async def send_message(self, *args, **kwargs):
         self.messages.append((args, kwargs))
+        return SimpleNamespace(message_id=1000 + len(self.messages))
 
     async def edit_message_text(self, *args, **kwargs):
         if self.raise_on_edit:
@@ -186,6 +187,23 @@ def clear_rate_limits():
     yield
     _request_timestamps.clear()
     _warned_users.clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_circuit_breakers():
+    """
+    Resets per-service circuit breaker state between tests.
+
+    Without this, the module-level dicts in http_retry.py persist across the
+    whole test session — a test that intentionally trips a breaker for
+    service="deezer" would otherwise leave it open for any later, unrelated
+    test that also happens to use that same service key.
+    """
+    from app.utils.http_retry import reset_circuit_breakers
+
+    reset_circuit_breakers()
+    yield
+    reset_circuit_breakers()
 
 
 @pytest.fixture(autouse=True)

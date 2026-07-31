@@ -1,6 +1,6 @@
 """
 Integration tests for async PostgreSQL search_cache.py repository.
-Uses testcontainers (Option A) via the shared live_pg fixture from conftest.py.
+Uses the compose "test-postgres" service via the shared live_pg fixture from conftest.py.
 
 Also proves the v3.1.2 Alembic revision (63ab83bf2873, add search_cache table)
 applies cleanly through the same alembic upgrade head chain live_pg already

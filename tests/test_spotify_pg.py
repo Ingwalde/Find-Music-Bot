@@ -1,6 +1,6 @@
 """
 Integration tests for async PostgreSQL spotify.py repository.
-Uses testcontainers (Option A) via the shared live_pg fixture from conftest.py.
+Uses the compose "test-postgres" service via the shared live_pg fixture from conftest.py.
 
 spotify.py reads/writes the tracks table, so each test that needs
 an existing track saves one via tracks_module first.

@@ -113,6 +113,10 @@ async def get_spotify_access_token() -> str | None:
         logger.info("Spotify integration is disabled or credentials are not configured.")
         return None
 
+    # Held for the whole fetch-or-return flow, not just the cache read/write:
+    # a second concurrent caller waits here and then sees the freshly cached
+    # token below instead of independently re-fetching (avoids duplicate
+    # outbound requests to Spotify under concurrent load).
     async with _spotify_runtime_lock:
         if time.time() < _spotify_access_blocked_until:
             logger.info("Spotify lookup skipped: %s", _spotify_access_block_reason)
@@ -123,28 +127,28 @@ async def get_spotify_access_token() -> str | None:
         if _access_token and now < _token_expires_at - 30:
             return _access_token
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await post_with_retry(
-                http_client,
-                SPOTIFY_TOKEN_URL,
-                data={"grant_type": "client_credentials"},
-                auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
-            )
-    except httpx.HTTPStatusError as error:
         try:
-            handle_spotify_http_error(error, "token request")
-        except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
-            logger.warning("Spotify token request skipped: %s", spotify_error)
+            async with httpx.AsyncClient(timeout=10) as http_client:
+                response = await post_with_retry(
+                    http_client,
+                    SPOTIFY_TOKEN_URL,
+                    service="spotify",
+                    data={"grant_type": "client_credentials"},
+                    auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
+                )
+        except httpx.HTTPStatusError as error:
+            try:
+                handle_spotify_http_error(error, "token request")
+            except (SpotifyCredentialsError, SpotifyForbiddenError) as spotify_error:
+                logger.warning("Spotify token request skipped: %s", spotify_error)
+                return None
             return None
-        return None
-    except httpx.RequestError as error:
-        logger.warning("Spotify token request failed: %s", error)
-        return None
+        except httpx.RequestError as error:
+            logger.warning("Spotify token request failed: %s", error)
+            return None
 
-    data = response.json()
+        data = response.json()
 
-    async with _spotify_runtime_lock:
         _access_token = data.get("access_token")
         expires_in = int(data.get("expires_in", 3600))
         _token_expires_at = now + expires_in

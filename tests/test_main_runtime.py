@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from app import main
+from tests.conftest import fake_call, fake_message
 
 
 class FakeSession:
@@ -451,3 +452,111 @@ def test_main_runs_run_bot_via_asyncio(monkeypatch):
     main.main()
 
     assert calls == ["run_bot"]
+
+
+def _fake_error_event(exception, message=None, callback_query=None):
+    """
+    Duck-typed stand-in for aiogram's ErrorEvent — handle_dispatcher_error only
+    accesses .update.message / .update.callback_query / .exception as plain
+    attributes, so a SimpleNamespace works without constructing real aiogram
+    models (same style as fake_message/fake_call in conftest.py).
+    """
+    from types import SimpleNamespace
+
+    update = SimpleNamespace(message=message, callback_query=callback_query)
+    return SimpleNamespace(update=update, exception=exception)
+
+
+@pytest.mark.asyncio
+async def test_handle_dispatcher_error_logs_with_telegram_id_from_message(monkeypatch):
+    captured = {}
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
+
+    error = RuntimeError("escaped handler exception")
+    event = _fake_error_event(error, message=fake_message(user_id=555))
+
+    result = await main.handle_dispatcher_error(event)
+
+    assert result is True
+    assert captured["telegram_id"] == 555
+    assert captured["source"] == "dispatcher_error_handler"
+    assert captured["error"] is error
+
+
+@pytest.mark.asyncio
+async def test_handle_dispatcher_error_logs_with_telegram_id_from_callback_query(monkeypatch):
+    captured = {}
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
+
+    error = ValueError("escaped callback exception")
+    event = _fake_error_event(error, callback_query=fake_call(user_id=777))
+
+    result = await main.handle_dispatcher_error(event)
+
+    assert result is True
+    assert captured["telegram_id"] == 777
+    assert captured["source"] == "dispatcher_error_handler"
+    assert captured["error"] is error
+
+
+@pytest.mark.asyncio
+async def test_handle_dispatcher_error_uses_none_telegram_id_when_neither_present(monkeypatch):
+    captured = {}
+
+    async def fake_log_and_save_error(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(main, "log_and_save_error", fake_log_and_save_error)
+
+    event = _fake_error_event(RuntimeError("no message or callback_query"))
+
+    result = await main.handle_dispatcher_error(event)
+
+    assert result is True
+    assert captured["telegram_id"] is None
+
+
+def test_dispatcher_error_handler_is_registered(monkeypatch):
+    """
+    Confirms handle_dispatcher_error is actually wired onto the Dispatcher's
+    .errors observer in run_bot(), not just defined and unused.
+    """
+    bot = FakeBot()
+    fake_server = FakeMonitoringServer(serve_behavior="return")
+    hanging_polling = HangingPolling()
+    registered = []
+
+    async def fake_init_db_pool():
+        pass
+
+    async def fake_close_db_pool():
+        pass
+
+    monkeypatch.setattr(main, "init_db_pool", fake_init_db_pool)
+    monkeypatch.setattr(main, "close_db_pool", fake_close_db_pool)
+    monkeypatch.setattr(main, "create_bot", lambda: bot)
+    monkeypatch.setattr(main.Dispatcher, "include_router", lambda self, router: None)
+    monkeypatch.setattr(main, "_create_monitoring_server", lambda: fake_server)
+    monkeypatch.setattr(main.Dispatcher, "start_polling", hanging_polling)
+
+    from aiogram.dispatcher.event.telegram import TelegramEventObserver
+
+    original_register = TelegramEventObserver.register
+
+    def spy_register(self, callback, *filters, **kwargs):
+        registered.append(callback)
+        return original_register(self, callback, *filters, **kwargs)
+
+    monkeypatch.setattr(TelegramEventObserver, "register", spy_register)
+
+    asyncio.run(main.run_bot())
+
+    assert main.handle_dispatcher_error in registered

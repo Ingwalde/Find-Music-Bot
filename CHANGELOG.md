@@ -4,6 +4,75 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.3.2] - 2026-07-29
+
+### Added
+- Circuit breaker for network-level outages against Spotify, Deezer, and Genius
+  (`app/utils/http_retry.py`) — trips after 3 consecutive fully-exhausted calls with a
+  pure connection/timeout failure (not HTTP 4xx/5xx), short-circuits further requests to
+  that service for `EXTERNAL_SERVICE_COOLDOWN_SECONDS` (default 60s, new setting) instead
+  of repeatedly stacking ~90s of retries per call. Per-service state, orthogonal to
+  Spotify's existing 403 cooldown.
+- Global aiogram error handler (`app/main.py`, registered on `dp.errors`) — logs and
+  records any exception that escapes a handler/callback unhandled, via the existing
+  admin-visible errors table. Previously such failures were silently dropped with no
+  user feedback and no log entry.
+- `searching_lyrics` status message is now sent before a Genius lookup and edited in
+  place with the result — the translation existed in all 8 locales but was never wired
+  up.
+- Test coverage for `handle_admin_action` (the admin bottom-menu dispatcher), previously
+  untested despite routing all 6 admin report actions.
+
+### Changed
+- `callback_router` (`app/bot/callbacks.py`) now guards against malformed/stale
+  `callback_data` (missing separator, non-numeric page value) instead of raising past
+  the dispatcher.
+- `app/database/maintenance.py`: `MAINTENANCE_TABLES` now actually gates
+  `get_table_count`'s allowlist (previously only used as a DB-failure fallback); added
+  `search_cache` to the list.
+- `app/platforms/spotify/auth.py`: the token-fetch lock now covers the whole
+  fetch-or-return flow, preventing concurrent callers from duplicating a Spotify token
+  request.
+- `app/services/recommendations_service.py`: deduplicated the numbered-list formatting
+  logic into a shared helper.
+- `app/services/lyrics_service.py`: error handling now matches `deezer_service.py`'s
+  convention (broader exception handling covering response parsing).
+- `app/localization/translator.py`: `t()` now falls back to the unformatted string
+  instead of raising when a translation's placeholders don't match the supplied
+  arguments.
+
+### Fixed
+- Corrected a CHANGELOG ordering mistake: the v3.3.1 entry was listed below v3.3.0
+  instead of above it.
+- 10 stale "Uses testcontainers" test docstrings updated to describe the compose
+  test-postgres service.
+- Removed two confirmed-dead functions: `clear_search_context()` and
+  `remove_keyboard()`.
+
+### Notes
+- No breaking changes. The circuit breaker and global error handler are the only
+  behavior changes with real-world effect; both are additive safety nets.
+
+---
+
+## [v3.3.1] - 2026-07-29
+
+### Fixed
+- Backfilled the missing v3.1.2 CHANGELOG entry (was documented in `docs/ROADMAP.md` and
+  `docs/ARCHITECTURE.md`, never made it into `CHANGELOG.md`).
+- Removed the stale `testcontainers` line from README's Tech Stack section (removed from
+  `requirements/dev.txt` by the compose-postgres chore, no longer used).
+- Replaced README's stale "Roadmap" block (still listed v2.6.1/v3.0.0 as planned; both
+  shipped long ago) with a pointer to `docs/ROADMAP.md`.
+
+### Changed
+- `.gitignore` now excludes `graphify-out/` (local tooling output, not project source).
+
+### Notes
+- Documentation-only patch. No code behavior changes.
+
+---
+
 ## [v3.3.0] - 2026-07-28
 
 ### Added
@@ -25,24 +94,6 @@ All notable changes to this project will be documented in this file.
 ### Notes
 - No user-facing change; polling remains the default. See docs/DEPLOYMENT.md for
   webhook setup, certificate generation, and required firewall rules.
-
----
-
-## [v3.3.1] - 2026-07-29
-
-### Fixed
-- Backfilled the missing v3.1.2 CHANGELOG entry (was documented in `docs/ROADMAP.md` and
-  `docs/ARCHITECTURE.md`, never made it into `CHANGELOG.md`).
-- Removed the stale `testcontainers` line from README's Tech Stack section (removed from
-  `requirements/dev.txt` by the compose-postgres chore, no longer used).
-- Replaced README's stale "Roadmap" block (still listed v2.6.1/v3.0.0 as planned; both
-  shipped long ago) with a pointer to `docs/ROADMAP.md`.
-
-### Changed
-- `.gitignore` now excludes `graphify-out/` (local tooling output, not project source).
-
-### Notes
-- Documentation-only patch. No code behavior changes.
 
 ---
 

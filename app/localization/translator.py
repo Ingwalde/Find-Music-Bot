@@ -14,6 +14,9 @@ from app.localization.locales.it import TRANSLATIONS as IT
 from app.localization.locales.no import TRANSLATIONS as NO
 from app.localization.locales.pl import TRANSLATIONS as PL
 from app.localization.locales.uk import TRANSLATIONS as UK
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 LOCALE_OVERRIDES = {
     "uk": UK,
@@ -40,7 +43,13 @@ def t(key: str, language: str = DEFAULT_LANGUAGE, **kwargs) -> str:
     text = language_pack.get(key, TRANSLATIONS[DEFAULT_LANGUAGE].get(key, key))
 
     if kwargs:
-        return text.format(**kwargs)
+        try:
+            return text.format(**kwargs)
+        except (KeyError, IndexError, ValueError) as error:
+            logger.warning(
+                "Translation format failed for key=%r language=%r: %s", key, language, error
+            )
+            return text
 
     return text
 

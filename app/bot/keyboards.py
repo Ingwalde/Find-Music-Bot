@@ -15,7 +15,6 @@ from app.bot.keyboard_menus import (  # noqa: F401
     admin_menu_keyboard,
     back_to_main_menu_keyboard,
     main_menu_keyboard,
-    remove_keyboard,
     search_mode_keyboard,
 )
 from app.bot.keyboard_search import search_results_keyboard  # noqa: F401

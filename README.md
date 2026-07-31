@@ -2,11 +2,26 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.3.1 — Documentation Fixes`
+**Current version:** `v3.3.2 — Reliability & Observability`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.3.2
+
+- Added a circuit breaker for network-level outages against Spotify, Deezer, or Genius —
+  after 3 consecutive fully-failed calls to one service, further requests to it are
+  short-circuited for a cooldown period instead of repeatedly retrying a service that's
+  unreachable.
+- Added a global error handler so an unexpected failure now always gets logged and
+  recorded, instead of silently dropping the interaction.
+- The lyrics lookup now shows a "searching..." status message while it looks up the
+  Genius page.
+- Various internal reliability fixes (see [CHANGELOG.md](CHANGELOG.md) for details). No
+  breaking changes.
 
 ---
 

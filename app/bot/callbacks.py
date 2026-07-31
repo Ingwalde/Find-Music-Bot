@@ -54,86 +54,97 @@ async def callback_router(call: CallbackQuery, bot: Bot) -> None:
     data = call.data or ""
     language = await get_user_language(call.from_user.id)
 
-    if data.startswith(f"{CB_LANGUAGE}:"):
-        language_code = data.split(":", 1)[1]
-        await handle_language_callback(bot, call, language_code)
-        return
+    try:
+        if data.startswith(f"{CB_LANGUAGE}:"):
+            language_code = data.split(":", 1)[1]
+            await handle_language_callback(bot, call, language_code)
+            return
 
-    if data.startswith(f"{CB_TRACK}:"):
-        track_id = data.split(":", 1)[1]
-        await handle_track_callback(bot, call, track_id)
-        return
+        if data.startswith(f"{CB_TRACK}:"):
+            track_id = data.split(":", 1)[1]
+            await handle_track_callback(bot, call, track_id)
+            return
 
-    if data.startswith(f"{CB_PAGE}:"):
-        page = int(data.split(":", 1)[1])
-        await handle_page_callback(bot, call, page)
-        return
+        if data.startswith(f"{CB_PAGE}:"):
+            page = int(data.split(":", 1)[1])
+            await handle_page_callback(bot, call, page)
+            return
 
-    if data == ACTION_BACK_RESULTS:
-        await handle_back_to_results_callback(bot, call)
-        return
+        if data == ACTION_BACK_RESULTS:
+            await handle_back_to_results_callback(bot, call)
+            return
 
-    if data.startswith(f"{CB_FAVORITE}:"):
-        track_id = data.split(":", 1)[1]
-        await handle_favorite_callback(bot, call, track_id)
-        return
+        if data.startswith(f"{CB_FAVORITE}:"):
+            track_id = data.split(":", 1)[1]
+            await handle_favorite_callback(bot, call, track_id)
+            return
 
-    if data.startswith(f"{CB_UNFAVORITE}:"):
-        track_id = data.split(":", 1)[1]
-        await handle_remove_favorite_callback(bot, call, track_id)
-        return
+        if data.startswith(f"{CB_UNFAVORITE}:"):
+            track_id = data.split(":", 1)[1]
+            await handle_remove_favorite_callback(bot, call, track_id)
+            return
 
-    if data == ACTION_FAVORITES_CLEAR_REQUEST:
-        await handle_clear_favorites_request_callback(bot, call)
-        return
+        if data == ACTION_FAVORITES_CLEAR_REQUEST:
+            await handle_clear_favorites_request_callback(bot, call)
+            return
 
-    if data == ACTION_FAVORITES_CLEAR_CONFIRM:
-        await handle_clear_favorites_confirm_callback(bot, call)
-        return
+        if data == ACTION_FAVORITES_CLEAR_CONFIRM:
+            await handle_clear_favorites_confirm_callback(bot, call)
+            return
 
-    if data == ACTION_FAVORITES_CLEAR_CANCEL:
-        await handle_clear_favorites_cancel_callback(bot, call)
-        return
+        if data == ACTION_FAVORITES_CLEAR_CANCEL:
+            await handle_clear_favorites_cancel_callback(bot, call)
+            return
 
-    if data.startswith(f"{CB_LYRICS}:"):
-        track_id = data.split(":", 1)[1]
-        await handle_lyrics_callback(bot, call, track_id)
-        return
+        if data.startswith(f"{CB_LYRICS}:"):
+            track_id = data.split(":", 1)[1]
+            await handle_lyrics_callback(bot, call, track_id)
+            return
 
-    if data.startswith(f"{CB_SIMILAR}:"):
-        track_id = data.split(":", 1)[1]
-        await handle_similar_callback(bot, call, track_id)
-        return
+        if data.startswith(f"{CB_SIMILAR}:"):
+            track_id = data.split(":", 1)[1]
+            await handle_similar_callback(bot, call, track_id)
+            return
 
-    if data.startswith(f"{CB_HISTORY}:"):
-        search_id = data.split(":", 1)[1]
-        await handle_history_search_callback(bot, call, search_id)
-        return
+        if data.startswith(f"{CB_HISTORY}:"):
+            search_id = data.split(":", 1)[1]
+            await handle_history_search_callback(bot, call, search_id)
+            return
 
-    if data == ACTION_HISTORY_CLEAR_REQUEST:
-        await handle_clear_history_request_callback(bot, call)
-        return
+        if data == ACTION_HISTORY_CLEAR_REQUEST:
+            await handle_clear_history_request_callback(bot, call)
+            return
 
-    if data == ACTION_HISTORY_CLEAR_CONFIRM:
-        await handle_clear_history_confirm_callback(bot, call)
-        return
+        if data == ACTION_HISTORY_CLEAR_CONFIRM:
+            await handle_clear_history_confirm_callback(bot, call)
+            return
 
-    if data == ACTION_HISTORY_CLEAR_CANCEL:
-        await handle_clear_history_cancel_callback(bot, call)
-        return
+        if data == ACTION_HISTORY_CLEAR_CANCEL:
+            await handle_clear_history_cancel_callback(bot, call)
+            return
 
-    if data == ACTION_MAIN_MENU:
-        await bot.answer_callback_query(call.id)
-        await show_main_menu(bot, call.message.chat.id, call.from_user.id)
-        return
+        if data == ACTION_MAIN_MENU:
+            await bot.answer_callback_query(call.id)
+            await show_main_menu(bot, call.message.chat.id, call.from_user.id)
+            return
 
-    if data == ACTION_SEARCH_AGAIN:
-        await bot.answer_callback_query(call.id)
-        await ask_for_music(bot, call.message.chat.id, call.from_user.id)
-        return
+        if data == ACTION_SEARCH_AGAIN:
+            await bot.answer_callback_query(call.id)
+            await ask_for_music(bot, call.message.chat.id, call.from_user.id)
+            return
 
-    if data == ACTION_NOOP:
-        await bot.answer_callback_query(call.id)
+        if data == ACTION_NOOP:
+            await bot.answer_callback_query(call.id)
+            return
+    except (IndexError, ValueError):
+        # Malformed/stale callback_data (missing the expected ":" suffix, or a
+        # non-numeric CB_PAGE value) — answer like any other unrecognized
+        # action instead of raising past the dispatcher.
+        await bot.answer_callback_query(
+            call.id,
+            t("unknown_action", language),
+            show_alert=False,
+        )
         return
 
     await bot.answer_callback_query(
