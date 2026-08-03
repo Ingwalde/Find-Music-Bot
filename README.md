@@ -2,11 +2,24 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.3.2 — Reliability & Observability`
+**Current version:** `v3.3.3 — Documentation Fixes`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.3.3
+
+- `DATABASE_URL` is now correctly documented as **required** in the Setup section — the
+  bot refuses to start without it. Previously the README listed only `BOT_TOKEN`.
+- Removed the stale `DATABASE_PATH` line from the optional env block (it is migration-only)
+  and corrected the "Database features" and "Stored data" sections to reflect Alembic
+  ownership of the schema (in place since v3.1.1).
+- Fixed the Docker Support section and Project Structure to show `docker-compose.yml` in
+  the project root (moved there in v3.2.0), not under `deploy/`.
+- Documentation-only patch. No code behavior changes.
 
 ---
 
@@ -239,13 +252,13 @@ Stored data includes:
 - Search history.
 - Spotify cached links.
 - Error history.
-- Schema migration version.
+- Alembic schema version (`alembic_version` table).
 
 Database features:
 
 - Async connection pool (asyncpg).
-- Schema initialization on first startup.
-- Index creation.
+- Schema and indexes owned by Alembic migrations (`migrations/versions/`),
+  applied with `alembic upgrade head` at container start.
 - Repository modules split by domain.
 - Compatibility repository facade for stable imports.
 - Database maintenance helpers.
@@ -280,7 +293,8 @@ python scripts/check_locale_coverage.py
 
 ### Docker Support
 
-Docker files are stored in `deploy/`.
+The Dockerfile lives in `deploy/`; `docker-compose.yml` is in the project root
+(so `docker compose` auto-loads `.env` — no `-f`/`--env-file` flags needed).
 
 Build image:
 
@@ -354,8 +368,9 @@ config/
 └── admins.example.json  # Public admin config template
 
 deploy/
-├── Dockerfile           # Container image definition
-└── docker-compose.yml   # Local Docker Compose startup
+└── Dockerfile           # Container image definition
+
+docker-compose.yml       # Compose stack (bot, postgres, test-postgres) — project root
 
 docs/                    # Architecture, deployment, roadmap and release workflow docs
 migrations/              # Alembic schema migrations (versions/, env.py) — schema source of truth
@@ -430,7 +445,12 @@ Required:
 
 ```env
 BOT_TOKEN=your_telegram_bot_token_here
+DATABASE_URL=postgresql://music_user:changeme@postgres:5432/music_bot
 ```
+
+The bot refuses to start if `DATABASE_URL` is missing. When using Docker
+Compose, `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` must match the
+credentials in `DATABASE_URL` — see `.env.example`.
 
 Optional:
 
@@ -441,10 +461,13 @@ SPOTIFY_CLIENT_ID=your_spotify_client_id_here
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
 SPOTIFY_MARKET=NO
 ADMIN_ID=your_telegram_user_id
-DATABASE_PATH=data/music_bot.db
 LOG_FILE_PATH=logs/bot.log
 LOG_LEVEL=INFO
 ```
+
+> `DATABASE_PATH` also appears in `.env.example`, but it is only read by the
+> one-time `scripts/migrate_sqlite_to_postgres.py` migration script — the live
+> database is PostgreSQL and needs `DATABASE_URL`.
 
 ### 5. Configure local admin IDs
 

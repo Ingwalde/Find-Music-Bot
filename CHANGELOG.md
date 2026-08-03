@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.3.3] - 2026-08-03
+
+### Fixed
+- `README.md`: `DATABASE_URL` is now listed under Required — the bot refuses to start
+  without it (`settings.validate()`), but the Setup section previously listed only
+  `BOT_TOKEN` and omitted `DATABASE_URL` entirely.
+- `README.md`: removed the stale `DATABASE_PATH` line from the "Optional" env block and
+  added a note that it is only read by the one-time `scripts/migrate_sqlite_to_postgres.py`
+  script — the live database is PostgreSQL.
+- `README.md`: "Database features" no longer claims "Schema initialization on first
+  startup" and "Index creation" — schema and indexes are owned by Alembic
+  (`migrations/versions/`, applied with `alembic upgrade head`) since v3.1.1.
+- `README.md`: "Stored data" now names the `alembic_version` table instead of the retired
+  hand-built "Schema migration version".
+- `README.md`: Docker Support section and Project Structure now show `docker-compose.yml`
+  in the project root (moved there in v3.2.0), not under `deploy/`.
+
+### Changed
+- `requirements/base.txt`: documented that `sqlalchemy` is present only as an Alembic
+  dependency — schema is raw SQL via `op.execute()`, the app runtime uses asyncpg with no
+  ORM/Core models.
+
+---
+
 ## [v3.3.2] - 2026-07-29
 
 ### Added
