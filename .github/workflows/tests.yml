@@ -12,7 +12,7 @@ on:
 
 jobs:
   tests:
-    name: Ruff, Pytest Coverage, Release Cleanup and Docker Build
+    name: Ruff, Security Scan, Pytest Coverage, Release Cleanup and Docker Build
     runs-on: ubuntu-latest
 
     services:
@@ -57,6 +57,11 @@ jobs:
 
       - name: Run Ruff
         run: python -m ruff check .
+
+      - name: Scan dependencies for known vulnerabilities
+        run: |
+          python -m pip install pip-audit
+          python -m pip-audit -r requirements/base.txt
 
       - name: Run database migrations
         run: alembic upgrade head
