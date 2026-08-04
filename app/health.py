@@ -9,6 +9,7 @@ from app.platforms.spotify.auth import (
     is_spotify_configured,
     is_spotify_temporarily_blocked,
 )
+from app.services.redis_client import get_redis_client
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,24 @@ def check_genius() -> HealthItem:
     return HealthItem(name="Genius", ok=True, message="Optional token is not configured")
 
 
+async def check_redis() -> HealthItem:
+    """
+    Checks Redis connectivity. Skipped when REDIS_URL is not configured.
+    """
+    if not settings.REDIS_URL:
+        return HealthItem(name="Redis", ok=True, message="Not configured (in-memory fallback active)")
+
+    client = get_redis_client()
+    if client is None:
+        return HealthItem(name="Redis", ok=False, message="Client not initialised")
+
+    try:
+        await client.ping()
+        return HealthItem(name="Redis", ok=True, message="OK")
+    except Exception as error:
+        return HealthItem(name="Redis", ok=False, message=f"Unavailable: {error}")
+
+
 async def get_health_items() -> list[HealthItem]:
     """
     Returns health diagnostics used by the admin /health command.
@@ -93,6 +112,7 @@ async def get_health_items() -> list[HealthItem]:
         check_deezer(),
         check_spotify(),
         check_genius(),
+        await check_redis(),
     ]
 
 

@@ -83,6 +83,9 @@ jobs:
       - name: Validate release cleanup
         run: python scripts/check_release_clean.py
 
+      - name: Check env example coverage
+        run: python scripts/check_env_example.py
+
       - name: Check locale coverage
         run: python scripts/check_locale_coverage.py
 

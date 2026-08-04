@@ -3,10 +3,17 @@ import uuid
 from collections import deque
 from time import time
 
+from prometheus_client import Counter
+
 from app.config.settings import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+_rate_limit_blocked = Counter(
+    "bot_rate_limit_blocked_total",
+    "Total number of requests blocked by rate limiting",
+)
 
 _request_timestamps: dict[int, deque] = {}
 _warned_users: set[int] = set()
@@ -22,6 +29,7 @@ async def _check_rate_limit_memory(telegram_id: int) -> bool:
         while timestamps and current_time - timestamps[0] > window:
             timestamps.popleft()
         if len(timestamps) >= max_requests:
+            _rate_limit_blocked.inc()
             return False
         timestamps.append(current_time)
         _warned_users.discard(telegram_id)
@@ -44,6 +52,7 @@ async def _check_rate_limit_redis(client, telegram_id: int) -> bool:
     count = results[2]
     if count > settings.RATE_LIMIT_MAX_REQUESTS:
         await client.zrem(key, member)
+        _rate_limit_blocked.inc()
         return False
     await client.delete(f"warn:{telegram_id}")
     return True

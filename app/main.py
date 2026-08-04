@@ -67,6 +67,18 @@ def _create_monitoring_server() -> uvicorn.Server:
     return uvicorn.Server(config)
 
 
+def _log_startup_config() -> None:
+    logger.info(
+        "Startup config: mode=%s redis=%s spotify=%s rate_limit=%s/%ss shutdown_timeout=%ss",
+        settings.BOT_MODE,
+        "enabled" if settings.REDIS_URL else "disabled",
+        "enabled" if settings.spotify_enabled else "disabled",
+        settings.RATE_LIMIT_MAX_REQUESTS,
+        settings.RATE_LIMIT_WINDOW_SECONDS,
+        settings.SHUTDOWN_TIMEOUT_SECONDS,
+    )
+
+
 async def run_bot() -> None:
     await init_db_pool()
 
@@ -75,6 +87,8 @@ async def run_bot() -> None:
             await init_redis(settings.REDIS_URL)
         except Exception as exc:
             logger.warning("Redis unavailable (%s) — rate limiting and trending cache use in-memory fallback.", exc)
+
+    _log_startup_config()
 
     bot = create_bot()
     dp = Dispatcher()
