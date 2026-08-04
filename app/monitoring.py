@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.database.db import get_pool
 from app.utils.logger import setup_logger
@@ -55,6 +56,14 @@ def create_app() -> FastAPI:
         if await _check_database_ready():
             return JSONResponse(status_code=200, content={"status": "ok"})
         return JSONResponse(status_code=503, content={"status": "unavailable"})
+
+    @app.get("/metrics")
+    async def metrics() -> Response:
+        """
+        Prometheus metrics endpoint. Scraped by Prometheus or any compatible
+        agent (Grafana Agent, VictoriaMetrics, etc.).
+        """
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     return app
 
