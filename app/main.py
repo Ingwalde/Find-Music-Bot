@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import ErrorEvent, FSInputFile
 
 from app.bot.callbacks import router as callbacks_router
+from app.bot.correlation_middleware import CorrelationMiddleware
 from app.bot.handlers import router as handlers_router
 from app.config.settings import settings
 from app.database.db import close_db_pool, init_db_pool
@@ -70,6 +71,7 @@ async def run_bot() -> None:
     bot = create_bot()
     dp = Dispatcher()
     dp.errors.register(handle_dispatcher_error)
+    dp.update.middleware(CorrelationMiddleware())
 
     dp.include_router(handlers_router)
     dp.include_router(callbacks_router)

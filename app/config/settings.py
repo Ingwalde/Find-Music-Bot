@@ -46,6 +46,7 @@ class Settings:
     MAX_HISTORY_PER_USER: int = int(os.getenv("MAX_HISTORY_PER_USER", "100"))
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+    LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text").lower()
     LOG_FILE_PATH: str = os.getenv("LOG_FILE_PATH", "logs/bot.log")
     ERROR_HISTORY_LIMIT: int = int(os.getenv("ERROR_HISTORY_LIMIT", "10"))
     ADMIN_ID: int | None = parse_optional_int(os.getenv("ADMIN_ID"))
@@ -127,6 +128,9 @@ class Settings:
             raise ValueError(
                 "LOG_LEVEL must be one of: DEBUG, INFO, WARNING, ERROR, CRITICAL."
             )
+
+        if self.LOG_FORMAT not in {"text", "json"}:
+            raise ValueError("LOG_FORMAT must be 'text' or 'json'.")
 
         if self.ERROR_HISTORY_LIMIT < 1:
             raise ValueError("ERROR_HISTORY_LIMIT must be greater than 0.")

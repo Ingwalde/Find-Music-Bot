@@ -4,6 +4,11 @@ import time
 import httpx
 
 from app.config.settings import settings
+from app.utils.metrics import (
+    circuit_breaker_open,
+    external_api_latency_seconds,
+    external_api_requests_total,
+)
 
 RETRY_MAX_ATTEMPTS = 3
 RETRY_FIXED_PAUSE_SECONDS = 1
@@ -28,6 +33,8 @@ def reset_circuit_breakers() -> None:
     """
     _breaker_failure_counts.clear()
     _breaker_blocked_until.clear()
+    for service in list(circuit_breaker_open._metrics.keys()):
+        circuit_breaker_open.labels(service=service[0]).set(0)
 
 
 async def _check_breaker(service: str) -> None:
@@ -55,6 +62,7 @@ async def _record_breaker_outcome(service: str, *, failed: bool) -> None:
     async with _breaker_lock:
         if not failed:
             _breaker_failure_counts[service] = 0
+            circuit_breaker_open.labels(service=service).set(0)
             return
 
         count = _breaker_failure_counts.get(service, 0) + 1
@@ -64,6 +72,7 @@ async def _record_breaker_outcome(service: str, *, failed: bool) -> None:
             _breaker_blocked_until[service] = (
                 time.time() + settings.EXTERNAL_SERVICE_COOLDOWN_SECONDS
             )
+            circuit_breaker_open.labels(service=service).set(1)
 
 
 async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -> httpx.Response:
@@ -90,12 +99,17 @@ async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -
     await _check_breaker(service)
 
     last_error: Exception | None = None
+    start = time.monotonic()
 
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
             response = await request_fn(url, **kwargs)
             response.raise_for_status()
             await _record_breaker_outcome(service, failed=False)
+            external_api_requests_total.labels(service=service, outcome="success").inc()
+            external_api_latency_seconds.labels(service=service).observe(
+                time.monotonic() - start
+            )
             return response
         except httpx.HTTPStatusError as error:
             status = error.response.status_code
@@ -106,6 +120,7 @@ async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -
             elif 500 <= status < 600:
                 pause = RETRY_FIXED_PAUSE_SECONDS
             else:
+                external_api_requests_total.labels(service=service, outcome="error").inc()
                 raise
 
             last_error = error
@@ -119,6 +134,8 @@ async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -
     if isinstance(last_error, BREAKER_TRANSIENT_ERRORS):
         await _record_breaker_outcome(service, failed=True)
 
+    external_api_requests_total.labels(service=service, outcome="error").inc()
+    external_api_latency_seconds.labels(service=service).observe(time.monotonic() - start)
     raise last_error
 
 
