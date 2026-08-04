@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.4.2] - 2026-08-04
+
+### Added
+- **Property-based tests** — Hypothesis (`hypothesis>=6.100.0`) added to dev
+  dependencies. `tests/test_property_based.py` covers six pure functions with
+  generated inputs:
+  - `convert_duration`: output format, colon count, 2-digit segments, exact
+    round-trip for all values 0–359 999 s.
+  - `normalize_query`: idempotent, always lowercase, always stripped.
+  - `get_popularity_label`: correct label for every rank range, None passthrough.
+  - `format_track_card`: supplied title/artist/album always appear in output,
+    fallback strings used for missing keys.
+  - `truncate_text`: result never exceeds `max_length`; short inputs unchanged.
+  - `split_long_message`: every chunk fits; reassembled output equals original.
+- **Concurrency test** — `test_concurrent_check_breaker_only_one_probe_wins`
+  launches 8 concurrent callers against a half-open breaker and asserts exactly
+  one wins the probe slot while the other 7 are blocked.
+- **Partial-failure tests** — two new tests in `tests/test_resilience.py` assert
+  that HTTP 4xx (client error, immediate raise) and HTTP 5xx (server error,
+  exhausted retries) do **not** trip the circuit breaker — only transient network
+  errors (`TimeoutException`, `ConnectError`) do.
+
+### Notes
+- No production code changes. No schema changes. No breaking changes.
+
+---
+
 ## [v3.4.1] - 2026-08-04
 
 ### Added

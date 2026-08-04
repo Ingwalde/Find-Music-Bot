@@ -181,3 +181,62 @@ async def test_drain_times_out_and_returns_when_handlers_stuck():
         await asyncio.wait_for(drain_handlers(timeout=0.1), timeout=1.0)
     finally:
         sm._in_flight = 0
+
+
+# ---------------------------------------------------------------------------
+# Concurrency: only one probe wins when multiple callers race
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_concurrent_check_breaker_only_one_probe_wins():
+    """N concurrent callers in half-open state: exactly one gets the probe slot."""
+    service = "race_probe"
+
+    # Expired cooldown → half-open
+    http_retry._breaker_blocked_until[service] = time_module.time() - 1
+
+    results = []
+
+    async def call_check():
+        try:
+            is_probe = await http_retry._check_breaker(service)
+            results.append("probe" if is_probe else "closed")
+        except Exception:
+            results.append("blocked")
+
+    await asyncio.gather(*[call_check() for _ in range(8)])
+
+    assert results.count("probe") == 1
+    assert results.count("blocked") == 7
+
+
+# ---------------------------------------------------------------------------
+# Partial-failure: only transient network errors trip the breaker
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_partial_failure_4xx_does_not_trip_breaker(mock_retry_sleep):
+    service = "partial_4xx"
+    request = httpx.Request("GET", "https://x.com")
+
+    for _ in range(BREAKER_FAILURE_THRESHOLD):
+        err = httpx.HTTPStatusError("404", request=request, response=make_response(404))
+        with pytest.raises(httpx.HTTPStatusError):
+            await get_with_retry(FakeClient([err]), "https://x.com", service=service)
+
+    assert service not in http_retry._breaker_blocked_until
+
+
+@pytest.mark.asyncio
+async def test_partial_failure_5xx_exhausted_does_not_trip_breaker(mock_retry_sleep):
+    service = "partial_5xx"
+    request = httpx.Request("GET", "https://x.com")
+
+    for _ in range(BREAKER_FAILURE_THRESHOLD):
+        err = httpx.HTTPStatusError("503", request=request, response=make_response(503))
+        with pytest.raises(httpx.HTTPStatusError):
+            await get_with_retry(FakeClient([err] * 3), "https://x.com", service=service)
+
+    assert service not in http_retry._breaker_blocked_until
