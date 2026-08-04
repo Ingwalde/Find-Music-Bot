@@ -12,7 +12,7 @@ on:
 
 jobs:
   tests:
-    name: Ruff, Security Scan, Pytest Coverage, Release Cleanup and Docker Build
+    name: Ruff, Pytest Coverage, Release Cleanup and Docker Build
     runs-on: ubuntu-latest
 
     services:
