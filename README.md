@@ -2,11 +2,22 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.4.0 — Observability`
+**Current version:** `v3.4.1 — Graceful Resilience`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.4.1
+
+- Added graceful shutdown drain — in-flight Telegram handlers are now given up to
+  `SHUTDOWN_TIMEOUT_SECONDS` (default 30s) to finish before the bot session and DB pool
+  are closed on SIGTERM. Previously a handler mid-DB-call would receive `CancelledError`.
+- Added circuit breaker half-open state — after cooldown, exactly one probe request is
+  allowed through; all other callers see the breaker as open until the probe resolves.
+- No user-facing changes.
 
 ---
 
