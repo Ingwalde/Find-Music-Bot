@@ -11,6 +11,7 @@ from app.bot.shutdown_middleware import ShutdownMiddleware, drain_handlers
 from app.config.settings import settings
 from app.database.db import close_db_pool, init_db_pool
 from app.monitoring import create_app
+from app.services.redis_client import close_redis, init_redis
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.webhook import run_webhook_server, webhook_url
@@ -68,6 +69,12 @@ def _create_monitoring_server() -> uvicorn.Server:
 
 async def run_bot() -> None:
     await init_db_pool()
+
+    if settings.REDIS_URL:
+        try:
+            await init_redis(settings.REDIS_URL)
+        except Exception as exc:
+            logger.warning("Redis unavailable (%s) — rate limiting and trending cache use in-memory fallback.", exc)
 
     bot = create_bot()
     dp = Dispatcher()
@@ -140,6 +147,7 @@ async def run_bot() -> None:
         await drain_handlers(settings.SHUTDOWN_TIMEOUT_SECONDS)
         await bot.session.close()
         await close_db_pool()
+        await close_redis()
 
 
 def main() -> None:

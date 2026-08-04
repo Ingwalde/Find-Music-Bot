@@ -71,6 +71,8 @@ class Settings:
     RATE_LIMIT_MAX_REQUESTS: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "20"))
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
+    REDIS_URL: str | None = os.getenv("REDIS_URL")
+
     # Webhook mode (v3.3.0+) — polling stays the default; only used when BOT_MODE=webhook.
     BOT_MODE: str = os.getenv("BOT_MODE", "polling")
     WEBHOOK_PUBLIC_URL: str | None = os.getenv("WEBHOOK_PUBLIC_URL")

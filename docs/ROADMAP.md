@@ -46,11 +46,9 @@
 - `v3.4.1` — Graceful Resilience (SIGTERM drain, breaker half-open state)
 - `v3.4.2` — Test Depth (property-based tests, concurrency/race scenarios)
 - `v3.5.0` — Admin Audit & Rate Limit Hardening
+- `v3.6.0` — Redis Stateless State
 
 ## Planned
-
-
-- `v3.5.0` — Admin Audit & Rate Limit Hardening
 
 ## Not Planned for v3.x
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from time import time
 
 from app.database.repositories import get_track_by_deezer_id, get_tracks_by_artist
@@ -13,6 +14,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _TRENDING_TTL = 3600
+_TRENDING_REDIS_KEY = "trending:tracks"
 
 _trending_cache: dict = {"tracks": [], "expires_at": 0.0}
 _trending_cache_lock = asyncio.Lock()
@@ -20,16 +22,36 @@ _trending_cache_lock = asyncio.Lock()
 
 async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
     """
-    Returns trending tracks using an in-memory cache with a 1-hour TTL.
-    fetch_fn is an async callable, called only when the cache is expired or empty.
+    Returns trending tracks, checking Redis first (if available), then in-memory,
+    then fetching fresh. TTL is 1 hour in both backends.
     """
+    from app.services.redis_client import get_redis_client
+
+    client = get_redis_client()
+    if client is not None:
+        try:
+            cached = await client.get(_TRENDING_REDIS_KEY)
+            if cached:
+                logger.info("Returning trending tracks from Redis cache")
+                return json.loads(cached)
+        except Exception:
+            logger.warning("Redis trending cache read failed, using in-memory fallback")
+
     async with _trending_cache_lock:
         if time() < _trending_cache["expires_at"] and _trending_cache["tracks"]:
-            logger.info("Returning trending tracks from cache")
+            logger.info("Returning trending tracks from in-memory cache")
             return list(_trending_cache["tracks"])
 
     logger.info("Cache expired or empty — fetching trending tracks")
     tracks = await fetch_fn(limit)
+
+    if client is not None:
+        try:
+            await client.set(_TRENDING_REDIS_KEY, json.dumps(tracks), ex=_TRENDING_TTL)
+            logger.info("Trending tracks stored in Redis cache")
+            return tracks
+        except Exception:
+            logger.warning("Redis trending cache write failed, using in-memory fallback")
 
     async with _trending_cache_lock:
         _trending_cache["tracks"] = tracks
@@ -39,7 +61,7 @@ async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
 
 
 def invalidate_trending_cache() -> None:
-    """Resets the trending cache. Useful for tests."""
+    """Resets the in-memory trending cache. For tests and emergency cache busting."""
     _trending_cache["tracks"] = []
     _trending_cache["expires_at"] = 0.0
 
