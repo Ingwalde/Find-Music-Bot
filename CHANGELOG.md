@@ -4,6 +4,91 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.4.2] - 2026-08-04
+
+### Added
+- **Property-based tests** — Hypothesis (`hypothesis>=6.100.0`) added to dev
+  dependencies. `tests/test_property_based.py` covers six pure functions with
+  generated inputs:
+  - `convert_duration`: output format, colon count, 2-digit segments, exact
+    round-trip for all values 0–359 999 s.
+  - `normalize_query`: idempotent, always lowercase, always stripped.
+  - `get_popularity_label`: correct label for every rank range, None passthrough.
+  - `format_track_card`: supplied title/artist/album always appear in output,
+    fallback strings used for missing keys.
+  - `truncate_text`: result never exceeds `max_length`; short inputs unchanged.
+  - `split_long_message`: every chunk fits; reassembled output equals original.
+- **Concurrency test** — `test_concurrent_check_breaker_only_one_probe_wins`
+  launches 8 concurrent callers against a half-open breaker and asserts exactly
+  one wins the probe slot while the other 7 are blocked.
+- **Partial-failure tests** — two new tests in `tests/test_resilience.py` assert
+  that HTTP 4xx (client error, immediate raise) and HTTP 5xx (server error,
+  exhausted retries) do **not** trip the circuit breaker — only transient network
+  errors (`TimeoutException`, `ConnectError`) do.
+
+### Notes
+- No production code changes. No schema changes. No breaking changes.
+
+---
+
+## [v3.4.1] - 2026-08-04
+
+### Added
+- **Graceful shutdown drain** — `ShutdownMiddleware` tracks the count of in-flight handler
+  invocations. `drain_handlers(timeout)` is called in `run_bot()`'s finally block after the
+  polling task is cancelled, waiting up to `SHUTDOWN_TIMEOUT_SECONDS` (default 30s, new
+  setting) for all handlers to finish before closing the bot session and DB pool. Previously
+  a handler awaiting a DB call would receive `CancelledError` mid-flight on SIGTERM.
+  (`app/bot/shutdown_middleware.py`)
+- **Circuit breaker half-open state** — after the cooldown expires, exactly one probe
+  request is allowed through. While that probe is in flight all other callers see the
+  breaker as open (fail-fast). If the probe succeeds the breaker fully closes; if it fails
+  the cooldown resets. Previously all callers were allowed through simultaneously after
+  cooldown expiry. (`app/utils/http_retry.py`)
+- `SHUTDOWN_TIMEOUT_SECONDS` setting added to `app/config/settings.py`.
+
+### Notes
+- No user-facing changes. No schema changes. No breaking changes.
+
+---
+
+## [v3.4.0] - 2026-08-04
+
+### Added
+- **Structured JSON logging** — opt-in via `LOG_FORMAT=json`. When enabled, every log
+  record is emitted as a single-line JSON object with `ts`, `level`, `logger`, `message`,
+  and `correlation_id` fields, suitable for ingestion by Loki, ELK, or CloudWatch.
+  Default remains plain text; no config change means no behavior change.
+- **Correlation ID** — each incoming Telegram update is assigned a short random ID
+  (12 hex chars) via `CorrelationMiddleware`, stored in a `ContextVar`. In JSON mode the
+  ID appears in every log record emitted while that update is being handled, making it
+  possible to trace a single interaction across handler → service → platform → database.
+  (`app/utils/correlation.py`, `app/bot/correlation_middleware.py`)
+- **Prometheus `/metrics` endpoint** — exposed on port 9090 alongside `/health` and
+  `/ready`. Scraped by Prometheus, Grafana Agent, VictoriaMetrics, or any compatible
+  agent. (`app/monitoring.py`)
+- **Instrumentation** — four metrics covering the main operational signals:
+  - `bot_external_api_requests_total` (counter, labels: `service`, `outcome`) — total
+    requests to Deezer, Spotify, and Genius, labelled `success` or `error`.
+  - `bot_external_api_latency_seconds` (histogram, label: `service`) — end-to-end latency
+    per top-level retry call (not per attempt).
+  - `bot_circuit_breaker_open` (gauge, label: `service`) — 1 when a service's circuit
+    breaker is open, 0 otherwise.
+  - `bot_search_cache_hits_total` / `bot_search_cache_misses_total` (counters) — PostgreSQL
+    search cache hit and miss rate.
+  (`app/utils/metrics.py`, wired into `app/utils/http_retry.py` and
+  `app/services/search_cache_service.py`)
+- `prometheus-client==0.26.0` added to `requirements/base.txt`.
+- `LOG_FORMAT` setting added to `app/config/settings.py` (validated: `text` | `json`)
+  and documented in `.env.example`.
+
+### Notes
+- No user-facing changes. No schema changes. No breaking changes.
+- All observability features are additive — the bot's Telegram behavior is identical
+  whether or not `LOG_FORMAT=json` is set or a Prometheus scraper is configured.
+
+---
+
 ## [v3.3.3] - 2026-08-03
 
 ### Fixed
