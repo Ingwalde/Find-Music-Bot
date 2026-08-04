@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.4.1] - 2026-08-04
+
+### Added
+- **Graceful shutdown drain** — `ShutdownMiddleware` tracks the count of in-flight handler
+  invocations. `drain_handlers(timeout)` is called in `run_bot()`'s finally block after the
+  polling task is cancelled, waiting up to `SHUTDOWN_TIMEOUT_SECONDS` (default 30s, new
+  setting) for all handlers to finish before closing the bot session and DB pool. Previously
+  a handler awaiting a DB call would receive `CancelledError` mid-flight on SIGTERM.
+  (`app/bot/shutdown_middleware.py`)
+- **Circuit breaker half-open state** — after the cooldown expires, exactly one probe
+  request is allowed through. While that probe is in flight all other callers see the
+  breaker as open (fail-fast). If the probe succeeds the breaker fully closes; if it fails
+  the cooldown resets. Previously all callers were allowed through simultaneously after
+  cooldown expiry. (`app/utils/http_retry.py`)
+- `SHUTDOWN_TIMEOUT_SECONDS` setting added to `app/config/settings.py`.
+
+### Notes
+- No user-facing changes. No schema changes. No breaking changes.
+
+---
+
 ## [v3.4.0] - 2026-08-04
 
 ### Added
