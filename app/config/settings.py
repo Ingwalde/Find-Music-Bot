@@ -66,6 +66,8 @@ class Settings:
         os.getenv("EXTERNAL_SERVICE_COOLDOWN_SECONDS", "60")
     )
 
+    SHUTDOWN_TIMEOUT_SECONDS: int = int(os.getenv("SHUTDOWN_TIMEOUT_SECONDS", "30"))
+
     # Webhook mode (v3.3.0+) — polling stays the default; only used when BOT_MODE=webhook.
     BOT_MODE: str = os.getenv("BOT_MODE", "polling")
     WEBHOOK_PUBLIC_URL: str | None = os.getenv("WEBHOOK_PUBLIC_URL")
