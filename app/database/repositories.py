@@ -11,6 +11,7 @@ from app.database.maintenance import (
     cleanup_search_history,
     get_database_summary,
 )
+from app.database.repository_modules.admin_audit import get_recent_admin_audit, save_admin_audit
 from app.database.repository_modules.errors import clear_errors, get_recent_errors, save_error
 from app.database.repository_modules.favorites import (
     add_favorite,
@@ -41,6 +42,8 @@ from app.database.repository_modules.users import (
 )
 
 __all__ = [
+    "save_admin_audit",
+    "get_recent_admin_audit",
     "upsert_user",
     "get_user_id",
     "get_user_language",

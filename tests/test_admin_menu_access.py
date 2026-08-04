@@ -111,6 +111,7 @@ async def test_admin_menu_action_runs_report(monkeypatch):
     monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(handlers, "is_admin", to_async(lambda user_id: True))
     monkeypatch.setattr(handlers, "format_stats_report", to_async(lambda language="en": "stats report"))
+    monkeypatch.setattr(handlers, "save_admin_audit", to_async(lambda *a, **kw: None))
 
     await handlers.text_handler(fake_message(t("btn_admin_stats", "en")), bot)
 

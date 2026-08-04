@@ -293,6 +293,7 @@ async def live_pg(pg_schema, monkeypatch):
     import asyncpg
 
     import app.database.maintenance as maintenance_module
+    import app.database.repository_modules.admin_audit as admin_audit_module
     import app.database.repository_modules.errors as errors_module
     import app.database.repository_modules.favorites as favorites_module
     import app.database.repository_modules.search_cache as search_cache_module
@@ -306,7 +307,7 @@ async def live_pg(pg_schema, monkeypatch):
 
     async with pool.acquire() as conn:
         await conn.execute(
-            "TRUNCATE users, tracks, errors, schema_migrations, search_cache RESTART IDENTITY CASCADE"
+            "TRUNCATE users, tracks, errors, schema_migrations, search_cache, admin_audit RESTART IDENTITY CASCADE"
         )
 
     async def _get_pool():
@@ -321,6 +322,7 @@ async def live_pg(pg_schema, monkeypatch):
     monkeypatch.setattr(maintenance_module, "get_pool", _get_pool)
     monkeypatch.setattr(health_module, "get_pool", _get_pool)
     monkeypatch.setattr(search_cache_module, "get_pool", _get_pool)
+    monkeypatch.setattr(admin_audit_module, "get_pool", _get_pool)
 
     yield pool
 
