@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.6.0] - 2026-08-04
+
+### Added
+- **Redis integration** — optional Redis backend (`REDIS_URL` env var) for
+  stateless rate limiting and trending track cache. Falls back to the existing
+  in-memory implementation when Redis is unavailable or not configured.
+- **Redis rate limiting** — sliding-window algorithm using a Redis sorted set
+  (`ZADD` / `ZREMRANGEBYSCORE` / `ZCARD` pipeline). Admin-exempt flag preserved.
+  Warn-once state stored as a Redis key with `NX EX`, cleared on next successful
+  request. (`app/bot/rate_limit.py`)
+- **Redis trending cache** — trending tracks stored as a JSON blob via `SETEX`
+  with a 1-hour TTL. Cache hit serves directly from Redis; miss fetches and
+  stores. (`app/services/recommendations_service.py`)
+- `app/services/redis_client.py` — `init_redis` / `close_redis` / `get_redis_client`
+  helpers. `init_redis` called in `run_bot()` when `REDIS_URL` is set; failure
+  is non-fatal (logged as warning, bot continues with in-memory fallback).
+- `redis` service added to `docker-compose.yml` (redis:7-alpine, healthcheck);
+  `music-bot` depends on it. `test-redis` service added under the `test` profile
+  (port 6380) for local integration tests.
+- `REDIS_URL` documented in `.env.example`.
+- New integration test files: `tests/test_redis_rate_limit.py` (8 tests),
+  `tests/test_redis_trending.py` (4 tests). Both require the `test-redis` service
+  and use the `live_redis` fixture (added to `tests/conftest.py`).
+
+### Notes
+- No schema changes. No breaking changes. No user-facing changes.
+- `REDIS_URL` is optional — omit to keep the existing in-memory behaviour.
+
+---
+
 ## [v3.5.0] - 2026-08-04
 
 ### Added

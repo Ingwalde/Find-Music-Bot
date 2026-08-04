@@ -30,6 +30,16 @@ jobs:
         ports:
           - 5432:5432
 
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6380:6379
+
     env:
       BOT_TOKEN: test-token
       GENIUS_TOKEN: test-token
@@ -38,6 +48,7 @@ jobs:
       SPOTIFY_CLIENT_SECRET: test-client-secret
       ADMIN_ID: "123456789"
       DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+      REDIS_URL: redis://localhost:6380
       LOG_FILE_PATH: logs/test_bot.log
 
     steps:

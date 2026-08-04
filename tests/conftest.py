@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 import pytest_asyncio
+import redis.asyncio as aioredis
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -327,3 +328,27 @@ async def live_pg(pg_schema, monkeypatch):
     yield pool
 
     await pool.close()
+
+
+@pytest_asyncio.fixture
+async def live_redis(monkeypatch):
+    """
+    Function-scoped Redis client against the test-redis compose service.
+    Requires REDIS_URL env var (default: redis://localhost:6380).
+    Flushes the DB before and after each test for isolation.
+    Patches redis_client._client so all rate-limit and trending-cache code
+    uses this client instead of the production singleton.
+    """
+    import app.services.redis_client as redis_client_module
+
+    url = os.environ.get("REDIS_URL", "redis://localhost:6380")
+    client = aioredis.from_url(url, decode_responses=True)
+    await client.ping()
+    await client.flushdb()
+
+    monkeypatch.setattr(redis_client_module, "_client", client)
+
+    yield client
+
+    await client.flushdb()
+    await client.aclose()

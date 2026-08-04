@@ -21,6 +21,16 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: music-bot-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   music-bot:
     build:
       context: .
@@ -32,6 +42,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
     ports:
       - "9090:9090"  # exposed for host-side uptime monitoring / docker healthcheck
       - "8443:8443"  # webhook mode (v3.3.0+) — TLS terminated by the app itself
@@ -49,6 +60,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   test-postgres:
     image: postgres:16-alpine
@@ -59,6 +72,14 @@ services:
       POSTGRES_DB: testdb
     ports:
       - "127.0.0.1:5433:5432"
+    profiles:
+      - test
+
+  test-redis:
+    image: redis:7-alpine
+    container_name: music-bot-test-redis
+    ports:
+      - "127.0.0.1:6380:6379"
     profiles:
       - test
 
