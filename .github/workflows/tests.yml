@@ -61,7 +61,7 @@ jobs:
       - name: Scan dependencies for known vulnerabilities
         run: |
           python -m pip install pip-audit
-          python -m pip-audit -r requirements/base.txt
+          python -m pip_audit -r requirements/base.txt
 
       - name: Run database migrations
         run: alembic upgrade head
