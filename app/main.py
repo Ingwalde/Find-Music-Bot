@@ -7,6 +7,7 @@ from aiogram.types import ErrorEvent, FSInputFile
 from app.bot.callbacks import router as callbacks_router
 from app.bot.correlation_middleware import CorrelationMiddleware
 from app.bot.handlers import router as handlers_router
+from app.bot.shutdown_middleware import ShutdownMiddleware, drain_handlers
 from app.config.settings import settings
 from app.database.db import close_db_pool, init_db_pool
 from app.monitoring import create_app
@@ -72,6 +73,7 @@ async def run_bot() -> None:
     dp = Dispatcher()
     dp.errors.register(handle_dispatcher_error)
     dp.update.middleware(CorrelationMiddleware())
+    dp.update.middleware(ShutdownMiddleware())
 
     dp.include_router(handlers_router)
     dp.include_router(callbacks_router)
@@ -135,6 +137,7 @@ async def run_bot() -> None:
         )
         raise
     finally:
+        await drain_handlers(settings.SHUTDOWN_TIMEOUT_SECONDS)
         await bot.session.close()
         await close_db_pool()
 
