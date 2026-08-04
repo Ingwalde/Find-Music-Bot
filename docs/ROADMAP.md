@@ -45,8 +45,11 @@
 - `v3.4.0` — Observability (JSON logging, correlation ID, Prometheus metrics)
 - `v3.4.1` — Graceful Resilience (SIGTERM drain, breaker half-open state)
 - `v3.4.2` — Test Depth (property-based tests, concurrency/race scenarios)
+- `v3.5.0` — Admin Audit & Rate Limit Hardening
 
 ## Planned
+
+
 - `v3.5.0` — Admin Audit & Rate Limit Hardening
 
 ## Not Planned for v3.x

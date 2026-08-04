@@ -34,6 +34,7 @@ from app.database.repositories import (
     get_recent_errors,
     get_search_history,
     get_user_language,
+    save_admin_audit,
     upsert_user,
 )
 from app.health import format_health_report
@@ -117,8 +118,9 @@ async def show_admin_menu(bot: Bot, message: Message) -> None:
 
 async def handle_admin_action(bot: Bot, message: Message, action: str) -> None:
     language = await get_user_context(message)
+    admin_id = message.from_user.id
 
-    if not await is_admin(message.from_user.id):
+    if not await is_admin(admin_id):
         await send_admin_only_message(bot, message, language)
         return
 
@@ -126,35 +128,41 @@ async def handle_admin_action(bot: Bot, message: Message, action: str) -> None:
         await bot.send_message(
             message.chat.id, await format_stats_report(language)
         )
+        await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_maintenance":
         await bot.send_message(
             message.chat.id, await format_maintenance_report(language)
         )
+        await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_cleanup_errors":
         await bot.send_message(
             message.chat.id, await cleanup_errors_report(language)
         )
+        await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_cleanup_history":
         await bot.send_message(
             message.chat.id, await cleanup_history_report(language)
         )
+        await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_health":
         await bot.send_message(
             message.chat.id, await format_health_report()
         )
+        await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_reload_admins":
         # reload_admins_report only does in-memory lru_cache.cache_clear() — no DB I/O
         await bot.send_message(message.chat.id, reload_admins_report(language))
+        await save_admin_audit(admin_id, action)
 
 
 async def show_language_menu(bot: Bot, message: Message) -> None:
@@ -180,7 +188,8 @@ async def process_music_search(bot: Bot, message: Message) -> None:
     if text.startswith("/"):
         return
 
-    if not await check_rate_limit(message.from_user.id):
+    user_is_admin = await is_admin(message.from_user.id)
+    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
         if await should_warn_once(message.from_user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
@@ -426,7 +435,8 @@ async def similar_handler(message: Message, bot: Bot) -> None:
         await bot.send_message(message.chat.id, t("similar_no_context", language))
         return
 
-    if not await check_rate_limit(message.from_user.id):
+    user_is_admin = await is_admin(message.from_user.id)
+    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
         if await should_warn_once(message.from_user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
@@ -469,7 +479,8 @@ async def similar_handler(message: Message, bot: Bot) -> None:
 async def trending_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await check_rate_limit(message.from_user.id):
+    user_is_admin = await is_admin(message.from_user.id)
+    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
         if await should_warn_once(message.from_user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return

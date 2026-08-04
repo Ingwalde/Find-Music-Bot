@@ -1,6 +1,7 @@
 import pytest
 
 from app.bot import rate_limit
+from app.config.settings import settings
 from app.localization.translations import t
 
 
@@ -37,9 +38,16 @@ async def test_check_rate_limit_sliding_window_clears_old_requests(monkeypatch):
 
     assert await rate_limit.check_rate_limit(1) is False
 
-    current[0] += rate_limit.RATE_LIMIT_WINDOW_SECONDS + 1
+    current[0] += settings.RATE_LIMIT_WINDOW_SECONDS + 1
 
     assert await rate_limit.check_rate_limit(1) is True
+
+
+@pytest.mark.asyncio
+async def test_check_rate_limit_admin_always_allowed():
+    for _ in range(25):
+        result = await rate_limit.check_rate_limit(99, is_admin=True)
+        assert result is True
 
 
 @pytest.mark.asyncio

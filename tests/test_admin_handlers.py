@@ -79,6 +79,7 @@ async def test_handle_admin_action_routes_each_action_to_its_report(monkeypatch)
     )
     monkeypatch.setattr(handlers, "format_health_report", to_async(lambda: "health report"))
     monkeypatch.setattr(handlers, "reload_admins_report", lambda language="en": "admins reloaded")
+    monkeypatch.setattr(handlers, "save_admin_audit", to_async(lambda *a, **kw: None))
 
     msg = fake_message(user_id=123)
 

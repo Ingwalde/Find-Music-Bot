@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.5.0] - 2026-08-04
+
+### Added
+- **Admin audit log** — every admin action (stats, maintenance, cleanup, health,
+  reload admins) is recorded in a new `admin_audit` PostgreSQL table with
+  `admin_telegram_id`, `action`, optional `details` (JSONB), and `created_at`.
+  New Alembic revision `cf55a191898c`. (`migrations/versions/`,
+  `app/database/repository_modules/admin_audit.py`, wired into
+  `app/bot/handlers.py:handle_admin_action`)
+- `save_admin_audit` / `get_recent_admin_audit` added to the `repositories`
+  facade and `__all__`.
+- **Rate limit hardening** — `RATE_LIMIT_MAX_REQUESTS` (default 20) and
+  `RATE_LIMIT_WINDOW_SECONDS` (default 60) are now configurable via environment
+  variables (`app/config/settings.py`). Admin users are unconditionally exempt
+  from rate limiting via the new `is_admin` keyword argument to
+  `check_rate_limit()` — admins must never be blocked from their own tools.
+  All three call sites in `handlers.py` pass the resolved `is_admin` flag.
+
+### Notes
+- No user-facing changes for regular users. No breaking changes.
+- Schema change: one new Alembic revision. Run `alembic upgrade head` to apply.
+
+---
+
 ## [v3.4.2] - 2026-08-04
 
 ### Added
