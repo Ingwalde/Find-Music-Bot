@@ -1,5 +1,5 @@
 python-dotenv==1.2.2
-aiogram==3.29.0
+aiogram==3.30.0
 httpx==0.28.1
 asyncpg==0.31.0
 alembic==1.14.0
