@@ -41,9 +41,14 @@
 - v3.1.1 replaces the hand-built schema-migration mechanism with Alembic. Schema is owned by `migrations/versions/`; the container entrypoint runs `alembic upgrade head` before the bot starts.
 - v3.1.2 adds per-user rate limiting, automatic retry on transient external-API failures, daily log rotation, and a PostgreSQL-backed search result cache (24h TTL) — the first schema change applied through a new Alembic revision since v3.1.1 took ownership.
 
+- `v3.3.3` — Documentation Fixes
+- `v3.4.0` — Observability (JSON logging, correlation ID, Prometheus metrics)
+
 ## Planned
 
-- Revisit long-term production deployment options post-PostgreSQL cutover.
+- `v3.4.1` — Graceful Resilience (SIGTERM drain, breaker half-open state)
+- `v3.4.2` — Test Depth (property-based tests, concurrency/race scenarios)
+- `v3.5.0` — Admin Audit & Rate Limit Hardening
 
 ## Not Planned for v3.x
 

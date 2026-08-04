@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.4.0] - 2026-08-04
+
+### Added
+- **Structured JSON logging** — opt-in via `LOG_FORMAT=json`. When enabled, every log
+  record is emitted as a single-line JSON object with `ts`, `level`, `logger`, `message`,
+  and `correlation_id` fields, suitable for ingestion by Loki, ELK, or CloudWatch.
+  Default remains plain text; no config change means no behavior change.
+- **Correlation ID** — each incoming Telegram update is assigned a short random ID
+  (12 hex chars) via `CorrelationMiddleware`, stored in a `ContextVar`. In JSON mode the
+  ID appears in every log record emitted while that update is being handled, making it
+  possible to trace a single interaction across handler → service → platform → database.
+  (`app/utils/correlation.py`, `app/bot/correlation_middleware.py`)
+- **Prometheus `/metrics` endpoint** — exposed on port 9090 alongside `/health` and
+  `/ready`. Scraped by Prometheus, Grafana Agent, VictoriaMetrics, or any compatible
+  agent. (`app/monitoring.py`)
+- **Instrumentation** — four metrics covering the main operational signals:
+  - `bot_external_api_requests_total` (counter, labels: `service`, `outcome`) — total
+    requests to Deezer, Spotify, and Genius, labelled `success` or `error`.
+  - `bot_external_api_latency_seconds` (histogram, label: `service`) — end-to-end latency
+    per top-level retry call (not per attempt).
+  - `bot_circuit_breaker_open` (gauge, label: `service`) — 1 when a service's circuit
+    breaker is open, 0 otherwise.
+  - `bot_search_cache_hits_total` / `bot_search_cache_misses_total` (counters) — PostgreSQL
+    search cache hit and miss rate.
+  (`app/utils/metrics.py`, wired into `app/utils/http_retry.py` and
+  `app/services/search_cache_service.py`)
+- `prometheus-client==0.26.0` added to `requirements/base.txt`.
+- `LOG_FORMAT` setting added to `app/config/settings.py` (validated: `text` | `json`)
+  and documented in `.env.example`.
+
+### Notes
+- No user-facing changes. No schema changes. No breaking changes.
+- All observability features are additive — the bot's Telegram behavior is identical
+  whether or not `LOG_FORMAT=json` is set or a Prometheus scraper is configured.
+
+---
+
 ## [v3.3.3] - 2026-08-03
 
 ### Fixed

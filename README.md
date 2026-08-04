@@ -2,11 +2,25 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.3.3 — Documentation Fixes`
+**Current version:** `v3.4.0 — Observability`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.4.0
+
+- Added opt-in structured JSON logging (`LOG_FORMAT=json`). Each log record becomes a
+  single-line JSON object with `ts`, `level`, `logger`, `message`, and `correlation_id`.
+  Default stays plain text.
+- Added per-update correlation IDs — a short random ID is assigned to each Telegram update
+  and appears in every log record emitted while handling it, making request tracing possible.
+- Added Prometheus `/metrics` endpoint on port 9090, alongside `/health` and `/ready`.
+  Exposes external API request counts and latency (per service), circuit breaker state, and
+  search cache hit/miss counters.
+- No user-facing changes. No schema changes.
 
 ---
 
