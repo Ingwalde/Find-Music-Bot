@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.0] - 2026-08-04
+
+### Added
+- **Redis health checks** — `check_redis()` added to `app/health.py` and surfaced in
+  the admin Telegram `/health` command. `/ready` endpoint returns 503 when Redis is
+  configured but unreachable (`app/monitoring.py:_check_redis_ready`).
+- **Prometheus: `bot_rate_limit_blocked_total`** (Counter) — incremented every time a
+  request is blocked by the rate limiter (both in-memory and Redis paths).
+  (`app/bot/rate_limit.py`)
+- **Prometheus: `bot_tls_cert_expiry_days`** (Gauge) — days until the TLS certificate
+  expires, updated on every `/metrics` scrape. Active only when `WEBHOOK_CERT_PATH` is
+  set. Returns −1 when the cert file is unreadable. Uses the `cryptography` library
+  (`cryptography>=42.0.0` added to `requirements/base.txt`). (`app/monitoring.py`)
+- **Startup config log** — on bot start, key non-secret settings are logged at INFO
+  level: mode, Redis status, Spotify status, rate-limit parameters, shutdown timeout.
+  (`app/main.py:_log_startup_config`)
+- **`scripts/check_env_example.py`** — new script: scans all `os.getenv()` calls in
+  `app/` and verifies each variable is documented in `.env.example` (active or
+  commented-out examples both count). Exits 1 with a list if any are missing.
+- **CI step** — `python scripts/check_env_example.py` added to `.github/workflows/tests.yml`.
+- **`.env.example`** — added `SHUTDOWN_TIMEOUT_SECONDS`, `RATE_LIMIT_MAX_REQUESTS`,
+  `RATE_LIMIT_WINDOW_SECONDS` (were missing since v3.5.0).
+
+### Notes
+- No schema changes. No user-facing changes.
+- `WEBHOOK_CERT_PATH` already existed; no new env var needed for cert monitoring.
+
+---
+
 ## [v3.6.0] - 2026-08-04
 
 ### Added

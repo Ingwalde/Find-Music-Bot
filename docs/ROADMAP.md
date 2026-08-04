@@ -47,6 +47,7 @@
 - `v3.4.2` — Test Depth (property-based tests, concurrency/race scenarios)
 - `v3.5.0` — Admin Audit & Rate Limit Hardening
 - `v3.6.0` — Redis Stateless State
+- `v3.7.0` — Prod Hardening (Redis health, Prometheus metrics, cert expiry, env audit)
 
 ## Planned
 

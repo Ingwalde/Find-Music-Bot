@@ -77,3 +77,18 @@ def test_rate_limit_exceeded_key_translates_correctly():
     assert t("rate_limit_exceeded", "en")
     assert t("rate_limit_exceeded", "uk")
     assert t("rate_limit_exceeded", "de")
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_blocked_counter_increments():
+    from prometheus_client import REGISTRY
+
+    before = REGISTRY.get_sample_value("bot_rate_limit_blocked_total") or 0.0
+
+    for _ in range(20):
+        await rate_limit.check_rate_limit(50)
+    await rate_limit.check_rate_limit(50)  # this one gets blocked
+
+    after = REGISTRY.get_sample_value("bot_rate_limit_blocked_total") or 0.0
+
+    assert after == before + 1

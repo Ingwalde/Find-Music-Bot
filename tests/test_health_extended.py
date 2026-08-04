@@ -112,11 +112,15 @@ async def test_get_health_items_uses_all_checks(monkeypatch):
     async def fake_check_database():
         return HealthItem("Database", True, "OK")
 
+    async def fake_check_redis():
+        return HealthItem("Redis", True, "OK")
+
     monkeypatch.setattr(health, "check_database", fake_check_database)
     monkeypatch.setattr(health, "check_deezer", lambda: HealthItem("Deezer", True, "OK"))
     monkeypatch.setattr(health, "check_spotify", lambda: HealthItem("Spotify", True, "OK"))
     monkeypatch.setattr(health, "check_genius", lambda: HealthItem("Genius", True, "OK"))
+    monkeypatch.setattr(health, "check_redis", fake_check_redis)
 
     item_names = [item.name for item in await health.get_health_items()]
 
-    assert item_names == ["Bot", "Database", "Deezer", "Spotify", "Genius"]
+    assert item_names == ["Bot", "Database", "Deezer", "Spotify", "Genius", "Redis"]
