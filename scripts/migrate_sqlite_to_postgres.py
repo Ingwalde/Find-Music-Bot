@@ -20,7 +20,7 @@ import argparse
 import asyncio
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Allow running from the project root without installing the package.
@@ -53,7 +53,7 @@ def _parse_ts(value: str | None) -> datetime | None:
         return None
     # fromisoformat handles 'YYYY-MM-DD HH:MM:SS' (SQLite CURRENT_TIMESTAMP format).
     # .replace(tzinfo=timezone.utc) preserves the original UTC instant in TIMESTAMPTZ.
-    return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+    return datetime.fromisoformat(value).replace(tzinfo=UTC)
 
 
 def _convert_row(table: str, cols: list[str], row: tuple) -> tuple:

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 import app.monitoring as monitoring
@@ -134,6 +135,47 @@ def test_metrics_endpoint_returns_prometheus_text(monkeypatch):
     assert "bot_rate_limit_blocked_total" in response.text
 
 
+@pytest.mark.asyncio
+async def test_check_redis_ready_returns_true_when_no_redis_url(monkeypatch):
+    monkeypatch.setattr(monitoring.settings, "REDIS_URL", None)
+    assert await monitoring._check_redis_ready() is True
+
+
+@pytest.mark.asyncio
+async def test_check_redis_ready_returns_false_when_client_is_none(monkeypatch):
+    import app.services.redis_client as redis_client_module
+
+    monkeypatch.setattr(monitoring.settings, "REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setattr(redis_client_module, "_client", None)
+    assert await monitoring._check_redis_ready() is False
+
+
+@pytest.mark.asyncio
+async def test_check_redis_ready_returns_true_when_ping_succeeds(monkeypatch):
+    import app.services.redis_client as redis_client_module
+
+    class FakeRedis:
+        async def ping(self):
+            return True
+
+    monkeypatch.setattr(monitoring.settings, "REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setattr(redis_client_module, "_client", FakeRedis())
+    assert await monitoring._check_redis_ready() is True
+
+
+@pytest.mark.asyncio
+async def test_check_redis_ready_returns_false_when_ping_raises(monkeypatch):
+    import app.services.redis_client as redis_client_module
+
+    class BrokenRedis:
+        async def ping(self):
+            raise ConnectionError("Redis down")
+
+    monkeypatch.setattr(monitoring.settings, "REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setattr(redis_client_module, "_client", BrokenRedis())
+    assert await monitoring._check_redis_ready() is False
+
+
 def test_update_cert_expiry_metric_no_op_when_no_cert_path(monkeypatch):
     monkeypatch.setattr(monitoring.settings, "WEBHOOK_CERT_PATH", None)
 
@@ -160,7 +202,7 @@ def test_update_cert_expiry_metric_parses_valid_cert(monkeypatch, tmp_path):
     from cryptography.x509.oid import NameOID
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     cert = (
         x509.CertificateBuilder()
         .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test")]))

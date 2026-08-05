@@ -49,6 +49,7 @@
 - `v3.6.0` — Redis Stateless State
 - `v3.7.0` — Prod Hardening (Redis health, Prometheus metrics, cert expiry, env audit)
 - `v3.7.1` — Hardening Fixes (narrow Redis exception handling, DB pool timeout, dep upper bounds)
+- `v3.7.2` — Portfolio Polish (TrackDict TypedDict, metrics docs, architecture diagram, README)
 
 ## Planned
 

@@ -27,7 +27,7 @@ def _update_cert_expiry_metric() -> None:
         with open(cert_path, "rb") as f:
             cert = x509.load_pem_x509_certificate(f.read())
         expiry = cert.not_valid_after_utc
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         days = (expiry - now).total_seconds() / 86400
         _tls_cert_expiry_days.set(days)
     except Exception as exc:
