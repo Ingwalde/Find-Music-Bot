@@ -48,8 +48,13 @@
 - `v3.5.0` — Admin Audit & Rate Limit Hardening
 - `v3.6.0` — Redis Stateless State
 - `v3.7.0` — Prod Hardening (Redis health, Prometheus metrics, cert expiry, env audit)
+- `v3.7.1` — Hardening Fixes (narrow Redis exception handling, DB pool timeout, dep upper bounds)
 
 ## Planned
+
+- `v3.8.0` — Track Preview — send Deezer 30s audio preview clip in chat after track selection
+- `v3.9.0` — Personal Stats — `/mystats` command and main menu section: searches, favorites, top artists, active since
+- `v3.10.0` — Artist Follow & Notifications — follow artists, receive Telegram notifications when new tracks appear in trending; requires background scheduler
 
 ## Not Planned for v3.x
 
