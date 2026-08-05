@@ -6,11 +6,12 @@ from app.database.spotify_repository import (
 from app.platforms.spotify.auth import SpotifyCredentialsError, SpotifyForbiddenError
 from app.platforms.spotify.client import search_spotify_track
 from app.utils.logger import setup_logger
+from app.utils.types import TrackDict
 
 logger = setup_logger(__name__)
 
 
-async def enrich_track_with_platform_links(track: dict) -> dict:
+async def enrich_track_with_platform_links(track: TrackDict) -> TrackDict:
     """
     Adds optional platform links to track dictionary.
 
@@ -63,7 +64,7 @@ async def enrich_track_with_platform_links(track: dict) -> dict:
         return track
 
 
-async def enrich_track_with_spotify_link(track: dict) -> dict:
+async def enrich_track_with_spotify_link(track: TrackDict) -> TrackDict:
     """
     Backward-compatible alias for the old service name.
     """

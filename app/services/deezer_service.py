@@ -5,6 +5,7 @@ import httpx
 from app.utils.http_retry import get_with_retry
 from app.utils.logger import setup_logger
 from app.utils.time import convert_duration
+from app.utils.types import TrackDict
 
 DEEZER_API_BASE = "https://api.deezer.com"
 
@@ -32,7 +33,7 @@ def get_popularity_label(rank: int | None) -> str | None:
     return "Low"
 
 
-def _parse_raw_track(item: dict, fallback_artist: str = "") -> dict:
+def _parse_raw_track(item: dict, fallback_artist: str = "") -> TrackDict:
     """
     Parses a raw Deezer API track dict (from search/track/chart/radio endpoints)
     into a normalized format.
@@ -80,7 +81,7 @@ def _parse_raw_track(item: dict, fallback_artist: str = "") -> dict:
     }
 
 
-async def search_tracks(query: str, limit: int = 10) -> list[dict]:
+async def search_tracks(query: str, limit: int = 10) -> list[TrackDict]:
     """
     Searches tracks in Deezer.
 
@@ -118,7 +119,7 @@ async def search_tracks(query: str, limit: int = 10) -> list[dict]:
     return tracks
 
 
-async def get_track(track_id: str | int) -> dict:
+async def get_track(track_id: str | int) -> TrackDict:
     """
     Gets single track by Deezer track ID.
 
@@ -142,7 +143,7 @@ async def get_track(track_id: str | int) -> dict:
         raise RuntimeError(f"Could not load Deezer track {track_id}") from error
 
 
-async def get_trending_tracks(limit: int = 10) -> list[dict]:
+async def get_trending_tracks(limit: int = 10) -> list[TrackDict]:
     """
     Returns top trending tracks from Deezer chart.
     Falls back to empty list on any API error.
@@ -172,7 +173,7 @@ async def get_trending_tracks(limit: int = 10) -> list[dict]:
     return tracks
 
 
-async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
+async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[TrackDict]:
     """
     Returns top tracks by artist name via Deezer search + artist top endpoint.
     Used as fallback when local DB has no recommendations for the artist.
@@ -223,7 +224,7 @@ async def get_artist_top_tracks(artist_name: str, limit: int = 3) -> list[dict]:
     return tracks
 
 
-async def get_artist_top_tracks_by_id(artist_id: int, limit: int = 10) -> list[dict]:
+async def get_artist_top_tracks_by_id(artist_id: int, limit: int = 10) -> list[TrackDict]:
     """Returns top tracks for an artist by Deezer artist ID."""
     try:
         async with httpx.AsyncClient(timeout=10) as http_client:

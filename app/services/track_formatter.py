@@ -1,4 +1,7 @@
-def format_track_card(track: dict) -> str:
+from app.utils.types import TrackDict
+
+
+def format_track_card(track: TrackDict) -> str:
     """
     Formats selected track information.
     Deezer link is not displayed here because it is available as an inline button.

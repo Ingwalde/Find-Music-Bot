@@ -2,19 +2,54 @@
 
 ## Overview
 
-The bot is split into layers:
+```mermaid
+flowchart TD
+    TG["Telegram API"]
 
-```text
-Telegram Bot Layer
- ↓
-Bot Actions / Callback Router / Admin Commands
- ↓
-Services / Platform Aggregator / Admin Tools
- ↓
-Database Repositories / Maintenance Helpers
- ↓
-PostgreSQL  (asyncpg connection pool)
+    subgraph Bot["Bot Layer (app/bot/)"]
+        H["Handlers & Callbacks"]
+        MW["Middlewares\n(Correlation, Shutdown)"]
+        RL["Rate Limiter"]
+    end
+
+    subgraph Svc["Services Layer (app/services/)"]
+        DS["Deezer Service"]
+        RS["Recommendations Service"]
+        RC["Redis Client"]
+        TF["Track Formatter"]
+    end
+
+    subgraph Plat["Platform Layer (app/platforms/)"]
+        AGG["Aggregator"]
+        SP["Spotify Client"]
+    end
+
+    subgraph DB["Database Layer (app/database/)"]
+        REPO["Repositories (facade)"]
+        MAINT["Maintenance Helpers"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        PG[("PostgreSQL\nasyncpg pool")]
+        RED[("Redis\noptional")]
+        FA["FastAPI\n/health /ready /metrics\n:9090"]
+    end
+
+    TG -->|webhook / polling| H
+    H --> MW
+    H --> RL
+    RL --> RED
+    H --> Svc
+    Svc --> Plat
+    Svc --> DB
+    Plat --> SP
+    DB --> PG
+    RC --> RED
+    FA -->|readiness| PG
+    FA -->|readiness| RED
 ```
+
+The bot is split into layers:
 
 ## Bot Layer
 
