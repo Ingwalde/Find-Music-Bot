@@ -4,6 +4,7 @@ from collections import deque
 from time import time
 
 from prometheus_client import Counter
+from redis.exceptions import RedisError
 
 from app.config.settings import settings
 from app.utils.logger import setup_logger
@@ -68,7 +69,7 @@ async def check_rate_limit(telegram_id: int, *, is_admin: bool = False) -> bool:
     if client is not None:
         try:
             return await _check_rate_limit_redis(client, telegram_id)
-        except Exception:
+        except (RedisError, OSError):
             logger.warning("Redis rate limit check failed, falling back to in-memory")
 
     return await _check_rate_limit_memory(telegram_id)
@@ -95,7 +96,7 @@ async def should_warn_once(telegram_id: int) -> bool:
     if client is not None:
         try:
             return await _should_warn_once_redis(client, telegram_id)
-        except Exception:
+        except (RedisError, OSError):
             logger.warning("Redis warn-once check failed, falling back to in-memory")
 
     return await _should_warn_once_memory(telegram_id)

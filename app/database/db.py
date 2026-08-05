@@ -1,3 +1,5 @@
+import asyncio
+
 import asyncpg
 
 from app.config.settings import settings
@@ -28,8 +30,9 @@ async def init_db_pool() -> None:
     """
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
-            settings.DATABASE_URL, min_size=2, max_size=10
+        _pool = await asyncio.wait_for(
+            asyncpg.create_pool(settings.DATABASE_URL, min_size=2, max_size=10),
+            timeout=10.0,
         )
 
 

@@ -71,7 +71,7 @@ async def test_redis_trending_cache_fallback_on_broken_client(monkeypatch):
         async def get(self, key):
             raise ConnectionError("Redis down")
 
-        async def setex(self, *args):
+        async def set(self, *args, **kwargs):
             raise ConnectionError("Redis down")
 
     monkeypatch.setattr(redis_client_module, "_client", BrokenClient())

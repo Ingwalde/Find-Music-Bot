@@ -2,11 +2,57 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.4.1 — Graceful Resilience`
+**Current version:** `v3.7.0 — Prod Hardening`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## What Changed in v3.7.0
+
+- **Redis health** — `check_redis()` added to `app/health.py` and surfaced in the admin
+  `/health` command. `/ready` returns 503 when Redis is configured but unreachable.
+- **Prometheus: `bot_rate_limit_blocked_total`** (Counter) — incremented every time a
+  request is blocked by the rate limiter (both in-memory and Redis paths).
+- **Prometheus: `bot_tls_cert_expiry_days`** (Gauge) — days until the TLS certificate
+  expires, updated on every `/metrics` scrape. Active only when `WEBHOOK_CERT_PATH` is
+  set. Returns −1 when the cert file is unreadable. Uses the `cryptography` library.
+- **Startup config log** — key non-secret settings are logged at INFO level on startup:
+  mode, Redis status, Spotify status, rate-limit parameters, shutdown timeout.
+- **`scripts/check_env_example.py`** — scans all `os.getenv()` calls in `app/` and
+  verifies each variable is documented in `.env.example`. Exits 1 if any are missing.
+  Added as a CI step.
+- No schema changes. No user-facing changes.
+
+---
+
+## What Changed in v3.6.0
+
+- **Redis integration** — optional Redis backend (`REDIS_URL`) for stateless rate
+  limiting and trending track cache. Falls back gracefully to in-memory when Redis is
+  unavailable or not configured.
+- **Redis rate limiting** — sliding-window algorithm using a Redis sorted set. Admin-exempt
+  flag preserved. Warn-once state stored as a Redis key with TTL.
+- **Redis trending cache** — trending tracks stored as JSON via `SET … EX` with a 1-hour
+  TTL. Cache hit serves directly from Redis; miss fetches and stores.
+- `redis` service added to `docker-compose.yml` (redis:7-alpine); `music-bot` depends on
+  it with health check. `test-redis` service added under `test` profile (port 6380).
+- No schema changes. No breaking changes. No user-facing changes.
+- `REDIS_URL` is optional — omit to keep existing in-memory behaviour.
+
+---
+
+## What Changed in v3.5.0
+
+- **Admin audit log** — every admin action is recorded in a new `admin_audit` PostgreSQL
+  table with `admin_telegram_id`, `action`, optional `details` (JSONB), and `created_at`.
+  New Alembic revision.
+- **Rate limit hardening** — `RATE_LIMIT_MAX_REQUESTS` (default 20) and
+  `RATE_LIMIT_WINDOW_SECONDS` (default 60) are now configurable via environment variables.
+  Admin users are unconditionally exempt from rate limiting.
+- No user-facing changes.
 
 ---
 
@@ -184,7 +230,8 @@ The track card also includes a 🎯 Similar inline button for quick access to tr
 ### Smart Recommendations
 
 - `/similar` — shows tracks similar to the last viewed track using the Deezer radio endpoint.
-- `/trending` — shows the top tracks of the week from the Deezer chart. Results are cached in-memory for 1 hour to reduce API load.
+- `/trending` — shows the top tracks of the week from the Deezer chart. Results are cached
+  for 1 hour to reduce API load. Cache is stored in Redis when available, in-memory otherwise.
 - The last viewed track ID is saved in the database so `/similar` works across bot restarts.
 
 ### Platform Links
@@ -210,6 +257,13 @@ The track card also includes a 🎯 Similar inline button for quick access to tr
 - Re-run searches from history.
 - Clear search history with confirmation.
 - Search history is stored in PostgreSQL and can be trimmed by maintenance tools.
+
+### Rate Limiting
+
+- Per-user sliding-window rate limiting configurable via `RATE_LIMIT_MAX_REQUESTS` and
+  `RATE_LIMIT_WINDOW_SECONDS`.
+- Backed by Redis sorted set when `REDIS_URL` is set; falls back to in-memory.
+- Admin users are unconditionally exempt.
 
 ### Localization
 
@@ -257,6 +311,7 @@ Admin diagnostics include:
 
 - Bot version.
 - Database status.
+- Redis status.
 - Database path.
 - Database size.
 - Table counts.
@@ -264,6 +319,15 @@ Admin diagnostics include:
 - Spotify availability/cooldown status.
 - Genius configuration status.
 - Recent saved errors.
+
+### Monitoring Endpoints
+
+FastAPI runs alongside the bot on port 9090:
+
+- `GET /health` — liveness: bot, database, Redis, Spotify, Deezer, Genius.
+- `GET /ready` — readiness: database and Redis (503 if either is configured but unreachable).
+- `GET /metrics` — Prometheus metrics: API request counts and latency, circuit breaker
+  state, cache hit/miss counters, rate-limit blocked counter, TLS cert expiry gauge.
 
 ### Database and Persistence
 
@@ -277,6 +341,7 @@ Stored data includes:
 - Search history.
 - Spotify cached links.
 - Error history.
+- Admin audit log.
 - Alembic schema version (`alembic_version` table).
 
 Database features:
@@ -299,13 +364,13 @@ Database features:
 
 The project includes automated quality checks:
 
-- Pytest test suite.
+- Pytest test suite (~94% coverage, minimum gate 85%).
 - Coverage reporting through `pytest-cov`.
-- Minimum coverage gate.
 - Ruff linting.
 - GitHub Actions workflow.
 - Release cleanup validation script.
 - Locale coverage checker.
+- Env variable documentation checker.
 
 Useful commands:
 
@@ -314,12 +379,22 @@ python -m ruff check .
 python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
+python scripts/check_env_example.py
 ```
 
 ### Docker Support
 
 The Dockerfile lives in `deploy/`; `docker-compose.yml` is in the project root
 (so `docker compose` auto-loads `.env` — no `-f`/`--env-file` flags needed).
+
+The Compose stack includes:
+
+- `music-bot` — the bot process.
+- `postgres` — PostgreSQL database with health check and named volume.
+- `redis` — Redis 7 (alpine) for rate limiting and trending cache. `music-bot` waits for
+  it with `condition: service_healthy`.
+- `test-postgres` and `test-redis` — ephemeral services under the `test` profile for
+  local integration tests.
 
 Build image:
 
@@ -363,6 +438,10 @@ Docker Compose mounts:
 - Spotify Web API
 - PostgreSQL (asyncpg)
 - Alembic
+- Redis (redis-py asyncio)
+- FastAPI
+- prometheus-client
+- cryptography
 - pytest
 - pytest-cov
 - pytest-asyncio
@@ -382,11 +461,12 @@ app/
 ├── database/            # PostgreSQL repositories and maintenance helpers (schema owned by Alembic — see migrations/)
 ├── localization/        # Translations, languages and fallback translator
 ├── platforms/           # Platform integrations, Spotify modules and aggregator
-├── services/            # Deezer, lyrics, formatting and platform service facades
+├── services/            # Deezer, lyrics, formatting, Redis client and platform service facades
 ├── utils/               # Logging, text and time helpers
 ├── admin_tools.py       # Admin statistics, maintenance and cleanup reports
-├── health.py            # Admin health diagnostics
-├── main.py              # Bot startup
+├── health.py            # Admin health diagnostics (bot, DB, Redis, platforms)
+├── main.py              # Bot startup and lifecycle
+├── monitoring.py        # FastAPI /health, /ready, /metrics endpoints
 └── version.py           # Project version
 
 config/
@@ -395,7 +475,7 @@ config/
 deploy/
 └── Dockerfile           # Container image definition
 
-docker-compose.yml       # Compose stack (bot, postgres, test-postgres) — project root
+docker-compose.yml       # Compose stack (bot, postgres, redis, test services) — project root
 
 docs/                    # Architecture, deployment, roadmap and release workflow docs
 migrations/              # Alembic schema migrations (versions/, env.py) — schema source of truth
@@ -488,11 +568,19 @@ SPOTIFY_MARKET=NO
 ADMIN_ID=your_telegram_user_id
 LOG_FILE_PATH=logs/bot.log
 LOG_LEVEL=INFO
+BOT_MODE=polling
+REDIS_URL=redis://redis:6379
+RATE_LIMIT_MAX_REQUESTS=20
+RATE_LIMIT_WINDOW_SECONDS=60
+SHUTDOWN_TIMEOUT_SECONDS=30
 ```
 
 > `DATABASE_PATH` also appears in `.env.example`, but it is only read by the
 > one-time `scripts/migrate_sqlite_to_postgres.py` migration script — the live
 > database is PostgreSQL and needs `DATABASE_URL`.
+
+> `REDIS_URL` is optional. When omitted, rate limiting and trending cache fall back
+> to in-memory implementations.
 
 ### 5. Configure local admin IDs
 
@@ -583,24 +671,26 @@ python -m ruff check .
 python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
+python scripts/check_env_example.py
 python -c "from app.version import __version__; print(__version__)"
 ```
 
-`python -m pytest` runs the full suite including PostgreSQL integration tests
-and requires `DATABASE_URL` to be set. Start the test database first:
+`python -m pytest` runs the full suite including PostgreSQL and Redis integration tests
+and requires `DATABASE_URL` to be set. Start the test services first:
 
 Bash:
 
 ```bash
-docker compose up -d test-postgres
-DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb python -m pytest
+docker compose up -d test-postgres test-redis
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb REDIS_URL=redis://localhost:6380 python -m pytest
 ```
 
 PowerShell:
 
 ```powershell
-docker compose up -d test-postgres
+docker compose up -d test-postgres test-redis
 $env:DATABASE_URL = "postgresql://testuser:testpass@localhost:5433/testdb"
+$env:REDIS_URL = "redis://localhost:6380"
 python -m pytest
 ```
 
@@ -648,6 +738,13 @@ Avoid sharing raw `docker compose config` output because it can expose secrets f
 ## Roadmap
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for completed releases and planned next stages.
+
+---
+
+## License
+
+[Polyform Noncommercial License 1.0.0](LICENSE) — free for personal, educational, and
+non-commercial use. Commercial use requires explicit permission from the author.
 
 ---
 

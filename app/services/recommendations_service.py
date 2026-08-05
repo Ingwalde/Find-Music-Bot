@@ -2,6 +2,8 @@ import asyncio
 import json
 from time import time
 
+from redis.exceptions import RedisError
+
 from app.database.repositories import get_track_by_deezer_id, get_tracks_by_artist
 from app.services.deezer_service import (
     get_artist_id,
@@ -34,7 +36,7 @@ async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
             if cached:
                 logger.info("Returning trending tracks from Redis cache")
                 return json.loads(cached)
-        except Exception:
+        except (RedisError, OSError):
             logger.warning("Redis trending cache read failed, using in-memory fallback")
 
     async with _trending_cache_lock:
@@ -50,7 +52,7 @@ async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
             await client.set(_TRENDING_REDIS_KEY, json.dumps(tracks), ex=_TRENDING_TTL)
             logger.info("Trending tracks stored in Redis cache")
             return tracks
-        except Exception:
+        except (RedisError, OSError):
             logger.warning("Redis trending cache write failed, using in-memory fallback")
 
     async with _trending_cache_lock:
