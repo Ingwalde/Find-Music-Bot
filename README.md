@@ -2,11 +2,40 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.7.0 — Prod Hardening`
+**Current version:** `v3.7.2 — Portfolio Polish`
 
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
 
 The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
+
+---
+
+## Preview
+
+| Search results | Track card | Recommendations |
+|---|---|---|
+| ![search](screenshots/search.png) | ![track](screenshots/track.png) | ![recommendations](screenshots/recommendations.png) |
+
+---
+
+## Why this project matters
+
+Most Telegram bots are 100–300 line scripts. This one is a production-grade backend service
+that happens to have a Telegram interface:
+
+- **Layered architecture** — handlers, services, platforms, and repositories are separate layers with enforced import direction. No logic in handlers, no DB calls in services.
+- **Production patterns** — Prometheus metrics, `/health` / `/ready` endpoints, graceful SIGTERM drain, circuit breaker, correlation IDs, Redis fallback — the same patterns used in real services.
+- **Resilience** — every external call (Deezer, Spotify, Genius, Redis) has a fallback. The bot never crashes on a single service outage.
+- **Schema discipline** — Alembic owns the database schema; the runtime uses raw asyncpg (no ORM). Every schema change is a versioned migration.
+- **94%+ test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
+
+## What I learned
+
+- **Async-native Python** — asyncpg, aiogram 3.x, redis.asyncio, httpx. No `asyncio.to_thread` workarounds, no sync code in the event loop.
+- **Production observability** — Prometheus metrics (histograms, counters, gauges), structured JSON logging, per-request correlation IDs, TLS certificate expiry monitoring.
+- **Schema migration discipline** — Alembic with raw SQL (`op.execute()`). Schema and runtime code stay decoupled.
+- **Resilience patterns** — circuit breaker with half-open probe, graceful shutdown drain, in-memory fallback for Redis-backed features, non-fatal error logging to the database.
+- **Real deployment** — Oracle Cloud VPS, self-signed TLS for webhook mode, Docker Compose with health checks and proper `depends_on`.
 
 ---
 

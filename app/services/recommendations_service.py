@@ -12,6 +12,7 @@ from app.services.deezer_service import (
     get_related_artists,
 )
 from app.utils.logger import setup_logger
+from app.utils.types import TrackDict
 
 logger = setup_logger(__name__)
 
@@ -22,7 +23,7 @@ _trending_cache: dict = {"tracks": [], "expires_at": 0.0}
 _trending_cache_lock = asyncio.Lock()
 
 
-async def get_cached_trending(fetch_fn, limit: int = 10) -> list[dict]:
+async def get_cached_trending(fetch_fn, limit: int = 10) -> list[TrackDict]:
     """
     Returns trending tracks, checking Redis first (if available), then in-memory,
     then fetching fresh. TTL is 1 hour in both backends.
@@ -68,7 +69,7 @@ def invalidate_trending_cache() -> None:
     _trending_cache["expires_at"] = 0.0
 
 
-async def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int = 3) -> list[dict]:
+async def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int = 3) -> list[TrackDict]:
     """
     Returns recommended tracks by artist from local DB.
     Falls back to Deezer artist top tracks if DB has no results.
@@ -101,7 +102,7 @@ def _get_decade(release_date: str | None) -> tuple[int, int] | None:
     return decade_start, decade_start + 9
 
 
-async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) -> list[dict]:
+async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int = 10) -> list[TrackDict]:
     """
     Returns tracks similar to the given track using a 3-step strategy.
     Step 1: top tracks by the same artist (up to 5, excluding current track).
@@ -221,7 +222,7 @@ def _format_numbered(tracks: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def format_recommendations_text(tracks: list[dict], source_artist: str = "") -> str:
+def format_recommendations_text(tracks: list[TrackDict], source_artist: str = "") -> str:
     """
     Formats recommendation tracks as a text list.
     Without source_artist: numbered list (backward-compatible).
@@ -237,7 +238,7 @@ def format_recommendations_text(tracks: list[dict], source_artist: str = "") -> 
     return _format_grouped(tracks, source_artist)
 
 
-def format_similar_text(header: str, tracks: list[dict], source_artist: str = "") -> str:
+def format_similar_text(header: str, tracks: list[TrackDict], source_artist: str = "") -> str:
     """
     Formats Similar tracks with a header and grouped body.
     Groups by 🎤 source_artist / 🎵 Others when source_artist is provided.
