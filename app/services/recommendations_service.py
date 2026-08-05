@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from time import time
 
 from redis.exceptions import RedisError
@@ -23,7 +24,7 @@ _trending_cache: dict = {"tracks": [], "expires_at": 0.0}
 _trending_cache_lock = asyncio.Lock()
 
 
-async def get_cached_trending(fetch_fn, limit: int = 10) -> list[TrackDict]:
+async def get_cached_trending(fetch_fn: Callable[[int], Awaitable[list[TrackDict]]], limit: int = 10) -> list[TrackDict]:
     """
     Returns trending tracks, checking Redis first (if available), then in-memory,
     then fetching fresh. TTL is 1 hour in both backends.
@@ -82,7 +83,7 @@ async def get_db_recommendations(artist: str, exclude_deezer_id: str, limit: int
 
     if tracks:
         logger.info("DB recommendations for %r: %d track(s)", artist, len(tracks))
-        return tracks
+        return tracks  # type: ignore[return-value]
 
     logger.info("No DB recommendations for %r — falling back to Deezer artist API", artist)
     return await get_artist_top_tracks(artist_name=artist, limit=limit)
@@ -127,12 +128,12 @@ async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int 
             seen_ids = {str(track_id)} | {t["deezer_track_id"] for t in result if t.get("deezer_track_id")}
             needed = limit - len(result)
 
-            candidates: list[dict] = []
+            candidates: list[TrackDict] = []
             for artist in related:
                 candidates.extend(await get_artist_top_tracks_by_id(artist["id"], limit=10))
 
             # Pass A — with decade filter
-            decade_results: list[dict] = []
+            decade_results: list[TrackDict] = []
             for t in candidates:
                 tid = t.get("deezer_track_id", "")
                 if tid in seen_ids:
@@ -150,7 +151,7 @@ async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int 
                 seen_ids.add(tid)
 
             # Pass B — rank filter only, when Pass A gave too few results
-            fill_results: list[dict] = []
+            fill_results: list[TrackDict] = []
             if len(decade_results) < 5:
                 for t in candidates:
                     tid = t.get("deezer_track_id", "")
@@ -173,7 +174,7 @@ async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int 
     return result[:limit]
 
 
-def _format_grouped(tracks: list[dict], source_artist: str) -> str:
+def _format_grouped(tracks: list[TrackDict], source_artist: str) -> str:
     same, others = [], []
     for track in tracks:
         if track.get("artist", "") == source_artist:
@@ -209,7 +210,7 @@ def _format_grouped(tracks: list[dict], source_artist: str) -> str:
     return "\n\n".join(sections)
 
 
-def _format_numbered(tracks: list[dict]) -> str:
+def _format_numbered(tracks: list[TrackDict]) -> str:
     lines = []
     for i, track in enumerate(tracks, start=1):
         title = track.get("title", "Unknown")

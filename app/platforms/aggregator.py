@@ -29,8 +29,8 @@ async def enrich_track_with_platform_links(track: TrackDict) -> TrackDict:
     cached_spotify_data = await get_spotify_data_by_deezer_id(deezer_track_id)
 
     if cached_spotify_data:
-        track["spotify_track_id"] = cached_spotify_data.get("spotify_track_id")
-        track["spotify_link"] = cached_spotify_data.get("spotify_link")
+        track["spotify_track_id"] = cached_spotify_data.get("spotify_track_id")  # type: ignore[typeddict-item]
+        track["spotify_link"] = cached_spotify_data.get("spotify_link")  # type: ignore[typeddict-item]
         return track
 
     try:

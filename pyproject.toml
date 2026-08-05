@@ -18,9 +18,29 @@ exclude_lines = [
     "if __name__ == .__main__.",
 ]
 
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+strict = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "app.utils.types",
+    "app.services.deezer_service",
+    "app.platforms.aggregator",
+    "app.services.track_formatter",
+    "app.services.recommendations_service",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["app.utils.http_retry"]
+ignore_errors = true
+
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

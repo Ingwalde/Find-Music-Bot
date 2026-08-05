@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.2] - 2026-08-05
+
+### Added
+- **`app/utils/types.py`** — `TrackDict` TypedDict covering all 13 track dict keys
+  (`deezer_track_id`, `title`, `artist`, `album`, `duration`, `duration_seconds`,
+  `deezer_link`, `cover_url`, `release_date`, `rank`, `popularity`, `spotify_track_id`,
+  `spotify_link`). Used as the structural type for all track dicts across the services layer.
+- **`docs/metrics.md`** — complete Prometheus metrics reference: all 8 metrics with types,
+  labels, descriptions, scrape config YAML, PromQL query examples, and Grafana panel suggestions.
+- **`docs/ARCHITECTURE.md`** — Mermaid flowchart diagram added at the top showing all system
+  layers: Telegram API → Bot → Services → Platforms → Database → Infrastructure.
+
+### Changed
+- **Type hints** — `list[dict]` → `list[TrackDict]` and `dict` → `TrackDict` in return
+  annotations across `app/services/deezer_service.py`, `app/platforms/aggregator.py`,
+  `app/services/track_formatter.py`, `app/services/recommendations_service.py`.
+- **`README.md`** — added "Why this project matters" and "What I learned" sections;
+  preview screenshot table; version updated to v3.7.2.
+
+### Notes
+- No schema changes. No runtime logic changes. No user-facing changes.
+- TypedDict is `total=False` — structural, no runtime overhead.
+
+---
+
+## [v3.7.1] - 2026-08-05
+
+### Fixed
+- **Narrow Redis exception handling** — bare `except Exception` replaced with
+  `except (RedisError, OSError)` in both `check_rate_limit` and `should_warn_once`
+  (`app/bot/rate_limit.py`) and in the Redis cache read/write paths
+  (`app/services/recommendations_service.py`). Prevents swallowing `CancelledError`
+  and other non-Redis exceptions. (`from redis.exceptions import RedisError` added.)
+- **DB pool creation timeout** — `asyncpg.create_pool()` wrapped in
+  `asyncio.wait_for(..., timeout=10.0)` (`app/database/db.py`). Bot now raises
+  `asyncio.TimeoutError` instead of hanging indefinitely when PostgreSQL is unreachable
+  at startup.
+- **Test: `BrokenClient.setex` → `BrokenClient.set`** — `tests/test_redis_trending.py`
+  mock used `setex` but production code uses `client.set(key, value, ex=ttl)`. Fixed
+  method name to match actual call signature.
+
+### Changed
+- **Dependency upper bounds** — `redis>=8.1.0,<9.0.0` and `cryptography>=50.0.0,<52.0.0`
+  added to `requirements/base.txt` to prevent silent breakage on next major releases.
+
+### Notes
+- No schema changes. No user-facing changes.
+
+---
+
 ## [v3.7.0] - 2026-08-04
 
 ### Added
