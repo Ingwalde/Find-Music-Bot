@@ -9,5 +9,5 @@ sqlalchemy==2.0.51
 fastapi==0.141.1
 uvicorn==0.49.0
 prometheus-client==0.26.0
-redis>=5.0.0
+redis>=8.1.0
 cryptography>=42.0.0
