@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.7] - 2026-08-09
+
+### Added
+- **`deploy/grafana-dashboard.json`** — importable Grafana dashboard with 8 panels:
+  circuit breaker status, TLS cert expiry gauge, rate limit blocks, request rate by
+  service, error rate by service, API latency p50/p95/p99, cache hits vs misses,
+  cache hit ratio gauge. Import via Grafana → Dashboards → Import → Upload JSON.
+
+### Changed
+- **`.github/workflows/deploy.yml`** — three improvements:
+  - Removed docker login/logout (GHCR package is now public — no auth needed to pull).
+  - Replaced `git pull origin main` with `actions/checkout` + `appleboy/scp-action`
+    copying only `docker-compose.yml` to the server. App code comes from the Docker
+    image; the repo clone on the server is no longer a dependency.
+  - Removed `envs`/`env` blocks (no credentials passed to server).
+
+### Notes
+- No code or schema changes. No user-facing changes.
+- Prerequisite: GHCR package `find-music-bot` must be set to Public
+  (GitHub → Packages → find-music-bot → Package settings → Change visibility → Public).
+
+---
+
 ## [v3.7.6] - 2026-08-09
 
 ### Changed
