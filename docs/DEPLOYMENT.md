@@ -264,20 +264,36 @@ own named volume (`postgres-data`), not this mount.
 
 ## GitHub Actions
 
-The workflow (`.github/workflows/tests.yml`) runs on every push and pull request:
+### Tests workflow (`.github/workflows/tests.yml`)
+
+Runs on every push and pull request:
 
 1. **Ruff** — lint check
 2. **`alembic upgrade head`** — applies the schema against the CI Postgres service
 3. **pytest with coverage** — full suite including the 9 `test_*_pg.py` integration tests
 4. **Release cleanup check** — `scripts/check_release_clean.py`
 5. **Locale coverage check** — `scripts/check_locale_coverage.py`
-6. **Docker build** — `docker build -f deploy/Dockerfile -t find-music-bot:test .`
+6. **Docker build + push** — builds the image; on `main` pushes to `ghcr.io/ingwalde/find-music-bot:latest`
 
 CI provisions a `postgres:16-alpine` service container
 (`testuser`/`testpass`/`testdb`, port 5432) and injects
 `DATABASE_URL=postgresql://testuser:testpass@localhost:5432/testdb` so the
 integration tests run against it — the same credentials as the local
 `test-postgres` service, only the port differs (5432 on CI, 5433 locally).
+
+### Deploy workflow (`.github/workflows/deploy.yml`)
+
+Triggers automatically after the Tests workflow completes successfully on `main`
+(`workflow_run` event — guarantees the GHCR image is pushed before deploy runs):
+
+1. Copies `docker-compose.yml` to the server via SCP.
+2. SSHs in, runs `docker compose pull --quiet` to fetch the new image.
+3. Restarts the stack with `docker compose up -d --remove-orphans`.
+4. Polls `http://localhost:9090/ready` every 3 s (up to 60 s). Fails the job and
+   dumps 50 lines of container logs if the bot does not become ready in time.
+
+The server pulls the image anonymously from GHCR (the package is public — no
+`docker login` required on the server).
 
 ## Security Notes
 

@@ -304,7 +304,7 @@ requirements/
 └── dev.txt              # Development and test dependencies
 scripts/                 # Release, cleanup and quality helper scripts
 tests/                   # Automated tests
-.github/workflows/       # GitHub Actions CI
+.github/workflows/       # GitHub Actions CI (tests + GHCR push + automated deploy)
 ```
 
 ---
@@ -488,7 +488,7 @@ Run before committing:
 
 ```bash
 python -m ruff check .
-python -m mypy app/utils/types.py app/services/deezer_service.py app/platforms/aggregator.py app/services/track_formatter.py app/services/recommendations_service.py
+python -m mypy app/utils/types.py app/utils/http_client.py app/services/deezer_service.py app/services/lyrics_service.py app/platforms/aggregator.py app/platforms/spotify/client.py app/services/track_formatter.py app/services/recommendations_service.py app/bot/rate_limit.py app/health.py app/monitoring.py
 python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
