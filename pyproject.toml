@@ -27,10 +27,16 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = [
     "app.utils.types",
+    "app.utils.http_client",
     "app.services.deezer_service",
+    "app.services.lyrics_service",
     "app.platforms.aggregator",
+    "app.platforms.spotify.client",
     "app.services.track_formatter",
     "app.services.recommendations_service",
+    "app.bot.rate_limit",
+    "app.health",
+    "app.monitoring",
 ]
 disallow_untyped_defs = true
 

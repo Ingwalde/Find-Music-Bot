@@ -35,10 +35,16 @@ jobs:
         run: |
           python -m mypy \
             app/utils/types.py \
+            app/utils/http_client.py \
             app/services/deezer_service.py \
+            app/services/lyrics_service.py \
             app/platforms/aggregator.py \
+            app/platforms/spotify/client.py \
             app/services/track_formatter.py \
-            app/services/recommendations_service.py
+            app/services/recommendations_service.py \
+            app/bot/rate_limit.py \
+            app/health.py \
+            app/monitoring.py
 
       - name: Scan dependencies for known vulnerabilities
         run: python -m pip_audit -r requirements/base.txt
