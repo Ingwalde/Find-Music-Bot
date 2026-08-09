@@ -50,6 +50,9 @@
 - `v3.7.0` — Prod Hardening (Redis health, Prometheus metrics, cert expiry, env audit)
 - `v3.7.1` — Hardening Fixes (narrow Redis exception handling, DB pool timeout, dep upper bounds)
 - `v3.7.2` — Portfolio Polish (TrackDict TypedDict, metrics docs, architecture diagram, README)
+- `v3.7.3` — Coverage & mypy (parallel CI, mypy baseline, pip-audit, ruff py312 alignment, README restructure)
+- `v3.7.4` — Type Safety & Performance (shared httpx client, mypy expanded to 11 modules)
+- `v3.7.5` — DevOps & Observability (automated SSH deploy workflow, Prometheus alerting rules)
 
 ## Planned
 
