@@ -54,6 +54,7 @@
 - `v3.7.4` — Type Safety & Performance (shared httpx client, mypy expanded to 11 modules)
 - `v3.7.5` — DevOps & Observability (automated SSH deploy workflow, Prometheus alerting rules)
 - `v3.7.6` — Deploy Health Check (post-deploy /ready polling, fail-fast with container logs)
+- `v3.7.7` — Deploy Cleanup & Grafana (public GHCR pull, SCP compose, Grafana dashboard JSON)
 
 ## Planned
 

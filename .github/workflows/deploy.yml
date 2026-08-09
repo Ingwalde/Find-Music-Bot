@@ -14,21 +14,29 @@ jobs:
 
     permissions:
       contents: read
-      packages: read
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docker-compose.yml
+          target: ~/Find-Music-Bot/
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: GHCR_TOKEN,GITHUB_ACTOR
           command_timeout: 5m
           script: |
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             cd ~/Find-Music-Bot
-            git pull origin main
             docker compose pull --quiet
             docker compose up -d --remove-orphans
             docker image prune -f
@@ -44,6 +52,3 @@ jobs:
             echo "ERROR: /ready did not respond after 60s. Deploy may have failed."
             docker compose logs --tail=50 bot
             exit 1
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
