@@ -3,6 +3,7 @@ import uuid
 from collections import deque
 from time import time
 
+import redis.asyncio as aioredis
 from prometheus_client import Counter
 from redis.exceptions import RedisError
 
@@ -37,7 +38,7 @@ async def _check_rate_limit_memory(telegram_id: int) -> bool:
         return True
 
 
-async def _check_rate_limit_redis(client, telegram_id: int) -> bool:
+async def _check_rate_limit_redis(client: aioredis.Redis, telegram_id: int) -> bool:
     now = time()
     cutoff = now - settings.RATE_LIMIT_WINDOW_SECONDS
     key = f"rl:{telegram_id}"
@@ -83,7 +84,7 @@ async def _should_warn_once_memory(telegram_id: int) -> bool:
         return True
 
 
-async def _should_warn_once_redis(client, telegram_id: int) -> bool:
+async def _should_warn_once_redis(client: aioredis.Redis, telegram_id: int) -> bool:
     key = f"warn:{telegram_id}"
     result = await client.set(key, "1", nx=True, ex=settings.RATE_LIMIT_WINDOW_SECONDS * 2)
     return result is not None

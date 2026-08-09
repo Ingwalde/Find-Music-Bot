@@ -13,6 +13,7 @@ from app.database.db import close_db_pool, init_db_pool
 from app.monitoring import create_app
 from app.services.redis_client import close_redis, init_redis
 from app.utils.error_logger import log_and_save_error
+from app.utils.http_client import close_http_client, init_http_client
 from app.utils.logger import setup_logger
 from app.webhook import run_webhook_server, webhook_url
 
@@ -81,6 +82,7 @@ def _log_startup_config() -> None:
 
 async def run_bot() -> None:
     await init_db_pool()
+    await init_http_client()
 
     if settings.REDIS_URL:
         try:
@@ -162,6 +164,7 @@ async def run_bot() -> None:
         await bot.session.close()
         await close_db_pool()
         await close_redis()
+        await close_http_client()
 
 
 def main() -> None:
