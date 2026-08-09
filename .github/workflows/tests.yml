@@ -146,8 +146,6 @@ jobs:
           context: .
           file: deploy/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            find-music-bot:test
-            ghcr.io/ingwalde/find-music-bot:latest
+          tags: ghcr.io/ingwalde/find-music-bot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
