@@ -1,0 +1,51 @@
+groups:
+  - name: find_music_bot
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: bot_circuit_breaker_open == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.service }}"
+          description: >-
+            The circuit breaker for {{ $labels.service }} has been open for more than 1 minute.
+            External requests are being blocked. Check service availability.
+
+      - alert: TLSCertExpiringSoon
+        expr: bot_tls_cert_expiry_days < 7
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TLS certificate expires in {{ $value | humanize }} days"
+          description: >-
+            The TLS certificate will expire in {{ $value }} days.
+            Renew the certificate immediately to avoid bot webhook failure.
+
+      - alert: HighExternalAPIErrorRate
+        expr: |
+          (
+            rate(bot_external_api_requests_total{outcome="error"}[5m])
+            /
+            rate(bot_external_api_requests_total[5m])
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.service }} API ({{ $value | humanizePercentage }})"
+          description: >-
+            More than 10% of requests to {{ $labels.service }} are failing over the last 5 minutes.
+            Current rate: {{ $value | humanizePercentage }}.
+
+      - alert: HighRateLimitBlockRate
+        expr: rate(bot_rate_limit_blocked_total[5m]) > 1
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Elevated rate limit blocks ({{ $value | humanize }}/s)"
+          description: >-
+            More than 1 request per second is being blocked by the rate limiter.
+            May indicate bot abuse or a client sending excessive requests.

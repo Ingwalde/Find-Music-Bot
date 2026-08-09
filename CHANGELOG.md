@@ -4,6 +4,87 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.5] - 2026-08-09
+
+### Added
+- **`.github/workflows/deploy.yml`** — automated SSH deploy on every push to `main`:
+  `git pull`, `docker compose up -d --build --remove-orphans`, `docker image prune -f`.
+  Requires `SSH_HOST`, `SSH_USER`, and `SSH_PRIVATE_KEY` GitHub secrets.
+- **`deploy/alerts.yml`** — Prometheus alerting rules: `CircuitBreakerOpen` (>1m),
+  `TLSCertExpiringSoon` (<7d), `HighExternalAPIErrorRate` (>10% over 5m),
+  `HighRateLimitBlockRate` (>1/s over 10m).
+
+### Notes
+- No code or schema changes. No runtime logic changes. No user-facing changes.
+- Dependabot was already configured in v3.7.3; no change needed.
+
+---
+
+## [v3.7.4] - 2026-08-09
+
+### Added
+- **`app/utils/http_client.py`** — shared `httpx.AsyncClient` singleton following the
+  `redis_client.py` init/close/get pattern. `init_http_client()` / `close_http_client()`
+  wired into `app/main.py` startup/shutdown. Eliminates per-request client instantiation
+  across Deezer, Spotify, and Genius integrations.
+
+### Changed
+- **Shared HTTP client** — `async with httpx.AsyncClient(timeout=10)` replaced with
+  `get_http_client()` in `app/services/deezer_service.py` (7 call sites),
+  `app/services/lyrics_service.py`, `app/platforms/spotify/client.py`,
+  `app/platforms/spotify/auth.py`.
+- **mypy expanded to 11 modules** — `pyproject.toml` `disallow_untyped_defs = true`
+  overrides added for: `app.utils.http_client`, `app.services.lyrics_service`,
+  `app.platforms.spotify.client`, `app.services.recommendations_service`,
+  `app.bot.rate_limit`, `app.health`, `app.monitoring` (plus existing 4 from v3.7.3).
+  CI mypy step updated to cover all 11 files.
+- **`app/bot/rate_limit.py`** — Redis helper functions annotated:
+  `_check_rate_limit_redis(client: aioredis.Redis, ...)`,
+  `_should_warn_once_redis(client: aioredis.Redis, ...)`.
+
+### Notes
+- No schema changes. No user-facing changes.
+- Fallback in `get_http_client()` preserves test compatibility for tests that mock
+  `httpx.AsyncClient` directly.
+
+---
+
+## [v3.7.3] - 2026-08-09
+
+### Added
+- **mypy** (`mypy>=1.14.0`) added to `requirements/dev.txt`. Config in `pyproject.toml`:
+  `python_version = "3.12"`, `check_untyped_defs = true`. `disallow_untyped_defs = true`
+  override on 5 typed modules: `app.utils.types`, `app.services.deezer_service`,
+  `app.platforms.aggregator`, `app.services.track_formatter`,
+  `app.services.recommendations_service`. `ignore_errors = true` on `app.utils.http_retry`.
+- **`pip-audit`** (`pip-audit>=2.7.0`) added to `requirements/dev.txt`. Moved from
+  `pip install pip-audit` inline install to dev deps.
+- **CI parallelized** — `.github/workflows/tests.yml` split from one sequential job into
+  three parallel jobs: `lint` (Ruff, mypy, pip-audit, release/env/locale checks),
+  `test` (pytest with PostgreSQL + Redis services), `docker` (Buildx + GHA layer cache).
+  Docker build now uses `docker/setup-buildx-action@v3` and `docker/build-push-action@v6`
+  with `cache-from: type=gha` / `cache-to: type=gha,mode=max`.
+- **Tests for `_check_redis_ready`** — 4 async tests added to `tests/test_monitoring.py`
+  covering: no Redis URL configured, client is None, ping succeeds, ping raises.
+
+### Changed
+- **`pyproject.toml`** — `target-version = "py310"` → `"py312"` (matches runtime).
+  Triggered ruff `UP017` fix: `datetime.timezone.utc` → `datetime.UTC` in
+  `app/monitoring.py`, `app/services/recommendations_service.py`,
+  `scripts/migrate_sqlite_to_postgres.py`.
+- **`README.md`** — restructured for portfolio: "Why this project matters" moved to top,
+  removed 15 "What Changed" sections, "What I learned", broken screenshot table, and
+  "Notes" section. Added "Changelog" pointer. Added Python 3.12, mypy, hypothesis to
+  Tech Stack. Added mypy command to Development Checks.
+- **`CHANGELOG.md`** — added missing v3.7.1 and v3.7.2 entries.
+- **`docs/ROADMAP.md`** — added v3.7.2 entry.
+- **`docs/ROADMAP.md`** — added v3.7.3, v3.7.4, v3.7.5 entries.
+
+### Notes
+- No schema changes. No runtime logic changes. No user-facing changes.
+
+---
+
 ## [v3.7.2] - 2026-08-05
 
 ### Added
