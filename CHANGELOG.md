@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.6] - 2026-08-09
+
+### Changed
+- **`.github/workflows/deploy.yml`** — added post-deploy health check: polls
+  `http://localhost:9090/ready` every 3 seconds for up to 60 seconds after
+  `docker compose up`. Fails the workflow and prints the last 50 container log
+  lines if the bot does not become ready in time. Added `command_timeout: 5m`
+  to cover slow builds.
+
+### Notes
+- No code or schema changes. No user-facing changes.
+
+---
+
 ## [v3.7.5] - 2026-08-09
 
 ### Added

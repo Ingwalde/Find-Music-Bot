@@ -17,9 +17,22 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
           script: |
             cd ~/Find-Music-Bot
             git pull origin main
             docker compose pull --quiet
             docker compose up -d --build --remove-orphans
             docker image prune -f
+            echo "Waiting for /ready..."
+            for i in $(seq 1 20); do
+              if curl -sf http://localhost:9090/ready > /dev/null; then
+                echo "Bot is ready (attempt $i)."
+                exit 0
+              fi
+              echo "Attempt $i/20 — retrying in 3s..."
+              sleep 3
+            done
+            echo "ERROR: /ready did not respond after 60s. Deploy may have failed."
+            docker compose logs --tail=50 bot
+            exit 1
