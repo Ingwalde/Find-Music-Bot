@@ -2,19 +2,7 @@
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 
-**Current version:** `v3.7.2 — Portfolio Polish`
-
 Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
-
-The project is built as a backend-style portfolio project with modular architecture, PostgreSQL persistence via asyncpg, external API integrations, localization, logging, automated tests, coverage reports, Ruff checks, GitHub Actions, Docker support, release cleanup checks, admin diagnostics, database maintenance tools, and versioned releases.
-
----
-
-## Preview
-
-| Search results | Track card | Recommendations |
-|---|---|---|
-| ![search](screenshots/search.png) | ![track](screenshots/track.png) | ![recommendations](screenshots/recommendations.png) |
 
 ---
 
@@ -28,202 +16,6 @@ that happens to have a Telegram interface:
 - **Resilience** — every external call (Deezer, Spotify, Genius, Redis) has a fallback. The bot never crashes on a single service outage.
 - **Schema discipline** — Alembic owns the database schema; the runtime uses raw asyncpg (no ORM). Every schema change is a versioned migration.
 - **94%+ test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
-
-## What I learned
-
-- **Async-native Python** — asyncpg, aiogram 3.x, redis.asyncio, httpx. No `asyncio.to_thread` workarounds, no sync code in the event loop.
-- **Production observability** — Prometheus metrics (histograms, counters, gauges), structured JSON logging, per-request correlation IDs, TLS certificate expiry monitoring.
-- **Schema migration discipline** — Alembic with raw SQL (`op.execute()`). Schema and runtime code stay decoupled.
-- **Resilience patterns** — circuit breaker with half-open probe, graceful shutdown drain, in-memory fallback for Redis-backed features, non-fatal error logging to the database.
-- **Real deployment** — Oracle Cloud VPS, self-signed TLS for webhook mode, Docker Compose with health checks and proper `depends_on`.
-
----
-
-## What Changed in v3.7.0
-
-- **Redis health** — `check_redis()` added to `app/health.py` and surfaced in the admin
-  `/health` command. `/ready` returns 503 when Redis is configured but unreachable.
-- **Prometheus: `bot_rate_limit_blocked_total`** (Counter) — incremented every time a
-  request is blocked by the rate limiter (both in-memory and Redis paths).
-- **Prometheus: `bot_tls_cert_expiry_days`** (Gauge) — days until the TLS certificate
-  expires, updated on every `/metrics` scrape. Active only when `WEBHOOK_CERT_PATH` is
-  set. Returns −1 when the cert file is unreadable. Uses the `cryptography` library.
-- **Startup config log** — key non-secret settings are logged at INFO level on startup:
-  mode, Redis status, Spotify status, rate-limit parameters, shutdown timeout.
-- **`scripts/check_env_example.py`** — scans all `os.getenv()` calls in `app/` and
-  verifies each variable is documented in `.env.example`. Exits 1 if any are missing.
-  Added as a CI step.
-- No schema changes. No user-facing changes.
-
----
-
-## What Changed in v3.6.0
-
-- **Redis integration** — optional Redis backend (`REDIS_URL`) for stateless rate
-  limiting and trending track cache. Falls back gracefully to in-memory when Redis is
-  unavailable or not configured.
-- **Redis rate limiting** — sliding-window algorithm using a Redis sorted set. Admin-exempt
-  flag preserved. Warn-once state stored as a Redis key with TTL.
-- **Redis trending cache** — trending tracks stored as JSON via `SET … EX` with a 1-hour
-  TTL. Cache hit serves directly from Redis; miss fetches and stores.
-- `redis` service added to `docker-compose.yml` (redis:7-alpine); `music-bot` depends on
-  it with health check. `test-redis` service added under `test` profile (port 6380).
-- No schema changes. No breaking changes. No user-facing changes.
-- `REDIS_URL` is optional — omit to keep existing in-memory behaviour.
-
----
-
-## What Changed in v3.5.0
-
-- **Admin audit log** — every admin action is recorded in a new `admin_audit` PostgreSQL
-  table with `admin_telegram_id`, `action`, optional `details` (JSONB), and `created_at`.
-  New Alembic revision.
-- **Rate limit hardening** — `RATE_LIMIT_MAX_REQUESTS` (default 20) and
-  `RATE_LIMIT_WINDOW_SECONDS` (default 60) are now configurable via environment variables.
-  Admin users are unconditionally exempt from rate limiting.
-- No user-facing changes.
-
----
-
-## What Changed in v3.4.1
-
-- Added graceful shutdown drain — in-flight Telegram handlers are now given up to
-  `SHUTDOWN_TIMEOUT_SECONDS` (default 30s) to finish before the bot session and DB pool
-  are closed on SIGTERM. Previously a handler mid-DB-call would receive `CancelledError`.
-- Added circuit breaker half-open state — after cooldown, exactly one probe request is
-  allowed through; all other callers see the breaker as open until the probe resolves.
-- No user-facing changes.
-
----
-
-## What Changed in v3.4.0
-
-- Added opt-in structured JSON logging (`LOG_FORMAT=json`). Each log record becomes a
-  single-line JSON object with `ts`, `level`, `logger`, `message`, and `correlation_id`.
-  Default stays plain text.
-- Added per-update correlation IDs — a short random ID is assigned to each Telegram update
-  and appears in every log record emitted while handling it, making request tracing possible.
-- Added Prometheus `/metrics` endpoint on port 9090, alongside `/health` and `/ready`.
-  Exposes external API request counts and latency (per service), circuit breaker state, and
-  search cache hit/miss counters.
-- No user-facing changes. No schema changes.
-
----
-
-## What Changed in v3.3.3
-
-- `DATABASE_URL` is now correctly documented as **required** in the Setup section — the
-  bot refuses to start without it. Previously the README listed only `BOT_TOKEN`.
-- Removed the stale `DATABASE_PATH` line from the optional env block (it is migration-only)
-  and corrected the "Database features" and "Stored data" sections to reflect Alembic
-  ownership of the schema (in place since v3.1.1).
-- Fixed the Docker Support section and Project Structure to show `docker-compose.yml` in
-  the project root (moved there in v3.2.0), not under `deploy/`.
-- Documentation-only patch. No code behavior changes.
-
----
-
-## What Changed in v3.3.2
-
-- Added a circuit breaker for network-level outages against Spotify, Deezer, or Genius —
-  after 3 consecutive fully-failed calls to one service, further requests to it are
-  short-circuited for a cooldown period instead of repeatedly retrying a service that's
-  unreachable.
-- Added a global error handler so an unexpected failure now always gets logged and
-  recorded, instead of silently dropping the interaction.
-- The lyrics lookup now shows a "searching..." status message while it looks up the
-  Genius page.
-- Various internal reliability fixes (see [CHANGELOG.md](CHANGELOG.md) for details). No
-  breaking changes.
-
----
-
-## What Changed in v3.3.1
-
-- Backfilled the missing v3.1.2 CHANGELOG entry.
-- Removed a stale `testcontainers` line from Tech Stack and replaced the stale Roadmap
-  block with a pointer to [docs/ROADMAP.md](docs/ROADMAP.md).
-- Documentation-only patch. No code behavior changes.
-
----
-
-## What Changed in v3.3.0
-
-- Added optional Telegram webhook mode as an alternative to polling, selected with
-  `BOT_MODE=webhook` in `.env`. Default stays `BOT_MODE=polling` — no config change
-  means no behavior change.
-- Webhook mode terminates TLS itself with a self-signed certificate (no reverse proxy)
-  and listens on port 8443. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for setup,
-  certificate generation, and required firewall rules.
-- `docker-compose.yml` publishes port 8443 and mounts `./certs` read-only for the
-  certificate and private key.
-- No user-facing feature changes — polling remains the default transport.
-
----
-
-## What Changed in v3.2.0
-
-- Added HTTP monitoring endpoints via FastAPI, running alongside the bot's aiogram polling
-  in the same process: `GET /health` (liveness) and `GET /ready` (PostgreSQL readiness),
-  served on port 9090.
-- `docker-compose.yml` moved from `deploy/` to the project root — `docker compose` commands
-  no longer need `-f`/`--env-file` flags. The Dockerfile stays in `deploy/`.
-- The Dockerfile now execs the bot as PID 1, so `docker stop`/`docker compose down` delivers
-  SIGTERM directly and the bot shuts down gracefully instead of being hard-killed.
-- No user-facing feature changes.
-
----
-
-## What Changed in v3.1.1
-
-- Replaced the hand-built schema-migration mechanism with Alembic (industry-standard tooling).
-  Alembic now owns the database schema; the app runtime stays on asyncpg.
-- Schema is applied via `alembic upgrade head` at container start.
-- `init_db_pool()` now only creates the connection pool — schema setup moved to Alembic.
-- Fixed a facade-rule violation in `aggregator.py`.
-- No user-facing feature changes.
-
----
-
-## What Changed in v3.1.0
-
-- Migrated the database from SQLite to PostgreSQL (asyncpg). All database access is now fully asynchronous via a connection pool.
-- `asyncio.to_thread` wrappers removed — all DB calls are natively async.
-- `deploy/docker-compose.yml` now includes a PostgreSQL service with healthcheck and named volume.
-- `scripts/migrate_sqlite_to_postgres.py` provided for one-time data migration from existing SQLite files.
-- `DATABASE_URL` is now required at startup.
-- No user-facing feature changes.
-
----
-
-## What Changed in v3.0.0
-
-- **Full migration from pyTelegramBotAPI to aiogram 3.29.0.** All handlers, callbacks, and bot lifecycle code are now async.
-- Removed legacy dependencies: `pyTelegramBotAPI`, `deezer-python`, `lyricsgenius`, `requests`.
-- Deezer search and lyrics fetching now use `httpx` directly (no third-party SDKs).
-- All sync DB and I/O calls use `asyncio.to_thread` for non-blocking execution.
-- Dispatcher now wires `handlers_router` and `callbacks_router` at startup and drops pending updates before polling.
-- Database schema, localization, and all user-facing features unchanged.
-
----
-
-## What Changed in v2.7.0
-
-- Internal technical-debt refactor — no new user-facing features.
-- `/similar` now displays results grouped as `🎤 Artist / 🎵 Others`, matching the inline 🎯 Similar button.
-- `/trending` formatting is now shared with the recommendations service (output unchanged).
-- Removed dead code, unused facade exports, and duplicated handler boilerplate.
-- All database repository functions now close their connection safely even on errors.
-
----
-
-## What Changed in v2.6.1
-
-- Localized favorites error alerts, which were previously shown in English regardless of the user's language.
-- Localized the `/version` command output.
-- Added error handling to the language selection callback.
-- Track card errors are now logged to the admin error log instead of only the application log file.
-- Improved test coverage for favorites and history callbacks.
 
 ---
 
@@ -396,6 +188,7 @@ The project includes automated quality checks:
 - Pytest test suite (~94% coverage, minimum gate 85%).
 - Coverage reporting through `pytest-cov`.
 - Ruff linting.
+- mypy on typed modules.
 - GitHub Actions workflow.
 - Release cleanup validation script.
 - Locale coverage checker.
@@ -461,8 +254,8 @@ Docker Compose mounts:
 
 ## Tech Stack
 
-- Python
-- aiogram
+- Python 3.12
+- aiogram 3.x
 - httpx (Deezer search, Genius lyrics)
 - Spotify Web API
 - PostgreSQL (asyncpg)
@@ -471,13 +264,11 @@ Docker Compose mounts:
 - FastAPI
 - prometheus-client
 - cryptography
-- pytest
-- pytest-cov
-- pytest-asyncio
+- pytest / pytest-cov / pytest-asyncio / hypothesis
 - Ruff
+- mypy
 - GitHub Actions
-- Docker
-- Docker Compose
+- Docker / Docker Compose
 
 ---
 
@@ -697,11 +488,11 @@ Run before committing:
 
 ```bash
 python -m ruff check .
+python -m mypy app/utils/types.py app/services/deezer_service.py app/platforms/aggregator.py app/services/track_formatter.py app/services/recommendations_service.py
 python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
 python scripts/check_env_example.py
-python -c "from app.version import __version__; print(__version__)"
 ```
 
 `python -m pytest` runs the full suite including PostgreSQL and Redis integration tests
@@ -770,13 +561,13 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for completed releases and planned next s
 
 ---
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+---
+
 ## License
 
 [Polyform Noncommercial License 1.0.0](LICENSE) — free for personal, educational, and
 non-commercial use. Commercial use requires explicit permission from the author.
-
----
-
-## Notes
-
-This project is intended as a portfolio backend/bot project. It focuses on practical Telegram bot functionality, API integration, local persistence, maintainability, testing, Docker deployment and production-style cleanup practices.
