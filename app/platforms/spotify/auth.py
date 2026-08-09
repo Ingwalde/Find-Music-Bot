@@ -4,6 +4,7 @@ import time
 import httpx
 
 from app.config.settings import settings
+from app.utils.http_client import get_http_client
 from app.utils.http_retry import post_with_retry
 from app.utils.logger import setup_logger
 
@@ -128,14 +129,13 @@ async def get_spotify_access_token() -> str | None:
             return _access_token
 
         try:
-            async with httpx.AsyncClient(timeout=10) as http_client:
-                response = await post_with_retry(
-                    http_client,
-                    SPOTIFY_TOKEN_URL,
-                    service="spotify",
-                    data={"grant_type": "client_credentials"},
-                    auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
-                )
+            response = await post_with_retry(
+                get_http_client(),
+                SPOTIFY_TOKEN_URL,
+                service="spotify",
+                data={"grant_type": "client_credentials"},
+                auth=(settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET),
+            )
         except httpx.HTTPStatusError as error:
             try:
                 handle_spotify_http_error(error, "token request")

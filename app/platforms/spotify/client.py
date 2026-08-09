@@ -12,6 +12,7 @@ from app.platforms.spotify.matcher import (
     format_spotify_track,
     score_spotify_candidate,
 )
+from app.utils.http_client import get_http_client
 from app.utils.http_retry import get_with_retry
 from app.utils.logger import setup_logger
 
@@ -39,14 +40,13 @@ async def request_spotify_search(
         params["market"] = market
 
     try:
-        async with httpx.AsyncClient(timeout=10) as http_client:
-            response = await get_with_retry(
-                http_client,
-                SPOTIFY_SEARCH_URL,
-                service="spotify",
-                headers={"Authorization": f"Bearer {token}"},
-                params=params,
-            )
+        response = await get_with_retry(
+            get_http_client(),
+            SPOTIFY_SEARCH_URL,
+            service="spotify",
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
+        )
     except httpx.HTTPStatusError as error:
         try:
             handle_spotify_http_error(error, "track search")
