@@ -1,14 +1,20 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Deploy via SSH
@@ -17,9 +23,27 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_TOKEN,GITHUB_ACTOR
+          command_timeout: 5m
           script: |
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             cd ~/Find-Music-Bot
             git pull origin main
             docker compose pull --quiet
-            docker compose up -d --build --remove-orphans
+            docker compose up -d --remove-orphans
             docker image prune -f
+            echo "Waiting for /ready..."
+            for i in $(seq 1 20); do
+              if curl -sf http://localhost:9090/ready > /dev/null; then
+                echo "Bot is ready (attempt $i)."
+                exit 0
+              fi
+              echo "Attempt $i/20 — retrying in 3s..."
+              sleep 3
+            done
+            echo "ERROR: /ready did not respond after 60s. Deploy may have failed."
+            docker compose logs --tail=50 bot
+            exit 1
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}

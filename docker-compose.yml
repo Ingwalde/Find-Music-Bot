@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    image: tg-bot
+    image: ghcr.io/ingwalde/find-music-bot:latest
     container_name: telegram-music-finder-bot
     restart: unless-stopped
     env_file:

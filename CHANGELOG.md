@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.6] - 2026-08-09
+
+### Changed
+- **`.github/workflows/tests.yml`** — `docker` job now logs in to GHCR and
+  pushes `ghcr.io/ingwalde/find-music-bot:latest` on every push to `main`
+  (PR runs still build-only). Added `permissions: packages: write`.
+- **`docker-compose.yml`** — `music-bot` image changed from `tg-bot` to
+  `ghcr.io/ingwalde/find-music-bot:latest`. `build:` kept for local dev.
+- **`.github/workflows/deploy.yml`** — three improvements:
+  - Trigger changed from `push` to `workflow_run` on `Tests` success —
+    deploy only fires after the new image is built and pushed to GHCR.
+  - `docker compose pull` + `docker compose up -d` (no `--build`) — server
+    pulls the pre-built GHCR image, never builds locally.
+  - Post-deploy health check: polls `http://localhost:9090/ready` every 3s
+    for up to 60s; on timeout prints last 50 container log lines and exits 1.
+  - GHCR login on server via `GITHUB_TOKEN` passed through `envs:`.
+  - `command_timeout: 5m`.
+
+### Notes
+- No code or schema changes. No user-facing changes.
+- First deploy after this merge: GHCR package is created automatically.
+  If the package is private by default, go to
+  GitHub → Packages → find-music-bot → Package settings → Change visibility → Public.
+
+---
+
 ## [v3.7.5] - 2026-08-09
 
 ### Added
