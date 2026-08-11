@@ -3,5 +3,5 @@ ruff==0.16.1
 pytest-cov==7.1.0
 pytest-asyncio==1.4.0
 hypothesis>=6.164.0
-mypy>=1.14.0
+mypy>=2.3.0
 pip-audit>=2.7.0
