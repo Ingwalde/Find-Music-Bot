@@ -12,7 +12,6 @@ from app.database.repositories import (
     add_favorite,
     clear_favorites,
     get_favorite_tracks,
-    get_user_language,
     remove_favorite,
     save_track,
     upsert_user,
@@ -29,6 +28,7 @@ async def handle_favorite_callback(
     bot: Bot,
     call: CallbackQuery,
     track_id: str,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -37,8 +37,6 @@ async def handle_favorite_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     if not await check_rate_limit(user.id):
         if await should_warn_once(user.id):
@@ -80,6 +78,7 @@ async def handle_remove_favorite_callback(
     bot: Bot,
     call: CallbackQuery,
     track_id: str,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -88,8 +87,6 @@ async def handle_remove_favorite_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     if not await check_rate_limit(user.id):
         if await should_warn_once(user.id):
@@ -132,6 +129,7 @@ async def handle_remove_favorite_callback(
 async def handle_clear_favorites_request_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -140,8 +138,6 @@ async def handle_clear_favorites_request_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         await bot.edit_message_text(
@@ -161,6 +157,7 @@ async def handle_clear_favorites_request_callback(
 async def handle_clear_favorites_confirm_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -169,8 +166,6 @@ async def handle_clear_favorites_confirm_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         await clear_favorites(user.id)
@@ -191,6 +186,7 @@ async def handle_clear_favorites_confirm_callback(
 async def handle_clear_favorites_cancel_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -199,8 +195,6 @@ async def handle_clear_favorites_cancel_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         tracks = await get_favorite_tracks(user.id)

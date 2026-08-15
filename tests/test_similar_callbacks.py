@@ -27,7 +27,6 @@ def make_track(title="SOS", artist="ABBA"):
 @pytest.mark.asyncio
 async def test_handle_similar_callback_sends_tracks_list(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
     monkeypatch.setattr(
         similar_callbacks,
@@ -35,7 +34,7 @@ async def test_handle_similar_callback_sends_tracks_list(monkeypatch):
         to_async(lambda tid, artist_name="": [make_track("Waterloo", "ABBA")]),
     )
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert len(bot.answers) == 1
 
@@ -44,14 +43,13 @@ async def test_handle_similar_callback_sends_tracks_list(monkeypatch):
 async def test_handle_similar_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(similar_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
         similar_callbacks, "get_track", to_async(lambda tid: called.update(called=True))
     )
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -61,11 +59,10 @@ async def test_handle_similar_callback_blocked_by_rate_limit(monkeypatch):
 @pytest.mark.asyncio
 async def test_handle_similar_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(similar_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -73,11 +70,10 @@ async def test_handle_similar_callback_second_block_is_silent(monkeypatch):
 @pytest.mark.asyncio
 async def test_handle_similar_callback_sends_empty_message_when_no_tracks(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
     monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": []))
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert len(bot.messages) == 1
     assert "No similar" in bot.messages[0][0][1]
@@ -90,11 +86,10 @@ async def test_handle_similar_callback_uses_fallback_header_when_get_track_fails
     async def failing_get_track(tid):
         raise RuntimeError("fail")
 
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "get_track", failing_get_track)
     monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": [make_track()]))
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert len(bot.messages) == 1
 
@@ -106,12 +101,11 @@ async def test_handle_similar_callback_handles_exception_gracefully(monkeypatch)
     async def failing_get_similar(tid, artist_name=""):
         raise RuntimeError("network error")
 
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
     monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", failing_get_similar)
     monkeypatch.setattr(similar_callbacks, "log_and_save_error", to_async(lambda **kwargs: None))
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     assert len(bot.messages) == 1
     assert "No similar" in bot.messages[0][0][1]
@@ -120,12 +114,11 @@ async def test_handle_similar_callback_handles_exception_gracefully(monkeypatch)
 @pytest.mark.asyncio
 async def test_handle_similar_callback_shows_up_to_five_tracks(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(similar_callbacks, "get_user_language", to_async(lambda uid: "en"))
     monkeypatch.setattr(similar_callbacks, "get_track", to_async(lambda tid: make_track()))
     many = [make_track(f"Track {i}", "ABBA") for i in range(10)]
     monkeypatch.setattr(similar_callbacks, "get_similar_by_genre", to_async(lambda tid, artist_name="": many))
 
-    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123")
+    await similar_callbacks.handle_similar_callback(bot, fake_call("123"), "123", "en")
 
     text = bot.messages[0][0][1]
     assert "Track 4" in text

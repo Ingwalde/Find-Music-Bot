@@ -2,7 +2,6 @@ from aiogram import Bot
 from aiogram.types import CallbackQuery, LinkPreviewOptions
 
 from app.bot.rate_limit import check_rate_limit, should_warn_once
-from app.database.repositories import get_user_language
 from app.localization.translations import t
 from app.services.deezer_service import get_track
 from app.services.recommendations_service import format_similar_text, get_similar_by_genre
@@ -16,6 +15,7 @@ async def handle_similar_callback(
     bot: Bot,
     call: CallbackQuery,
     track_id: str,
+    language: str,
 ) -> None:
     """
     Handles the 🎯 Similar button — fetches and displays tracks similar to
@@ -28,8 +28,6 @@ async def handle_similar_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     if not await check_rate_limit(user.id):
         if await should_warn_once(user.id):

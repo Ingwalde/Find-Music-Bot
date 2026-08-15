@@ -9,7 +9,6 @@ from app.database.repositories import (
     clear_search_history,
     get_search_history,
     get_search_query_by_id,
-    get_user_language,
     upsert_user,
 )
 from app.localization.translations import t
@@ -23,6 +22,7 @@ async def handle_history_search_callback(
     bot: Bot,
     call: CallbackQuery,
     search_id: str,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -31,8 +31,6 @@ async def handle_history_search_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     if not await check_rate_limit(user.id):
         if await should_warn_once(user.id):
@@ -72,6 +70,7 @@ async def handle_history_search_callback(
 async def handle_clear_history_request_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -80,8 +79,6 @@ async def handle_clear_history_request_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         await bot.edit_message_text(
@@ -101,6 +98,7 @@ async def handle_clear_history_request_callback(
 async def handle_clear_history_confirm_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -109,8 +107,6 @@ async def handle_clear_history_confirm_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         await clear_search_history(user.id)
@@ -135,6 +131,7 @@ async def handle_clear_history_confirm_callback(
 async def handle_clear_history_cancel_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -143,8 +140,6 @@ async def handle_clear_history_cancel_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         history = await get_search_history(

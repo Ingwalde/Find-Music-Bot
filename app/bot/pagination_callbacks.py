@@ -9,7 +9,6 @@ from app.bot.context import (
 )
 from app.bot.keyboards import search_results_keyboard
 from app.config.settings import settings
-from app.database.repositories import get_user_language
 from app.localization.translations import t
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
@@ -21,6 +20,7 @@ async def handle_page_callback(
     bot: Bot,
     call: CallbackQuery,
     page: int,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -29,8 +29,6 @@ async def handle_page_callback(
     user = call.from_user
     if message is None or user is None:
         return
-
-    language = await get_user_language(user.id)
 
     try:
         context = await get_search_context(user.id)
@@ -88,6 +86,7 @@ async def handle_page_callback(
 async def handle_back_to_results_callback(
     bot: Bot,
     call: CallbackQuery,
+    language: str,
 ) -> None:
     # Narrowed once. The router rejects any callback whose message or
     # from_user is absent, so neither can be None here — binding them
@@ -99,7 +98,6 @@ async def handle_back_to_results_callback(
 
     from app.bot.actions import send_current_results_page
 
-    language = await get_user_language(user.id)
 
     try:
         await bot.answer_callback_query(call.id)

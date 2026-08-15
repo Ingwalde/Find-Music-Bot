@@ -61,7 +61,7 @@ async def test_callback_router_still_dispatches_valid_page_data(monkeypatch):
 
     called_with = {}
 
-    async def fake_handle_page_callback(bot, call, page):
+    async def fake_handle_page_callback(bot, call, page, language):
         called_with["page"] = page
 
     monkeypatch.setattr(callbacks, "handle_page_callback", fake_handle_page_callback)

@@ -16,6 +16,7 @@ async def handle_language_callback(
     bot: Bot,
     call: CallbackQuery,
     language_code: str,
+    language: str,
 ) -> None:
     """
     Saves selected language for current user.
