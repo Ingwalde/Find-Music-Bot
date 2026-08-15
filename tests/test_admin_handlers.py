@@ -21,6 +21,13 @@ async def test_admin_handlers_return_admin_reports(monkeypatch):
         handlers, "cleanup_history_report", to_async(lambda language="en": "history cleanup")
     )
 
+    audited: list[tuple[int, str]] = []
+    monkeypatch.setattr(
+        handlers,
+        "save_admin_audit",
+        to_async(lambda admin_id, action: audited.append((admin_id, action))),
+    )
+
     msg = fake_message(user_id=123)
     await handlers.stats_handler(msg, bot)
     await handlers.maintenance_handler(msg, bot)
@@ -33,6 +40,34 @@ async def test_admin_handlers_return_admin_reports(monkeypatch):
     assert "maintenance report" in sent_texts
     assert "errors cleanup" in sent_texts
     assert "history cleanup" in sent_texts
+
+    # Slash commands must leave an audit trail, not just menu actions.
+    assert audited == [
+        (123, "cmd_stats"),
+        (123, "cmd_maintenance"),
+        (123, "cmd_cleanup_errors"),
+        (123, "cmd_cleanup_history"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_non_admin_slash_command_is_not_audited(monkeypatch):
+    """A rejected caller must not produce an audit entry."""
+    bot = AsyncFakeBot()
+    monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
+    monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
+    monkeypatch.setattr(handlers, "is_admin_user", lambda user_id: False)
+
+    audited: list[tuple[int, str]] = []
+    monkeypatch.setattr(
+        handlers,
+        "save_admin_audit",
+        to_async(lambda admin_id, action: audited.append((admin_id, action))),
+    )
+
+    await handlers.stats_handler(fake_message(user_id=999), bot)
+
+    assert audited == []
 
 
 @pytest.mark.asyncio

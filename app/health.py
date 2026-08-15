@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 from app.config.settings import settings
@@ -106,13 +107,17 @@ async def get_health_items() -> list[HealthItem]:
     """
     Returns health diagnostics used by the admin /health command.
     """
+    # The two I/O checks run concurrently — a slow or timing-out database
+    # should not add its latency to Redis's before the admin sees anything.
+    database_item, redis_item = await asyncio.gather(check_database(), check_redis())
+
     return [
         HealthItem(name="Bot", ok=True, message="OK"),
-        await check_database(),
+        database_item,
         check_deezer(),
         check_spotify(),
         check_genius(),
-        await check_redis(),
+        redis_item,
     ]
 
 

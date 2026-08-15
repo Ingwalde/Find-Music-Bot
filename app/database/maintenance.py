@@ -92,12 +92,32 @@ async def get_table_count(table_name: str) -> int:
 async def get_table_counts() -> dict[str, int]:
     """
     Returns row counts for all maintenance-visible tables.
+
+    One connection, one round-trip. Previously this awaited get_table_count()
+    per table, each acquiring its own connection — 7 tables meant 8 acquires
+    and 8 queries for a single /maintenance report.
+
+    Table names come from get_maintenance_table_names(), which is intersected
+    with the MAINTENANCE_TABLES allowlist, so interpolating them into the
+    UNION is safe for the same reason get_table_count's f-string is.
     """
     table_names = await get_maintenance_table_names()
-    result = {}
-    for table_name in table_names:
-        result[table_name] = await get_table_count(table_name)
-    return result
+
+    if not table_names:
+        return {}
+
+    union = " UNION ALL ".join(
+        f"SELECT '{name}' AS table_name, COUNT(*) AS row_count FROM {name}"
+        for name in table_names
+    )
+
+    async with (await get_pool()).acquire() as conn:
+        rows = await conn.fetch(union)
+
+    counts = {str(row["table_name"]): int(row["row_count"]) for row in rows}
+
+    # Preserve the allowlist ordering rather than the DB's row order.
+    return {name: counts.get(name, 0) for name in table_names}
 
 
 async def get_schema_version() -> str:
@@ -210,5 +230,26 @@ async def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[s
                 )
 
     after = await get_table_count("searches")
+
+    return {"before": before, "after": after, "deleted": before - after}
+
+
+async def cleanup_expired_search_cache() -> dict[str, int]:
+    """
+    Deletes search_cache rows past the 24h freshness window.
+
+    The cache is read with a lazy staleness check, so a stale row is never
+    served — but nothing ever deleted it either. Every unique normalized query
+    ever searched kept its full result_json blob forever. This is the active
+    prune that was missing; the read path is unchanged.
+    """
+    before = await get_table_count("search_cache")
+
+    async with (await get_pool()).acquire() as conn:
+        await conn.execute(
+            "DELETE FROM search_cache WHERE created_at < NOW() - INTERVAL '24 hours'"
+        )
+
+    after = await get_table_count("search_cache")
 
     return {"before": before, "after": after, "deleted": before - after}

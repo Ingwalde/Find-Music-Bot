@@ -128,9 +128,24 @@ async def get_similar_by_genre(track_id: str, artist_name: str = "", limit: int 
             seen_ids = {str(track_id)} | {t["deezer_track_id"] for t in result if t.get("deezer_track_id")}
             needed = limit - len(result)
 
+            # One Deezer round-trip per related artist, run concurrently rather
+            # than in sequence — this is on the user-facing /similar path and
+            # each call carries its own retry budget, so serialising 3 of them
+            # stacked their latency for no reason.
+            # return_exceptions: one artist failing must not lose the others.
+            batches = await asyncio.gather(
+                *(get_artist_top_tracks_by_id(artist["id"], limit=10) for artist in related),
+                return_exceptions=True,
+            )
+
             candidates: list[TrackDict] = []
-            for artist in related:
-                candidates.extend(await get_artist_top_tracks_by_id(artist["id"], limit=10))
+            for artist, batch in zip(related, batches, strict=True):
+                if isinstance(batch, BaseException):
+                    logger.warning(
+                        "Related-artist lookup failed for %s: %s", artist.get("id"), batch
+                    )
+                    continue
+                candidates.extend(batch)
 
             # Pass A — with decade filter
             decade_results: list[TrackDict] = []

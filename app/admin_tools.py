@@ -1,5 +1,6 @@
 from app.config.admins import clear_admin_ids_cache
 from app.database.maintenance import (
+    cleanup_expired_search_cache,
     cleanup_old_errors,
     cleanup_search_history,
     get_database_summary,
@@ -105,10 +106,19 @@ async def cleanup_errors_report(language: str = "en") -> str:
 async def cleanup_history_report(language: str = "en") -> str:
     """
     Runs search history cleanup and returns a readable admin report.
+
+    Also prunes expired search_cache rows. That table had no active pruning at
+    all — entries were only checked for staleness on read, so every unique
+    query ever searched kept its result_json blob forever. Folded in here
+    rather than behind a new command so it needs no new locale keys; the
+    reported before/after counts stay those of the search history.
     """
+    result = await cleanup_search_history()
+    await cleanup_expired_search_cache()
+
     return format_cleanup_result(
         t("admin_cleanup_history_completed", language),
-        await cleanup_search_history(),
+        result,
         language,
     )
 

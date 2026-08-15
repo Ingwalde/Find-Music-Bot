@@ -92,11 +92,29 @@ async def test_cleanup_reports(monkeypatch):
     async def fake_cleanup_search_history(*args, **kwargs):
         return {"before": 4, "after": 2, "deleted": 2}
 
+    cache_pruned = {"called": False}
+
+    async def fake_cleanup_expired_search_cache(*args, **kwargs):
+        cache_pruned["called"] = True
+        return {"before": 9, "after": 3, "deleted": 6}
+
     monkeypatch.setattr(admin_tools, "cleanup_old_errors", fake_cleanup_old_errors)
     monkeypatch.setattr(admin_tools, "cleanup_search_history", fake_cleanup_search_history)
+    monkeypatch.setattr(
+        admin_tools, "cleanup_expired_search_cache", fake_cleanup_expired_search_cache
+    )
 
     assert "Error cleanup completed" in await admin_tools.cleanup_errors_report()
-    assert "Search history cleanup completed" in await admin_tools.cleanup_history_report()
+
+    report = await admin_tools.cleanup_history_report()
+    assert "Search history cleanup completed" in report
+
+    # The cache prune rides along with the history cleanup, but the reported
+    # counts must stay the history's own — not the cache's.
+    assert cache_pruned["called"] is True
+    assert "Before: 4" in report
+    assert "Deleted: 2" in report
+    assert "After: 2" in report
 
 
 @pytest.mark.asyncio
