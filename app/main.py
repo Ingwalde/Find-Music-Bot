@@ -160,6 +160,24 @@ async def run_bot() -> None:
             if error is not None:
                 source = task_sources[task]
                 raise error
+
+            # A task finishing without an exception is the graceful-shutdown
+            # path — uvicorn's signal handling sets should_exit and serve()
+            # returns normally, which test_run_bot_clean_shutdown_cancels_
+            # hanging_polling_without_raising pins as "must not raise". So the
+            # exit code stays 0 here deliberately.
+            #
+            # What was missing is any record of it: the process ended with
+            # nothing in the log saying which half stopped or that it stopped
+            # at all, leaving `restart: unless-stopped` as the only evidence.
+            # Log it at WARNING — a bot that stopped serving is worth noticing
+            # even when stopping was intended.
+            logger.warning(
+                "%s finished without an exception — shutting down. This is the "
+                "expected path on SIGTERM; if no shutdown was requested, this "
+                "is the whole story of why the bot stopped.",
+                task_sources[task],
+            )
     except Exception as error:
         await log_and_save_error(
             logger=logger,
