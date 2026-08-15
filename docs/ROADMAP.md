@@ -57,8 +57,6 @@
 - `v3.7.7` — Deploy Cleanup & Grafana (public GHCR pull, SCP compose, Grafana dashboard JSON)
 - `v3.7.8` — Technical Debt & Infra (mypy 11→25 modules, Redis search context + cache tier,
   Trivy image scan, multi-stage Dockerfile, Dependabot on `deps/staging`, version-sync guard)
-- `v3.7.9` — Deploy Integrity (failed image pull now aborts the deploy instead of
-  silently restarting stale code; running-image digest assertion)
 
 ## Planned
 

@@ -303,8 +303,8 @@ Triggers automatically after the Tests workflow completes successfully on `main`
 3. `docker compose pull`. **A failed pull aborts the deploy.** It must: compose
    otherwise falls back to the locally cached image and the old container starts,
    and `/ready` then answers from stale code, turning a failed deploy green. That
-   is exactly what happened between v3.7.7 and v3.7.9 — three deploys shipped
-   nothing while reporting success.
+   is exactly what happened after v3.7.7 — three deploys shipped nothing while
+   reporting success.
 4. Restarts the stack with `docker compose up -d --remove-orphans`, then asserts
    the running container's image ID equals the one just pulled.
 5. Polls `http://localhost:9090/ready` every 3 s (up to 60 s). Fails the job and
