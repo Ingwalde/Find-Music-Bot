@@ -36,9 +36,40 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 5m
           script: |
+            set -euo pipefail
             cd ~/Find-Music-Bot
-            docker compose pull --quiet
+
+            # The GHCR package is public, but a stale credential left in
+            # ~/.docker/config.json by the pre-v3.7.7 `docker login` step makes
+            # the daemon send an expired token instead of pulling anonymously,
+            # and the registry answers "denied". Drop it first.
+            docker logout ghcr.io || true
+
+            # `docker compose pull` failing is NOT survivable: compose falls
+            # back to the locally cached image, the old container starts, and
+            # /ready answers from the stale build — so the health check below
+            # passes while nothing was actually deployed. This silently shipped
+            # nothing from v3.7.7 (2026-08-09) until v3.7.8 caught it.
+            if ! docker compose pull; then
+              echo "ERROR: could not pull ghcr.io/ingwalde/find-music-bot:latest."
+              echo "Refusing to restart — that would relaunch the previous image"
+              echo "and report a successful deploy for code that never shipped."
+              exit 1
+            fi
+
             docker compose up -d --remove-orphans
+
+            # Belt and braces: confirm the running container is actually the
+            # image we just pulled, not a survivor of a failed recreate.
+            IMAGE="ghcr.io/ingwalde/find-music-bot:latest"
+            want=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+            got=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q music-bot)")
+            if [ "$want" != "$got" ]; then
+              echo "ERROR: music-bot is running $got but the pulled image is $want."
+              exit 1
+            fi
+            echo "Running image matches the pulled digest."
+
             docker image prune -f
             echo "Waiting for /ready..."
             for i in $(seq 1 20); do
@@ -50,5 +81,5 @@ jobs:
               sleep 3
             done
             echo "ERROR: /ready did not respond after 60s. Deploy may have failed."
-            docker compose logs --tail=50 bot
+            docker compose logs --tail=50 music-bot || true
             exit 1
