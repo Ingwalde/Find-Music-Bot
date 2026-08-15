@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v3.7.10] - 2026-08-15
+## [v3.7.10] - 2026-08-16
 
 ### Fixed
 - **Redis credentials could reach the log.** `init_redis` logged the connection
