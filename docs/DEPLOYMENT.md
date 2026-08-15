@@ -282,8 +282,29 @@ Runs on every push and pull request:
 6. **Release cleanup check** — `scripts/check_release_clean.py`
 7. **Version consistency check** — `scripts/check_version_sync.py`
 8. **Locale coverage check** — `scripts/check_locale_coverage.py`
-9. **Docker build + push** — builds the image; on `main` pushes to `ghcr.io/ingwalde/find-music-bot:latest`
+9. **Docker build + push** — builds the image; on `main` pushes two tags:
+   `:latest` and `:sha-<commit>`
 10. **Trivy image scan** — fails on fixable HIGH/CRITICAL findings in the built image
+
+### Image tags and rolling back
+
+`:latest` is what `docker-compose.yml` pulls and is reassigned on every push to
+`main`. `:sha-<commit>` is immutable — it is the only way to name a specific
+build after `:latest` has moved on.
+
+To roll back to a known-good build without reverting the commit:
+
+```bash
+# on the server, find the commit you want from the GHCR package page or git log
+docker pull ghcr.io/ingwalde/find-music-bot:sha-<commit>
+docker tag ghcr.io/ingwalde/find-music-bot:sha-<commit> \
+           ghcr.io/ingwalde/find-music-bot:latest
+docker compose up -d --remove-orphans
+```
+
+The next successful deploy overwrites the local `:latest` again, so this is a
+stopgap that buys time to fix forward — not a substitute for reverting the
+commit if the build is genuinely bad.
 
 CI provisions a `postgres:16-alpine` service container
 (`testuser`/`testpass`/`testdb`, port 5432) and injects
