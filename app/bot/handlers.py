@@ -68,10 +68,26 @@ async def get_user_context(message: Message) -> str:
     return await get_user_language(message.from_user.id)
 
 
-async def require_admin(bot: Bot, message: Message, language: str) -> bool:
+async def require_admin(
+    bot: Bot, message: Message, language: str, action: str | None = None
+) -> bool:
+    """
+    Gate for admin-only commands. Returns True when the caller is an admin.
+
+    Also writes the audit entry: menu actions were audited via
+    handle_admin_action, but slash commands went through this gate and were
+    never recorded, so an admin could run /stats, /clear_errors or
+    /reload_admins with no audit trail at all. Auditing here covers every
+    command that uses this gate, so a new admin command cannot silently skip
+    it — pass `action` to name it.
+    """
     if not await is_admin(message.from_user.id):
         await bot.send_message(message.chat.id, t("admin_only", language))
         return False
+
+    if action:
+        await save_admin_audit(message.from_user.id, action)
+
     return True
 
 
@@ -339,7 +355,7 @@ async def history_handler(message: Message, bot: Bot) -> None:
 async def errors_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_errors"):
         return
 
     await bot.send_message(message.chat.id, await format_recent_errors(language))
@@ -349,7 +365,7 @@ async def errors_handler(message: Message, bot: Bot) -> None:
 async def clear_errors_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_clear_errors"):
         return
 
     await clear_errors()
@@ -360,7 +376,7 @@ async def clear_errors_handler(message: Message, bot: Bot) -> None:
 async def health_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_health"):
         return
 
     await bot.send_message(message.chat.id, await format_health_report())
@@ -370,7 +386,7 @@ async def health_handler(message: Message, bot: Bot) -> None:
 async def stats_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_stats"):
         return
 
     await bot.send_message(message.chat.id, await format_stats_report(language))
@@ -380,7 +396,7 @@ async def stats_handler(message: Message, bot: Bot) -> None:
 async def maintenance_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_maintenance"):
         return
 
     await bot.send_message(
@@ -392,7 +408,7 @@ async def maintenance_handler(message: Message, bot: Bot) -> None:
 async def cleanup_errors_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_cleanup_errors"):
         return
 
     await bot.send_message(
@@ -404,7 +420,7 @@ async def cleanup_errors_handler(message: Message, bot: Bot) -> None:
 async def cleanup_history_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_cleanup_history"):
         return
 
     await bot.send_message(
@@ -416,7 +432,7 @@ async def cleanup_history_handler(message: Message, bot: Bot) -> None:
 async def reload_admins_handler(message: Message, bot: Bot) -> None:
     language = await get_user_context(message)
 
-    if not await require_admin(bot, message, language):
+    if not await require_admin(bot, message, language, "cmd_reload_admins"):
         return
 
     await bot.send_message(message.chat.id, reload_admins_report(language))

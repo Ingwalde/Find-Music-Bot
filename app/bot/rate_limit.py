@@ -21,12 +21,41 @@ _request_timestamps: dict[int, deque] = {}
 _warned_users: set[int] = set()
 _rate_limit_lock = asyncio.Lock()
 
+# Sweep idle entries only once the dict is big enough for the scan to be worth
+# it — an O(n) pass on every request would cost more than the leak it prevents.
+_EVICT_THRESHOLD = 1000
+
+
+def _evict_idle_unlocked(current_time: float, window: float) -> None:
+    """
+    Drops users whose window has fully expired. Assumes the lock is held.
+
+    Without this, _request_timestamps and _warned_users kept one entry per
+    Telegram ID seen since process start, forever — the deque was drained of
+    stale timestamps but the key itself was never removed. Only affects the
+    in-memory fallback (Redis expires its own keys), so it leaked only while
+    Redis was down or unconfigured, which is exactly when a restart is least
+    welcome.
+    """
+    idle = [
+        user_id
+        for user_id, stamps in _request_timestamps.items()
+        if not stamps or current_time - stamps[-1] > window
+    ]
+
+    for user_id in idle:
+        del _request_timestamps[user_id]
+        _warned_users.discard(user_id)
+
 
 async def _check_rate_limit_memory(telegram_id: int) -> bool:
     current_time = time()
     window = settings.RATE_LIMIT_WINDOW_SECONDS
     max_requests = settings.RATE_LIMIT_MAX_REQUESTS
     async with _rate_limit_lock:
+        if len(_request_timestamps) > _EVICT_THRESHOLD:
+            _evict_idle_unlocked(current_time, window)
+
         timestamps = _request_timestamps.setdefault(telegram_id, deque())
         while timestamps and current_time - timestamps[0] > window:
             timestamps.popleft()

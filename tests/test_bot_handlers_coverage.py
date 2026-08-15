@@ -16,6 +16,9 @@ def make_track_dict(title="SOS", artist="ABBA"):
 def _setup_common(monkeypatch):
     monkeypatch.setattr(handlers, "upsert_user", to_async(lambda user: None))
     monkeypatch.setattr(handlers, "get_user_language", to_async(lambda user_id: "en"))
+    # require_admin writes an audit row for every admin slash command, so any
+    # handler test reaching it would otherwise hit the real pool.
+    monkeypatch.setattr(handlers, "save_admin_audit", to_async(lambda admin_id, action: None))
 
 
 # ── 7A: helpers ───────────────────────────────────────────────────────────────
