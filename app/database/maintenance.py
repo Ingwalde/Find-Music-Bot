@@ -199,9 +199,15 @@ async def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[s
     if max_rows_per_user < 0:
         raise ValueError("max_rows_per_user cannot be negative")
 
-    before = await get_table_count("searches")
+    async with (await get_pool()).acquire() as conn, conn.transaction():
+        # The only place in the codebase that genuinely needs a transaction:
+        # one DELETE per user, so a failure partway leaves the cleanup half
+        # applied. Wrapping it also makes the before/after counts consistent —
+        # taken inside the same transaction, they cannot be skewed by a
+        # concurrent insert landing between them, which is what made the
+        # reported "deleted" figure approximate.
+        before = int(await conn.fetchval("SELECT COUNT(*) FROM searches"))
 
-    async with (await get_pool()).acquire() as conn:
         rows = await conn.fetch("SELECT id FROM users")
         user_ids = [int(row["id"]) for row in rows]
 
@@ -229,7 +235,7 @@ async def cleanup_search_history(max_rows_per_user: int | None = None) -> dict[s
                     max_rows_per_user,
                 )
 
-    after = await get_table_count("searches")
+        after = int(await conn.fetchval("SELECT COUNT(*) FROM searches"))
 
     return {"before": before, "after": after, "deleted": before - after}
 

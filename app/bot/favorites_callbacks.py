@@ -51,7 +51,9 @@ async def handle_favorite_callback(
         await upsert_user(user)
 
         track = await get_track(track_id)
-        await save_track(track)
+
+        # No save_track() here: add_favorite() calls it itself and needs the id
+        # it returns. Calling it first ran the same UPSERT twice on every ⭐.
         await add_favorite(user.id, track)
 
         updated_markup = track_actions_keyboard(
