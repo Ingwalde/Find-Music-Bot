@@ -1,10 +1,14 @@
+from typing import cast
+
+from app.config.settings import settings
 from app.database.db import get_pool
 from app.database.repository_modules.common import row_to_dict
 from app.database.repository_modules.tracks import save_track
 from app.database.repository_modules.users import get_user_id
+from app.utils.types import TrackDict
 
 
-async def add_favorite(telegram_id: int, track: dict) -> None:
+async def add_favorite(telegram_id: int, track: TrackDict) -> None:
     user_id = await get_user_id(telegram_id)
 
     if not user_id:
@@ -82,7 +86,9 @@ async def is_track_favorite(telegram_id: int, deezer_track_id: str) -> bool:
     return row is not None
 
 
-async def get_favorite_tracks(telegram_id: int) -> list[dict]:
+async def get_favorite_tracks(
+    telegram_id: int, limit: int | None = None
+) -> list[TrackDict]:
     user_id = await get_user_id(telegram_id)
 
     if not user_id:
@@ -113,8 +119,12 @@ async def get_favorite_tracks(telegram_id: int) -> list[dict]:
             JOIN tracks ON favorites.track_id = tracks.id
             WHERE favorites.user_id = $1
             ORDER BY favorites.created_at DESC
+            LIMIT $2
             """,
             user_id,
+            settings.FAVORITES_LIMIT if limit is None else limit,
         )
 
-    return [row_to_dict(row) for row in rows]
+    # Same asyncpg boundary as get_track_by_deezer_id — the SELECT lists the
+    # TrackDict columns; row_to_dict cannot preserve that shape.
+    return [cast(TrackDict, row_to_dict(row)) for row in rows]

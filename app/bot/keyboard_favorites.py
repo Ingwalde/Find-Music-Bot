@@ -10,10 +10,11 @@ from app.bot.constants import (
 )
 from app.localization.translations import t
 from app.utils.text import truncate_text
+from app.utils.types import TrackDict
 
 
 def favorites_keyboard(
-    tracks: list[dict],
+    tracks: list[TrackDict],
     language: str = "en",
 ) -> InlineKeyboardMarkup:
     """
@@ -25,6 +26,12 @@ def favorites_keyboard(
         title = track.get("title", "Unknown title")
         artist = track.get("artist", "Unknown artist")
         track_id = track.get("deezer_track_id")
+
+        # Without an ID the callback would be "track:None", which matches
+        # nothing — a button that silently does nothing when tapped. Skip it.
+        if not track_id:
+            continue
+
         button_text = truncate_text(f"🎵 {title} — {artist}", 64)
 
         builder.row(

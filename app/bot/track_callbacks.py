@@ -8,11 +8,12 @@ from app.localization.translations import t
 from app.services.deezer_service import get_track
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
+from app.utils.types import TrackDict
 
 logger = setup_logger(__name__)
 
 
-async def get_track_from_cache_or_deezer(track_id: str) -> dict:
+async def get_track_from_cache_or_deezer(track_id: str) -> TrackDict:
     """
     Loads track from the database cache first.
     Falls back to Deezer API only if the track is not cached yet.
@@ -40,10 +41,18 @@ async def handle_track_callback(
     Handles selected track button.
     Uses cached track metadata when possible.
     """
-    language = await get_user_language(call.from_user.id)
+    # Narrowed once. The router rejects any callback whose message or
+    # from_user is absent, so neither can be None here — binding them
+    # keeps that in the type system instead of re-asserting per use.
+    message = call.message
+    user = call.from_user
+    if message is None or user is None:
+        return
 
-    if not await check_rate_limit(call.from_user.id):
-        if await should_warn_once(call.from_user.id):
+    language = await get_user_language(user.id)
+
+    if not await check_rate_limit(user.id):
+        if await should_warn_once(user.id):
             await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
         else:
             await bot.answer_callback_query(call.id)
@@ -56,11 +65,11 @@ async def handle_track_callback(
 
         await send_track_card(
             bot=bot,
-            chat_id=call.message.chat.id,
-            telegram_id=call.from_user.id,
+            chat_id=message.chat.id,
+            telegram_id=user.id,
             track=track,
         )
 
     except Exception as error:
-        await log_and_save_error(logger, call.from_user.id, "track_callback", error)
-        await bot.send_message(call.message.chat.id, t("could_not_load_track", language))
+        await log_and_save_error(logger, user.id, "track_callback", error)
+        await bot.send_message(message.chat.id, t("could_not_load_track", language))

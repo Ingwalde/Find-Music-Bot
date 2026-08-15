@@ -15,7 +15,7 @@ that happens to have a Telegram interface:
 - **Production patterns** — Prometheus metrics, `/health` / `/ready` endpoints, graceful SIGTERM drain, circuit breaker, correlation IDs, Redis fallback — the same patterns used in real services.
 - **Resilience** — every external call (Deezer, Spotify, Genius, Redis) has a fallback. The bot never crashes on a single service outage.
 - **Schema discipline** — Alembic owns the database schema; the runtime uses raw asyncpg (no ORM). Every schema change is a versioned migration.
-- **95% test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
+- **93%+ test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
 
 ---
 
@@ -185,10 +185,10 @@ Database features:
 
 The project includes automated quality checks:
 
-- Pytest test suite (~95% coverage, minimum gate 85%).
+- Pytest test suite (~93% coverage, minimum gate 85%).
 - Coverage reporting through `pytest-cov`.
 - Ruff linting.
-- mypy strict on 25 modules (the checked set lives in `pyproject.toml`).
+- mypy over the whole `app` package (87 modules).
 - GitHub Actions workflow with Trivy image scanning and `pip-audit`.
 - Release cleanup validation script.
 - Version consistency checker.

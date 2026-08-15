@@ -21,10 +21,18 @@ async def handle_similar_callback(
     Handles the 🎯 Similar button — fetches and displays tracks similar to
     the selected track using the Deezer radio endpoint.
     """
-    language = await get_user_language(call.from_user.id)
+    # Narrowed once. The router rejects any callback whose message or
+    # from_user is absent, so neither can be None here — binding them
+    # keeps that in the type system instead of re-asserting per use.
+    message = call.message
+    user = call.from_user
+    if message is None or user is None:
+        return
 
-    if not await check_rate_limit(call.from_user.id):
-        if await should_warn_once(call.from_user.id):
+    language = await get_user_language(user.id)
+
+    if not await check_rate_limit(user.id):
+        if await should_warn_once(user.id):
             await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
         else:
             await bot.answer_callback_query(call.id)
@@ -49,12 +57,12 @@ async def handle_similar_callback(
         tracks = await get_similar_by_genre(track_id, artist_name=artist_name)
 
         if not tracks:
-            await bot.send_message(call.message.chat.id, t("similar_empty", language))
+            await bot.send_message(message.chat.id, t("similar_empty", language))
             return
 
         text = format_similar_text(header, tracks[:5], artist_name)
         await bot.send_message(
-            call.message.chat.id,
+            message.chat.id,
             text,
             parse_mode="Markdown",
             link_preview_options=LinkPreviewOptions(is_disabled=True),
@@ -63,8 +71,8 @@ async def handle_similar_callback(
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=call.from_user.id,
+            telegram_id=user.id,
             source="similar_callback",
             error=error,
         )
-        await bot.send_message(call.message.chat.id, t("similar_empty", language))
+        await bot.send_message(message.chat.id, t("similar_empty", language))

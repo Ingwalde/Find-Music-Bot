@@ -3,10 +3,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.constants import ACTION_NOOP, CB_PAGE, CB_TRACK, make_callback
 from app.utils.text import truncate_text
+from app.utils.types import TrackDict
 
 
 def search_results_keyboard(
-    tracks: list[dict],
+    tracks: list[TrackDict],
     page: int = 0,
     total_pages: int = 1,
 ) -> InlineKeyboardMarkup:
@@ -19,6 +20,11 @@ def search_results_keyboard(
         title = track.get("title", "Unknown title")
         artist = track.get("artist", "Unknown artist")
         track_id = track.get("deezer_track_id")
+
+        # "track:None" matches no handler — a dead button. Skip instead.
+        if not track_id:
+            continue
+
         button_text = truncate_text(f"{title} — {artist}", 64)
 
         builder.row(

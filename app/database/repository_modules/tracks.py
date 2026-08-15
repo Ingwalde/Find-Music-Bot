@@ -1,8 +1,11 @@
+from typing import cast
+
 from app.database.db import get_pool
 from app.database.repository_modules.common import row_to_dict
+from app.utils.types import TrackDict
 
 
-async def save_track(track: dict) -> int:
+async def save_track(track: TrackDict) -> int:
     """
     Saves track to database and returns internal track ID.
     Updates cached metadata when the same Deezer track already exists.
@@ -80,7 +83,7 @@ async def get_tracks_by_artist(
     return [row_to_dict(row) for row in rows]
 
 
-async def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
+async def get_track_by_deezer_id(deezer_track_id: str | int) -> TrackDict | None:
     """
     Returns cached track by Deezer ID from PostgreSQL.
     """
@@ -112,4 +115,8 @@ async def get_track_by_deezer_id(deezer_track_id: str | int) -> dict | None:
         )
     if not row:
         return None
-    return row_to_dict(row)
+
+    # The SELECT above lists exactly the TrackDict keys, but row_to_dict
+    # returns a plain dict — asyncpg cannot carry the shape through. cast
+    # documents the boundary instead of widening every caller back to dict.
+    return cast(TrackDict, row_to_dict(row))

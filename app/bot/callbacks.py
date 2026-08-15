@@ -51,8 +51,26 @@ router = Router(name="callbacks")
 
 @router.callback_query()
 async def callback_router(call: CallbackQuery, bot: Bot) -> None:
+    # from_user is Optional on the aiogram type but Telegram always populates
+    # it for callback queries; guard rather than assume, since the very next
+    # line dereferences it.
+    if call.from_user is None:
+        await bot.answer_callback_query(call.id)
+        return
+
     data = call.data or ""
     language = await get_user_language(call.from_user.id)
+
+    # Telegram omits `message` entirely once the message carrying the button is
+    # older than ~48h, so this is None for a user tapping a button on last
+    # week's track card. Every downstream handler reads message.chat.id, which
+    # would raise AttributeError, get swallowed by its own except Exception,
+    # and surface as a generic failure. Guarding here covers all of them.
+    if call.message is None:
+        await bot.answer_callback_query(
+            call.id, t("search_session_expired", language), show_alert=True
+        )
+        return
 
     try:
         if data.startswith(f"{CB_LANGUAGE}:"):

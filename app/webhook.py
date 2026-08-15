@@ -15,7 +15,7 @@ def build_ssl_context() -> ssl.SSLContext:
     sits in front of it.
     """
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(settings.WEBHOOK_CERT_PATH, settings.WEBHOOK_KEY_PATH)
+    context.load_cert_chain(settings.webhook_cert_path, settings.webhook_key_path)
     return context
 
 
