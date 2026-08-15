@@ -1,576 +1,282 @@
 # Telegram Music Finder Bot
 
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0?logo=telegram&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-asyncpg-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/license-PolyForm%20NC-lightgrey)
 
-Telegram Music Finder Bot is a Python Telegram bot for searching music, showing track information, saving favorites, viewing search history, opening lyrics pages, and providing admin maintenance tools.
-
----
-
-## Why this project matters
-
-Most Telegram bots are 100–300 line scripts. This one is a production-grade backend service
-that happens to have a Telegram interface:
-
-- **Layered architecture** — handlers, services, platforms, and repositories are separate layers with enforced import direction. No logic in handlers, no DB calls in services.
-- **Production patterns** — Prometheus metrics, `/health` / `/ready` endpoints, graceful SIGTERM drain, circuit breaker, correlation IDs, Redis fallback — the same patterns used in real services.
-- **Resilience** — every external call (Deezer, Spotify, Genius, Redis) has a fallback. The bot never crashes on a single service outage.
-- **Schema discipline** — Alembic owns the database schema; the runtime uses raw asyncpg (no ORM). Every schema change is a versioned migration.
-- **93%+ test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
-
----
-
-## Main Features
-
-### Music Search
-
-- Search tracks by title, artist, or free-text query.
-- Uses Deezer as the main music data source.
-- Shows paginated search results.
-- Keeps temporary search context for pagination and track selection. Stored in Redis
-  when available (1h TTL) so pagination survives a restart; in-memory otherwise.
-
-### Track Cards
-
-Each selected track can show:
-
-- Track title.
-- Artist name.
-- Album title.
-- Duration.
-- Release date when available.
-- Popularity/rank label when available.
-- Deezer track link.
-- Cover image when available.
-- Spotify link when available.
-- Genius lyrics link when available.
-
-After the track card, the bot automatically sends a "You may also like" block with related tracks by the same artist from the local database. If the database has no data for the artist, the bot fetches the artist's top tracks from Deezer as a fallback.
-
-The track card also includes a 🎯 Similar inline button for quick access to tracks similar to the selected one using the Deezer radio endpoint.
-
-### Smart Recommendations
-
-- `/similar` — shows tracks similar to the last viewed track using the Deezer radio endpoint.
-- `/trending` — shows the top tracks of the week from the Deezer chart. Results are cached
-  for 1 hour to reduce API load. Cache is stored in Redis when available, in-memory otherwise.
-- The last viewed track ID is saved in the database so `/similar` works across bot restarts.
-
-### Platform Links
-
-- Deezer is the primary search source.
-- Spotify enrichment is optional and controlled by environment variables.
-- Spotify failures do not break the main Deezer-based result flow.
-- Spotify 403 responses trigger a temporary cooldown to avoid repeated failed lookups.
-- Genius lyrics lookup is optional and disabled safely when `GENIUS_TOKEN` is not configured.
-
-### Favorites
-
-- Add tracks to favorites.
-- Remove tracks from favorites.
-- View saved favorites.
-- Clear favorites with confirmation.
-- Favorite state is stored in PostgreSQL.
-
-### Search History
-
-- Save user search queries.
-- View recent search history.
-- Re-run searches from history.
-- Clear search history with confirmation.
-- Search history is stored in PostgreSQL and can be trimmed by maintenance tools.
-
-### Rate Limiting
-
-- Per-user sliding-window rate limiting configurable via `RATE_LIMIT_MAX_REQUESTS` and
-  `RATE_LIMIT_WINDOW_SECONDS`.
-- Backed by Redis sorted set when `REDIS_URL` is set; falls back to in-memory.
-- Admin users are unconditionally exempt.
-
-### Localization
-
-- Main menu and bot actions support multiple languages.
-- Supported language set includes English, Ukrainian, Norwegian, German, French, Spanish, Italian, and Polish.
-- English is the baseline language.
-- Missing translation keys fall back to English.
-- Locale coverage can be checked with a helper script.
-
-### Admin Menu
-
-Admin users can get an extra admin button in the main menu.
-
-Admin access can be configured through:
-
-- `ADMIN_ID` in `.env`.
-- local `config/admins.json` based on `config/admins.example.json`.
-
-The local `config/admins.json` file is ignored by Git and should not be committed.
-
-Admin menu actions include:
-
-- Statistics report.
-- Maintenance report.
-- Health report.
-- Cleanup saved errors.
-- Cleanup search history.
-- Reload admin configuration cache.
-
-Slash commands are also kept as fallback admin access:
+Search music, open track cards, save favorites and get recommendations — from a Telegram chat.
+Under the interface it is an async backend service: PostgreSQL with versioned migrations, Redis
+caching with in-memory fallback, a circuit breaker on every third-party call, Prometheus metrics
+and graceful shutdown.
 
 ```text
-/errors           Show recent saved errors
-/clear_errors     Clear saved errors
-/health           Show runtime health checks
-/stats            Show users/searches/favorites/tracks/errors statistics
-/maintenance      Show database size, schema version and maintenance status
-/cleanup_errors   Keep newest saved errors and remove older rows
-/cleanup_history  Keep newest search history rows per user and remove older rows
+Telegram → aiogram handlers → services → Deezer / Spotify / Genius
+                                   ↓
+                        PostgreSQL (asyncpg) + Redis
 ```
 
-### Admin Diagnostics
+---
 
-Admin diagnostics include:
+## Screenshots
 
-- Bot version.
-- Database status.
-- Redis status.
-- Database path.
-- Database size.
-- Table counts.
-- Schema version.
-- Spotify availability/cooldown status.
-- Genius configuration status.
-- Recent saved errors.
+> **TODO:** add real screenshots to `screenshots/` and link them here.
+> See [`screenshots/README.md`](screenshots/README.md) for the recommended shots
+> (start menu, search results, track card, favorites, history) and the rules on
+> scrubbing tokens and personal data first.
 
-### Monitoring Endpoints
+---
+
+## Architecture
+
+Full diagrams and layer responsibilities: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+```mermaid
+flowchart LR
+    TG["Telegram API"] --> BOT["aiogram 3 dispatcher<br/>handlers · callbacks · middlewares"]
+    BOT --> SVC["Services<br/>Deezer · recommendations · cache"]
+    SVC --> PLAT["Platforms<br/>Spotify · aggregator"]
+    BOT --> REPO["Repositories<br/>(asyncpg)"]
+    SVC --> REPO
+    REPO --> PG[("PostgreSQL")]
+    SVC --> RD[("Redis")]
+    BOT -.-> MON["FastAPI :9090<br/>/health /ready /metrics"]
+```
+
+Every outbound call goes through a shared retry + circuit-breaker layer
+(`app/utils/http_retry.py`) that honours `Retry-After`, retries only on 5xx/429/timeout,
+and opens per-service with a single-probe half-open state.
+
+---
+
+## Engineering highlights
+
+- **Two migrations carried out on a running project.** The bot moved from the synchronous
+  pyTelegramBotAPI to async **aiogram 3**, and from SQLite to **PostgreSQL** — the trail is in
+  [`docs/CODE_REVIEW_ACTION_PLAN.md`](docs/CODE_REVIEW_ACTION_PLAN.md) and
+  [`CHANGELOG.md`](CHANGELOG.md).
+- **Type checking that found real bugs.** mypy used to run on a hand-picked list of 25 modules.
+  Extending it to the whole `app` package surfaced **91 genuine type errors** in the modules
+  nobody was checking — including a `None` dereference that crashed every callback on a message
+  older than 48 hours. The checked set is now the package itself, so a new module cannot be
+  added without passing (`pyproject.toml`).
+- **Degrades instead of failing.** Deezer, Spotify, Genius and Redis each have a fallback path.
+  Redis down → in-memory rate limiting and cache. Spotify 403 → cooldown, Deezer results still
+  ship. No single dependency can take the bot down.
+- **Graceful shutdown that actually drains.** SIGTERM stops new updates, waits for in-flight
+  handlers, then tears down bot session → DB pool → Redis → HTTP client in order
+  (`app/main.py`, `app/bot/shutdown_middleware.py`). The Dockerfile uses `exec` so the signal
+  reaches Python.
+- **Alembic owns the schema.** 4 versioned migrations applied on container start; the runtime
+  uses raw asyncpg with no ORM.
+- **533 tests against real infrastructure.** 60 test files, ~93% coverage against an 85% gate.
+  Integration tests build the schema *through Alembic* on a real PostgreSQL and flush a real
+  Redis — the SQL is tested, not mocked. Plus Hypothesis property tests and concurrency scenarios.
+- **Deploys are verified, not assumed.** After a silent stale-image deploy in v3.7.8, the deploy
+  workflow now aborts on a failed `compose pull` and compares the running container's image
+  digest against the pulled one before polling `/ready`.
+- **Observability built in.** Prometheus metrics (API latency, circuit-breaker state, cache
+  hit/miss, rate-limit blocks, TLS expiry), correlation IDs through every handler, four alert
+  rules and a Grafana dashboard in `deploy/`.
+
+### Honest scope note
+
+The layering is a convention, not a compiler-enforced boundary: `app/bot` modules currently call
+`app.database.repositories` directly for lightweight lookups such as the user's language, and two
+services read from the cache tables. Tightening this — and adding an import-direction check to
+`tests/test_architecture_imports.py` so it is enforced rather than intended — is tracked in
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+---
+
+## Tech stack
+
+| Layer          | Stack                                                          |
+| -------------- | -------------------------------------------------------------- |
+| **Bot**        | Python 3.12 · aiogram 3.x                                       |
+| **Data**       | PostgreSQL (asyncpg) · Alembic · Redis 7                        |
+| **HTTP**       | httpx · custom retry + circuit breaker                          |
+| **Sources**    | Deezer API · Spotify Web API · Genius                           |
+| **Ops**        | FastAPI (`/health` `/ready` `/metrics`) · prometheus-client · Grafana |
+| **Quality**    | pytest · pytest-cov · hypothesis · Ruff · mypy · pip-audit · Trivy |
+| **Delivery**   | Docker · Docker Compose · GitHub Actions · GHCR                 |
+
+---
+
+## Features
+
+<details>
+<summary><b>Music search &amp; track cards</b></summary>
+
+- Search by title, artist or free text; paginated results backed by Deezer.
+- Search context stored in Redis (1 h TTL) so pagination survives a restart; in-memory otherwise.
+- Track cards show title, artist, album, duration, release date, rank, cover art, and Deezer /
+  Spotify / Genius links when available.
+- Each card is followed by a "You may also like" block from the local database, falling back to
+  the artist's Deezer top tracks.
+</details>
+
+<details>
+<summary><b>Recommendations</b></summary>
+
+- `/similar` — tracks similar to the last viewed one (Deezer radio endpoint); the last track ID is
+  persisted so it survives restarts.
+- `/trending` — weekly Deezer chart, cached 1 h in Redis with an in-memory fallback tier.
+- 🎯 Similar inline button on every track card.
+</details>
+
+<details>
+<summary><b>Favorites &amp; history</b></summary>
+
+- Add, remove, list and clear favorites (with confirmation), stored in PostgreSQL.
+- Search history with re-run from history, clear with confirmation, trimmable by maintenance tools.
+</details>
+
+<details>
+<summary><b>Rate limiting &amp; localization</b></summary>
+
+- Per-user sliding window (`RATE_LIMIT_MAX_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS`), Redis sorted
+  set with in-memory fallback. Admins exempt.
+- 8 languages — English (baseline), Ukrainian, Norwegian, German, French, Spanish, Italian,
+  Polish. Missing keys fall back to English; coverage checked by a script in CI.
+</details>
+
+<details>
+<summary><b>Admin tools</b></summary>
+
+Admins are configured via `ADMIN_ID` or a git-ignored `config/admins.json`. Menu and slash commands
+cover statistics, maintenance, health diagnostics, error inspection and cleanup, plus admin cache
+reload. Every admin action is written to an audit log.
+
+```text
+/errors  /clear_errors  /health  /stats  /maintenance  /cleanup_errors  /cleanup_history
+```
+</details>
+
+<details>
+<summary><b>Monitoring endpoints</b></summary>
 
 FastAPI runs alongside the bot on port 9090:
 
 - `GET /health` — liveness: bot, database, Redis, Spotify, Deezer, Genius.
-- `GET /ready` — readiness: database and Redis (503 if either is configured but unreachable).
-- `GET /metrics` — Prometheus metrics: API request counts and latency, circuit breaker
-  state, cache hit/miss counters, rate-limit blocked counter, TLS cert expiry gauge.
-
-### Database and Persistence
-
-The project uses PostgreSQL for persistence, accessed via asyncpg with a connection pool.
-
-Stored data includes:
-
-- Users.
-- Tracks.
-- Favorites.
-- Search history.
-- Spotify cached links.
-- Error history.
-- Admin audit log.
-- Alembic schema version (`alembic_version` table).
-
-Database features:
-
-- Async connection pool (asyncpg).
-- Schema and indexes owned by Alembic migrations (`migrations/versions/`),
-  applied with `alembic upgrade head` at container start.
-- Repository modules split by domain.
-- Compatibility repository facade for stable imports.
-- Database maintenance helpers.
-- One-time SQLite→PostgreSQL migration script.
-
-### Error Logging
-
-- Runtime errors can be saved into the database.
-- Error logging is designed not to crash the bot if the database is unavailable.
-- Admins can inspect and clear saved errors.
-
-### Testing and Quality
-
-The project includes automated quality checks:
-
-- Pytest test suite (~93% coverage, minimum gate 85%).
-- Coverage reporting through `pytest-cov`.
-- Ruff linting.
-- mypy over the whole `app` package (87 modules).
-- GitHub Actions workflow with Trivy image scanning and `pip-audit`.
-- Release cleanup validation script.
-- Version consistency checker.
-- Locale coverage checker.
-- Env variable documentation checker.
-
-Useful commands:
-
-```bash
-python -m ruff check .
-python -m pytest --cov=app --cov-report=term-missing
-python scripts/check_release_clean.py
-python scripts/check_locale_coverage.py
-python scripts/check_env_example.py
-python scripts/check_version_sync.py
-```
-
-### Docker Support
-
-The Dockerfile lives in `deploy/`; `docker-compose.yml` is in the project root
-(so `docker compose` auto-loads `.env` — no `-f`/`--env-file` flags needed).
-
-The Compose stack includes:
-
-- `music-bot` — the bot process.
-- `postgres` — PostgreSQL database with health check and named volume.
-- `redis` — Redis 7 (alpine) for rate limiting and trending cache. `music-bot` waits for
-  it with `condition: service_healthy`.
-- `test-postgres` and `test-redis` — ephemeral services under the `test` profile for
-  local integration tests.
-
-Build image:
-
-```bash
-docker build -f deploy/Dockerfile -t find-music-bot:test .
-```
-
-Run with Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-Run in background:
-
-```bash
-docker compose up --build -d
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-Docker Compose mounts:
-
-- `data/` — read-only access to the historical SQLite backup file, used only by the one-time
-  `scripts/migrate_sqlite_to_postgres.py` migration script. The live database is PostgreSQL,
-  managed by its own named volume (`postgres-data`), not this mount.
-- `logs/` to persist logs.
-- `config/` as read-only config for admin IDs.
+- `GET /ready` — readiness: database and Redis (503 if configured but unreachable).
+- `GET /metrics` — Prometheus metrics.
+</details>
 
 ---
 
-## Tech Stack
-
-- Python 3.12
-- aiogram 3.x
-- httpx (Deezer search, Genius lyrics)
-- Spotify Web API
-- PostgreSQL (asyncpg)
-- Alembic
-- Redis (redis-py asyncio)
-- FastAPI
-- prometheus-client
-- cryptography
-- pytest / pytest-cov / pytest-asyncio / hypothesis
-- Ruff
-- mypy
-- GitHub Actions
-- Docker / Docker Compose
-
----
-
-## Project Structure
-
-```text
-app/
-├── bot/                 # Telegram handlers, callbacks, keyboards and user flows
-├── config/              # Environment settings and admin access config
-├── database/            # PostgreSQL repositories and maintenance helpers (schema owned by Alembic — see migrations/)
-├── localization/        # Translations, languages and fallback translator
-├── platforms/           # Platform integrations, Spotify modules and aggregator
-├── services/            # Deezer, lyrics, formatting, Redis client and platform service facades
-├── utils/               # Logging, text and time helpers
-├── admin_tools.py       # Admin statistics, maintenance and cleanup reports
-├── health.py            # Admin health diagnostics (bot, DB, Redis, platforms)
-├── main.py              # Bot startup and lifecycle
-├── monitoring.py        # FastAPI /health, /ready, /metrics endpoints
-└── version.py           # Project version
-
-config/
-└── admins.example.json  # Public admin config template
-
-deploy/
-└── Dockerfile           # Container image definition
-
-docker-compose.yml       # Compose stack (bot, postgres, redis, test services) — project root
-
-docs/                    # Architecture, deployment, roadmap and release workflow docs
-migrations/              # Alembic schema migrations (versions/, env.py) — schema source of truth
-requirements/
-├── base.txt             # Production dependencies
-└── dev.txt              # Development and test dependencies
-scripts/                 # Release, cleanup and quality helper scripts
-tests/                   # Automated tests
-.github/workflows/       # GitHub Actions CI (tests + GHCR push + automated deploy)
-```
-
----
-
-## Setup
-
-### 1. Clone repository
+## Quick start
 
 ```bash
 git clone https://github.com/Ingwalde/Find-Music-Bot.git
 cd Find-Music-Bot
+cp .env.example .env          # fill in BOT_TOKEN and DATABASE_URL
+docker compose up --build
 ```
 
-### 2. Create virtual environment
+`docker-compose.yml` sits in the project root so `docker compose` auto-loads `.env`. The stack
+brings up the bot, PostgreSQL and Redis; migrations run on container start.
+
+<details>
+<summary><b>Running without Docker</b></summary>
 
 ```bash
 python -m venv venv
-```
-
-Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-Linux/macOS:
-
-```bash
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-Production dependencies:
-
-```bash
+source venv/bin/activate                    # Windows: venv\Scripts\activate
 python -m pip install -r requirements/base.txt
+python run.py
 ```
+</details>
 
-Development dependencies:
-
-```bash
-python -m pip install -r requirements/dev.txt
-```
-
-### 4. Create `.env`
-
-Copy `.env.example` to `.env` and fill in your tokens.
-
-Windows:
-
-```bash
-copy .env.example .env
-```
-
-Linux/macOS:
-
-```bash
-cp .env.example .env
-```
-
-Required:
+### Required configuration
 
 ```env
 BOT_TOKEN=your_telegram_bot_token_here
 DATABASE_URL=postgresql://music_user:changeme@postgres:5432/music_bot
 ```
 
-The bot refuses to start if `DATABASE_URL` is missing. When using Docker
-Compose, `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` must match the
-credentials in `DATABASE_URL` — see `.env.example`.
+The bot refuses to start without `DATABASE_URL`. Under Compose, `POSTGRES_USER` /
+`POSTGRES_PASSWORD` / `POSTGRES_DB` must match it. Optional: `REDIS_URL`, `GENIUS_TOKEN`,
+`SPOTIFY_*`, `ADMIN_ID`, `LOG_LEVEL`, `BOT_MODE`, rate-limit and shutdown timeouts — all
+documented in [`.env.example`](.env.example), which CI checks stays in sync with the code.
 
-Optional:
+Admin IDs: copy `config/admins.example.json` to `config/admins.json` (git-ignored).
 
-```env
-GENIUS_TOKEN=your_genius_token_here
-SPOTIFY_ENABLED=true
-SPOTIFY_CLIENT_ID=your_spotify_client_id_here
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
-SPOTIFY_MARKET=NO
-ADMIN_ID=your_telegram_user_id
-LOG_FILE_PATH=logs/bot.log
-LOG_LEVEL=INFO
-BOT_MODE=polling
-REDIS_URL=redis://redis:6379
-RATE_LIMIT_MAX_REQUESTS=20
-RATE_LIMIT_WINDOW_SECONDS=60
-SHUTDOWN_TIMEOUT_SECONDS=30
-```
-
-> `DATABASE_PATH` also appears in `.env.example`, but it is only read by the
-> one-time `scripts/migrate_sqlite_to_postgres.py` migration script — the live
-> database is PostgreSQL and needs `DATABASE_URL`.
-
-> `REDIS_URL` is optional. When omitted, rate limiting and trending cache fall back
-> to in-memory implementations.
-
-### 5. Configure local admin IDs
-
-Copy the example file:
-
-```bash
-copy config\admins.example.json config\admins.json
-```
-
-Linux/macOS:
-
-```bash
-cp config/admins.example.json config/admins.json
-```
-
-Example:
-
-```json
-{
-  "admin_ids": [123456789]
-}
-```
-
-`config/admins.json` is local-only and should not be committed.
+Webhook mode and TLS setup: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#webhook-mode).
 
 ---
 
-## Running Locally
-
-```bash
-python run.py
-```
-
-Expected log:
-
-```text
-Bot started successfully.
-```
-
----
-
-## Running with Docker
-
-Build image:
-
-```bash
-docker build -f deploy/Dockerfile -t find-music-bot:test .
-```
-
-Start with Compose:
-
-```bash
-docker compose up --build
-```
-
-Start in background:
-
-```bash
-docker compose up --build -d
-```
-
-View logs:
-
-```bash
-docker compose logs -f
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-### Webhook Mode (optional)
-
-Polling is the default and needs no extra setup. To run in webhook mode instead
-(`BOT_MODE=webhook`), including self-signed certificate generation and required
-firewall rules, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#webhook-mode).
-
----
-
-## Development Checks
-
-Run before committing:
+## Development
 
 ```bash
 python -m ruff check .
-python -m mypy
+python -m mypy                                   # the whole app package
 python -m pytest --cov=app --cov-report=term-missing
-python scripts/check_release_clean.py
-python scripts/check_locale_coverage.py
-python scripts/check_env_example.py
-python scripts/check_version_sync.py
 ```
 
-`python -m pytest` runs the full suite including PostgreSQL and Redis integration tests
-and requires `DATABASE_URL` to be set. Start the test services first:
-
-Bash:
+The suite includes PostgreSQL and Redis integration tests, so start the test services first:
 
 ```bash
 docker compose up -d test-postgres test-redis
-DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb REDIS_URL=redis://localhost:6380 python -m pytest
-```
-
-PowerShell:
-
-```powershell
-docker compose up -d test-postgres test-redis
-$env:DATABASE_URL = "postgresql://testuser:testpass@localhost:5433/testdb"
-$env:REDIS_URL = "redis://localhost:6380"
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb \
+REDIS_URL=redis://localhost:6380 \
 python -m pytest
 ```
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full integration test details.
-
-Docker check:
-
-```bash
-docker build -f deploy/Dockerfile -t find-music-bot:test .
-```
-
----
-
-## Release Safety
-
-Do not commit or upload local/private files:
-
-```text
-.env
-config/admins.json
-certs/
-.git/
-data/
-logs/
-.pytest_cache/
-.ruff_cache/
-.vscode/
-__pycache__/
-coverage.xml
-.coverage
-*.pyc
-*.zip
-```
-
-Use this check before release:
+Four consistency checks also run in CI — they fail the build if `.env.example`, the version
+constant, locale coverage or release hygiene drift out of sync:
 
 ```bash
+python scripts/check_env_example.py
+python scripts/check_version_sync.py
+python scripts/check_locale_coverage.py
 python scripts/check_release_clean.py
 ```
 
-Avoid sharing raw `docker compose config` output because it can expose secrets from `.env`.
+CI additionally runs `pip-audit` and a Trivy image scan that fails on HIGH/CRITICAL.
 
 ---
 
-## Roadmap
+## Project layout
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for completed releases and planned next stages.
+```text
+app/
+├── bot/           # aiogram handlers, callbacks, keyboards, middlewares
+├── services/      # Deezer, recommendations, cache, formatting, Redis client
+├── platforms/     # Spotify client/auth/matcher, aggregator
+├── database/      # asyncpg repositories (split by domain) + maintenance
+├── localization/  # 8 locales with English fallback
+├── utils/         # retry/circuit breaker, correlation IDs, logging, metrics
+├── main.py        # startup, task supervision, ordered shutdown
+└── monitoring.py  # FastAPI /health /ready /metrics
+
+migrations/        # Alembic — schema source of truth
+deploy/            # Dockerfile, Prometheus alerts, Grafana dashboard
+docs/              # architecture, deployment, metrics, roadmap
+tests/             # 533 tests, 60 files
+```
+
+86 modules · 7 440 lines in `app/` · 9 086 lines of tests.
 
 ---
 
-## Changelog
+## Documentation
 
-See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+| Document | Contents |
+| -------- | -------- |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layer diagram and responsibilities |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Deployment, webhook mode, integration tests |
+| [`docs/metrics.md`](docs/metrics.md) | Exported Prometheus metrics |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Completed releases and planned work |
+| [`CHANGELOG.md`](CHANGELOG.md) | Full version history |
 
 ---
 
 ## License
 
-[Polyform Noncommercial License 1.0.0](LICENSE) — free for personal, educational, and
-non-commercial use. Commercial use requires explicit permission from the author.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — free for personal, educational and
+non-commercial use. Commercial use requires explicit permission. Source-available, not an
+OSI open-source license.
