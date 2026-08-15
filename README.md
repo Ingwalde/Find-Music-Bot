@@ -15,7 +15,7 @@ that happens to have a Telegram interface:
 - **Production patterns** — Prometheus metrics, `/health` / `/ready` endpoints, graceful SIGTERM drain, circuit breaker, correlation IDs, Redis fallback — the same patterns used in real services.
 - **Resilience** — every external call (Deezer, Spotify, Genius, Redis) has a fallback. The bot never crashes on a single service outage.
 - **Schema discipline** — Alembic owns the database schema; the runtime uses raw asyncpg (no ORM). Every schema change is a versioned migration.
-- **94%+ test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
+- **95% test coverage** — meaningful tests: concurrency scenarios, fallback paths, Redis integration, Prometheus counter increments, TLS cert parsing.
 
 ---
 
@@ -26,8 +26,8 @@ that happens to have a Telegram interface:
 - Search tracks by title, artist, or free-text query.
 - Uses Deezer as the main music data source.
 - Shows paginated search results.
-- Keeps temporary search context for pagination and track selection.
-- Automatically cleans expired in-memory search contexts.
+- Keeps temporary search context for pagination and track selection. Stored in Redis
+  when available (1h TTL) so pagination survives a restart; in-memory otherwise.
 
 ### Track Cards
 
@@ -185,12 +185,13 @@ Database features:
 
 The project includes automated quality checks:
 
-- Pytest test suite (~94% coverage, minimum gate 85%).
+- Pytest test suite (~95% coverage, minimum gate 85%).
 - Coverage reporting through `pytest-cov`.
 - Ruff linting.
-- mypy on typed modules.
-- GitHub Actions workflow.
+- mypy strict on 25 modules (the checked set lives in `pyproject.toml`).
+- GitHub Actions workflow with Trivy image scanning and `pip-audit`.
 - Release cleanup validation script.
+- Version consistency checker.
 - Locale coverage checker.
 - Env variable documentation checker.
 
@@ -202,6 +203,7 @@ python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
 python scripts/check_env_example.py
+python scripts/check_version_sync.py
 ```
 
 ### Docker Support
@@ -488,11 +490,12 @@ Run before committing:
 
 ```bash
 python -m ruff check .
-python -m mypy app/utils/types.py app/utils/http_client.py app/services/deezer_service.py app/services/lyrics_service.py app/platforms/aggregator.py app/platforms/spotify/client.py app/services/track_formatter.py app/services/recommendations_service.py app/bot/rate_limit.py app/health.py app/monitoring.py
+python -m mypy
 python -m pytest --cov=app --cov-report=term-missing
 python scripts/check_release_clean.py
 python scripts/check_locale_coverage.py
 python scripts/check_env_example.py
+python scripts/check_version_sync.py
 ```
 
 `python -m pytest` runs the full suite including PostgreSQL and Redis integration tests

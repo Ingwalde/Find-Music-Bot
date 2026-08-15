@@ -55,6 +55,8 @@
 - `v3.7.5` — DevOps & Observability (automated SSH deploy workflow, Prometheus alerting rules)
 - `v3.7.6` — Deploy Health Check (post-deploy /ready polling, fail-fast with container logs)
 - `v3.7.7` — Deploy Cleanup & Grafana (public GHCR pull, SCP compose, Grafana dashboard JSON)
+- `v3.7.8` — Technical Debt & Infra (mypy 11→25 modules, Redis search context + cache tier,
+  Trivy image scan, multi-stage Dockerfile, Dependabot on `deps/staging`, version-sync guard)
 
 ## Planned
 

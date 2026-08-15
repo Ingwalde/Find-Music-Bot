@@ -1,3 +1,19 @@
+# Build stage — pip and the wheels it downloads stay here and never reach
+# the runtime image. Keeps the shipped image smaller and cuts the CVE surface
+# Trivy has to scan (see the scan step in .github/workflows/tests.yml).
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+COPY requirements/base.txt requirements/base.txt
+RUN python -m pip install --upgrade pip \
+    && python -m pip install --no-cache-dir --prefix=/install -r requirements/base.txt
+
+# Runtime stage
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -5,9 +21,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements/base.txt requirements/base.txt
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --no-cache-dir -r requirements/base.txt
+# Only the installed packages come across — no pip cache, no build wheels.
+COPY --from=builder /install /usr/local
 
 COPY . .
 

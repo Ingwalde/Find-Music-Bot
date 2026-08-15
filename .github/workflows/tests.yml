@@ -31,26 +31,19 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check .
 
+      # The checked module list lives in pyproject.toml ([tool.mypy] files),
+      # so this step never drifts out of sync when a module is promoted.
       - name: Run mypy on typed modules
-        run: |
-          python -m mypy \
-            app/utils/types.py \
-            app/utils/http_client.py \
-            app/services/deezer_service.py \
-            app/services/lyrics_service.py \
-            app/platforms/aggregator.py \
-            app/platforms/spotify/client.py \
-            app/services/track_formatter.py \
-            app/services/recommendations_service.py \
-            app/bot/rate_limit.py \
-            app/health.py \
-            app/monitoring.py
+        run: python -m mypy
 
       - name: Scan dependencies for known vulnerabilities
         run: python -m pip_audit -r requirements/base.txt
 
       - name: Validate release cleanup
         run: python scripts/check_release_clean.py
+
+      - name: Check version consistency
+        run: python scripts/check_version_sync.py
 
       - name: Check env example coverage
         run: python scripts/check_env_example.py
@@ -130,22 +123,38 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/Dockerfile
+          # On PRs the image is loaded into the local daemon so Trivy can scan
+          # the image this PR actually produces, not the published :latest.
+          load: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ghcr.io/ingwalde/find-music-bot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # ignore-unfixed: the python:3.12-slim base carries CVEs with no upstream
+      # patch available; failing on those would block every PR with no action
+      # the project can take. Fixable HIGH/CRITICAL findings do block.
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/ingwalde/find-music-bot:latest
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table

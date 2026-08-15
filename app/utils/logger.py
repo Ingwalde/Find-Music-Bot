@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import traceback
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -32,6 +33,28 @@ class _JsonFormatter(logging.Formatter):
             payload["exception"] = "".join(traceback.format_exception(*record.exc_info))
 
         return json.dumps(payload, ensure_ascii=False)
+
+
+class _SamplingFilter(logging.Filter):
+    """
+    Drops a fraction of DEBUG/INFO records once LOG_SAMPLE_RATE is below 1.0,
+    to cut log I/O under high traffic.
+
+    WARNING and above are never sampled — an error must not be silently
+    dropped. Records carrying exc_info are also always kept. Sampling is per
+    record, so a sampled-out INFO line leaves no trace; keep the rate at 1.0
+    (the default) unless log volume is an observed problem.
+    """
+
+    def __init__(self, sample_rate: float) -> None:
+        super().__init__()
+        self.sample_rate = sample_rate
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno >= logging.WARNING or record.exc_info:
+            return True
+
+        return random.random() < self.sample_rate
 
 
 class _CorrelationIdFilter(logging.Filter):
@@ -70,6 +93,8 @@ def setup_logging() -> None:
         formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 
     correlation_filter = _CorrelationIdFilter()
+    sample_rate = settings.LOG_SAMPLE_RATE
+    sampling_filter = _SamplingFilter(sample_rate) if sample_rate < 1.0 else None
 
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
@@ -79,6 +104,8 @@ def setup_logging() -> None:
     console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
     console_handler.addFilter(correlation_filter)
+    if sampling_filter is not None:
+        console_handler.addFilter(sampling_filter)
     root_logger.addHandler(console_handler)
 
     log_path = Path(settings.LOG_FILE_PATH)
@@ -93,6 +120,8 @@ def setup_logging() -> None:
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
     file_handler.addFilter(correlation_filter)
+    if sampling_filter is not None:
+        file_handler.addFilter(sampling_filter)
     root_logger.addHandler(file_handler)
 
     _LOGGING_CONFIGURED = True

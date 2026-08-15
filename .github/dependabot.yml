@@ -1,13 +1,18 @@
 version: 2
 updates:
+  # Dependency PRs target the long-lived deps/staging branch, not main.
+  # sync-deps-branch.yml keeps deps/staging fast-forwarded to main daily so
+  # these PRs never drift far enough behind to conflict on merge.
   - package-ecosystem: pip
     directory: /requirements
+    target-branch: deps/staging
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: deps/staging
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

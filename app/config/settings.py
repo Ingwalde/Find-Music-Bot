@@ -29,6 +29,22 @@ def parse_bool(value: str | None, default: bool = True) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def parse_ratio(value: str | None, default: float = 1.0) -> float:
+    """
+    Parses a 0.0-1.0 ratio from an environment variable, clamping out-of-range
+    values and falling back to the default on anything unparseable.
+    """
+    if value is None or value.strip() == "":
+        return default
+
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+
+    return min(1.0, max(0.0, parsed))
+
+
 @dataclass
 class Settings:
     BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
@@ -48,6 +64,10 @@ class Settings:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
     LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text").lower()
     LOG_FILE_PATH: str = os.getenv("LOG_FILE_PATH", "logs/bot.log")
+    # Fraction of DEBUG/INFO records kept. 1.0 = keep everything (default).
+    # WARNING and above are never sampled. Lower this only if log volume is
+    # an observed problem — sampled-out lines are gone with no trace.
+    LOG_SAMPLE_RATE: float = parse_ratio(os.getenv("LOG_SAMPLE_RATE"), default=1.0)
     ERROR_HISTORY_LIMIT: int = int(os.getenv("ERROR_HISTORY_LIMIT", "10"))
     ADMIN_ID: int | None = parse_optional_int(os.getenv("ADMIN_ID"))
 

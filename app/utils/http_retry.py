@@ -1,5 +1,7 @@
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import httpx
 
@@ -105,7 +107,13 @@ async def _record_breaker_outcome(service: str, *, failed: bool) -> None:
             circuit_breaker_open.labels(service=service).set(1)
 
 
-async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -> httpx.Response:
+async def _request_with_retry(
+    request_fn: Callable[..., Awaitable[httpx.Response]],
+    url: str,
+    *,
+    service: str,
+    **kwargs: Any,
+) -> httpx.Response:
     """
     Calls request_fn(url, **kwargs) with up to 3 attempts. request_fn is a
     bound client method (client.get or client.post) rather than a generic
@@ -169,6 +177,16 @@ async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -
 
         external_api_requests_total.labels(service=service, outcome="error").inc()
         external_api_latency_seconds.labels(service=service).observe(time.monotonic() - start)
+
+        # Every loop iteration either returns, re-raises, or assigns
+        # last_error, so reaching here with None would mean the loop body
+        # changed. Guard explicitly: `raise None` would surface as a confusing
+        # "exceptions must derive from BaseException" instead of the real cause.
+        if last_error is None:
+            raise RuntimeError(
+                f"Retry loop for {service} exhausted without recording an error."
+            )
+
         raise last_error
     finally:
         if is_probe:
@@ -176,12 +194,12 @@ async def _request_with_retry(request_fn, url: str, *, service: str, **kwargs) -
 
 
 async def get_with_retry(
-    client: httpx.AsyncClient, url: str, *, service: str, **kwargs
+    client: httpx.AsyncClient, url: str, *, service: str, **kwargs: Any
 ) -> httpx.Response:
     return await _request_with_retry(client.get, url, service=service, **kwargs)
 
 
 async def post_with_retry(
-    client: httpx.AsyncClient, url: str, *, service: str, **kwargs
+    client: httpx.AsyncClient, url: str, *, service: str, **kwargs: Any
 ) -> httpx.Response:
     return await _request_with_retry(client.post, url, service=service, **kwargs)

@@ -107,19 +107,25 @@ bot's own Postgres on 5432):
 **Bash / Linux / macOS:**
 
 ```bash
-docker compose up -d test-postgres
-DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb python -m pytest
-docker compose stop test-postgres
+docker compose up -d --wait test-postgres test-redis
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb \
+  REDIS_URL=redis://localhost:6380 \
+  python -m pytest
+docker compose stop test-postgres test-redis
 ```
 
 **Windows PowerShell:**
 
 ```powershell
-docker compose up -d test-postgres
+docker compose up -d --wait test-postgres test-redis
 $env:DATABASE_URL = "postgresql://testuser:testpass@localhost:5433/testdb"
+$env:REDIS_URL = "redis://localhost:6380"
 python -m pytest
-docker compose stop test-postgres
+docker compose stop test-postgres test-redis
 ```
+
+Both test services have healthchecks, so `--wait` blocks until they actually
+accept connections instead of letting pytest race a still-starting container.
 
 To run only the non-PG tests (no database needed):
 
@@ -269,11 +275,15 @@ own named volume (`postgres-data`), not this mount.
 Runs on every push and pull request:
 
 1. **Ruff** — lint check
-2. **`alembic upgrade head`** — applies the schema against the CI Postgres service
-3. **pytest with coverage** — full suite including the 9 `test_*_pg.py` integration tests
-4. **Release cleanup check** — `scripts/check_release_clean.py`
-5. **Locale coverage check** — `scripts/check_locale_coverage.py`
-6. **Docker build + push** — builds the image; on `main` pushes to `ghcr.io/ingwalde/find-music-bot:latest`
+2. **mypy** — `python -m mypy` (checked module set lives in `pyproject.toml`)
+3. **pip-audit** — known vulnerabilities in `requirements/base.txt`
+4. **`alembic upgrade head`** — applies the schema against the CI Postgres service
+5. **pytest with coverage** — full suite including the `test_*_pg.py` integration tests
+6. **Release cleanup check** — `scripts/check_release_clean.py`
+7. **Version consistency check** — `scripts/check_version_sync.py`
+8. **Locale coverage check** — `scripts/check_locale_coverage.py`
+9. **Docker build + push** — builds the image; on `main` pushes to `ghcr.io/ingwalde/find-music-bot:latest`
+10. **Trivy image scan** — fails on fixable HIGH/CRITICAL findings in the built image
 
 CI provisions a `postgres:16-alpine` service container
 (`testuser`/`testpass`/`testdb`, port 5432) and injects
@@ -294,6 +304,15 @@ Triggers automatically after the Tests workflow completes successfully on `main`
 
 The server pulls the image anonymously from GHCR (the package is public — no
 `docker login` required on the server).
+
+### Dependency updates
+
+Dependabot opens PRs against the long-lived `deps/staging` branch, not `main`
+(`target-branch` in `.github/dependabot.yml`). `sync-deps-branch.yml` merges
+`main` into `deps/staging` daily so those PRs never drift far enough behind to
+conflict; on a merge conflict it opens an issue labelled `deps-sync` instead of
+failing silently. Review and merge dependency PRs into `deps/staging`, then open
+one PR from `deps/staging` to `main`.
 
 ## Security Notes
 

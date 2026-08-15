@@ -1,9 +1,10 @@
 import json
 
 from app.database.db import get_pool
+from app.utils.types import TrackDict
 
 
-async def get_cached_search(query_normalized: str, source: str) -> list[dict] | None:
+async def get_cached_search(query_normalized: str, source: str) -> list[TrackDict] | None:
     """
     Returns cached search results if a fresh (<24h) entry exists, else None.
     Staleness is checked lazily on read via created_at — no active pruning.
@@ -25,7 +26,7 @@ async def get_cached_search(query_normalized: str, source: str) -> list[dict] | 
     return json.loads(row["result_json"])
 
 
-async def save_search_cache(query_normalized: str, source: str, results: list[dict]) -> None:
+async def save_search_cache(query_normalized: str, source: str, results: list[TrackDict]) -> None:
     """
     Saves or replaces the cached search results for query_normalized + source.
     """
