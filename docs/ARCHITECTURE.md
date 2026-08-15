@@ -49,7 +49,19 @@ flowchart TD
     FA -->|readiness| RED
 ```
 
-The bot is split into layers:
+The bot is split into layers. Each layer below names the modules that
+implement it, so a box in the diagram maps to concrete files:
+
+| Layer | Modules |
+|-------|---------|
+| Bot | `app/bot/handlers.py`, `callbacks.py`, `actions.py`, `context.py`, `rate_limit.py`, `keyboard_*.py`, `*_middleware.py` |
+| Services | `app/services/deezer_service.py`, `lyrics_service.py`, `recommendations_service.py`, `search_cache_service.py`, `redis_client.py`, `track_formatter.py` |
+| Platform | `app/platforms/aggregator.py`, `spotify/auth.py`, `spotify/client.py`, `spotify/matcher.py` |
+| Database | `app/database/db.py`, `maintenance.py`, `repositories.py` (facade), `repository_modules/*.py` |
+| Localization | `app/localization/translator.py`, `locales/*.py` |
+| Monitoring | `app/monitoring.py`, `app/utils/metrics.py`, `deploy/alerts.yml`, `deploy/grafana-dashboard.json` |
+| Deployment | `deploy/Dockerfile`, `docker-compose.yml`, `.github/workflows/deploy.yml` |
+| CI | `.github/workflows/tests.yml`, `sync-deps-branch.yml`, `scripts/check_*.py` |
 
 ## Bot Layer
 
@@ -61,8 +73,13 @@ Contains Telegram handlers, callbacks and keyboard builders.
 
 Admin-only commands are registered in `app/bot/handlers.py` and use `ADMIN_ID` from settings.
 
-`app/bot/rate_limit.py` (v3.1.2+) provides a per-user, in-memory, asyncio.Lock-guarded sliding-window
-rate limiter, applied at the top of every handler/callback that calls an external API.
+`app/bot/rate_limit.py` (v3.1.2+) provides a per-user sliding-window rate limiter, applied at the
+top of every handler/callback that calls an external API. Backed by Redis when available, with an
+in-memory `asyncio.Lock`-guarded fallback.
+
+`app/bot/context.py` holds paginated search results so paging does not re-call Deezer. As of
+v3.7.8 it stores contexts in Redis (`sc:{user_id}`, 1h TTL) so pagination survives a restart,
+falling back to the in-memory dict when Redis is unavailable.
 
 ## Admin Tools Layer
 

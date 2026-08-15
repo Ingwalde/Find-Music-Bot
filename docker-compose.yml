@@ -63,6 +63,9 @@ services:
       redis:
         condition: service_healthy
 
+  # Healthchecks let `docker compose up -d --wait test-postgres test-redis`
+  # block until both accept connections, instead of pytest racing a service
+  # that is still starting.
   test-postgres:
     image: postgres:16-alpine
     container_name: music-bot-test-db
@@ -72,6 +75,11 @@ services:
       POSTGRES_DB: testdb
     ports:
       - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     profiles:
       - test
 
@@ -80,6 +88,11 @@ services:
     container_name: music-bot-test-redis
     ports:
       - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     profiles:
       - test
 

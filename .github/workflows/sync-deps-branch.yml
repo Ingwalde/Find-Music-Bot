@@ -1,0 +1,86 @@
+name: Sync deps branch
+
+# Keeps the long-lived deps/staging branch (Dependabot's target-branch) in
+# sync with main. Without this, dependency PRs accumulate drift against main
+# and eventually conflict on merge.
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Merge main into deps/staging
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Merge main into deps/staging
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git show-ref --verify --quiet refs/remotes/origin/deps/staging; then
+            echo "deps/staging does not exist — creating it from main."
+            git checkout -b deps/staging origin/main
+            git push origin deps/staging
+            echo "result=created" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git checkout deps/staging
+          if git merge --no-edit origin/main; then
+            git push origin deps/staging
+            echo "result=merged" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Open an issue on conflict
+        if: failure() && steps.merge.outputs.result == 'conflict'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'deps/staging conflicts with main — manual merge needed';
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deps-sync',
+            });
+            if (existing.data.some(i => i.title === title)) {
+              core.info('Conflict issue already open — not filing a duplicate.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['deps-sync'],
+              body: [
+                'The scheduled sync could not fast-forward `deps/staging` from `main`.',
+                '',
+                'Resolve locally:',
+                '',
+                '```bash',
+                'git fetch origin',
+                'git checkout deps/staging',
+                'git merge origin/main',
+                '# resolve conflicts, then:',
+                'git push origin deps/staging',
+                '```',
+                '',
+                'Until this is resolved, new Dependabot PRs will be based on a stale branch.',
+              ].join('\n'),
+            });

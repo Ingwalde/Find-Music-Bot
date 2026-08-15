@@ -23,26 +23,56 @@ python_version = "3.12"
 ignore_missing_imports = true
 strict = false
 check_untyped_defs = true
+# The modules mypy checks by default, so `python -m mypy` with no arguments
+# does the right thing locally and in CI. Keep in sync with the strict
+# overrides below — same set, one place to edit.
+files = [
+    "app/utils/types.py",
+    "app/utils/http_client.py",
+    "app/utils/http_retry.py",
+    "app/services/deezer_service.py",
+    "app/services/lyrics_service.py",
+    "app/services/search_cache_service.py",
+    "app/platforms/aggregator.py",
+    "app/platforms/spotify/client.py",
+    "app/services/track_formatter.py",
+    "app/services/recommendations_service.py",
+    "app/bot/rate_limit.py",
+    "app/bot/context.py",
+    "app/config/settings.py",
+    "app/database/repository_modules/",
+    "app/health.py",
+    "app/monitoring.py",
+]
 
 [[tool.mypy.overrides]]
 module = [
     "app.utils.types",
     "app.utils.http_client",
+    "app.utils.http_retry",
     "app.services.deezer_service",
     "app.services.lyrics_service",
+    "app.services.search_cache_service",
     "app.platforms.aggregator",
     "app.platforms.spotify.client",
     "app.services.track_formatter",
     "app.services.recommendations_service",
     "app.bot.rate_limit",
+    "app.bot.context",
+    "app.config.settings",
+    "app.database.repository_modules.common",
+    "app.database.repository_modules.users",
+    "app.database.repository_modules.tracks",
+    "app.database.repository_modules.searches",
+    "app.database.repository_modules.favorites",
+    "app.database.repository_modules.errors",
+    "app.database.repository_modules.spotify",
+    "app.database.repository_modules.search_cache",
+    "app.database.repository_modules.admin_audit",
     "app.health",
     "app.monitoring",
 ]
 disallow_untyped_defs = true
-
-[[tool.mypy.overrides]]
-module = ["app.utils.http_retry"]
-ignore_errors = true
 
 [tool.ruff]
 line-length = 100

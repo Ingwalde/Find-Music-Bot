@@ -4,6 +4,63 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.8] - 2026-08-15
+
+### Added
+- **Redis-backed search context** — `app/bot/context.py` now stores paginated search
+  results in Redis (`sc:{user_id}`, 1h TTL via `SETEX`) so pagination survives a bot
+  restart. Falls back to the existing in-memory dict when Redis is unavailable.
+- **Redis tier for the search cache** — `app/services/search_cache_service.py` checks
+  Redis before PostgreSQL and warms Redis on a PostgreSQL hit. The PostgreSQL tier is
+  kept, not replaced: a Redis outage or eviction costs latency, never a cold cache.
+- **Trivy image scan** — `.github/workflows/tests.yml` scans the built image for
+  HIGH/CRITICAL vulnerabilities and fails the build on fixable findings.
+  `ignore-unfixed: true` so unpatched base-image CVEs do not block every PR.
+- **`scripts/check_version_sync.py`** — fails when `app/version.py` and the newest
+  CHANGELOG entry disagree.
+- **`.github/workflows/sync-deps-branch.yml`** — daily job keeping the `deps/staging`
+  branch merged up with `main`, opening an issue on conflict.
+- **`LOG_SAMPLE_RATE`** setting (default `1.0`, no change in behaviour) — samples out a
+  fraction of DEBUG/INFO records under high traffic. WARNING and above, and any record
+  carrying exception info, are never sampled.
+- Healthchecks on the `test-postgres` and `test-redis` compose services, so
+  `docker compose up -d --wait` blocks until both actually accept connections.
+
+### Changed
+- **Dependabot now targets `deps/staging`** instead of `main`, so dependency PRs no
+  longer land directly against the release branch.
+- **Multi-stage `deploy/Dockerfile`** — pip and the wheels it downloads stay in the
+  build stage. Measured: 368 MB → 347 MB (-21 MB).
+- **mypy strict coverage 11 → 25 modules** — all `repository_modules/`, plus
+  `app/bot/context.py`, `app/config/settings.py`, `app/services/search_cache_service.py`,
+  and `app/utils/http_retry.py`. The checked set now lives in `[tool.mypy] files` in
+  `pyproject.toml`, so CI runs a bare `python -m mypy` and cannot drift from that list.
+- Dependency bumps: `alembic` 1.18.5 → 1.19.1, `ruff` 0.16.1 → 0.16.2,
+  `mypy` >=1.14.0 → >=2.3.0, `hypothesis` >=6.165.2, `pip-audit` >=2.10.1,
+  `docker/setup-buildx-action` v3 → v4, `docker/login-action` v3 → v4,
+  `docker/build-push-action` v6 → v7, `appleboy/ssh-action` 1.2.0 → 1.2.5,
+  `appleboy/scp-action` 0.1.7 → 1.0.0.
+- `docs/ARCHITECTURE.md` — added a layer-to-module table so each box in the diagram
+  maps to concrete files.
+
+### Fixed
+- **`app/version.py` reported the wrong version to users.** It sat at `3.7.0` from
+  v3.7.1 through v3.7.7 — seven releases. `__version__` is read by the `/version`
+  command and the admin `/maintenance` report, so both showed a stale version.
+  Bumped to `3.7.8` and guarded by the new `check_version_sync.py`.
+- **`app/utils/http_retry.py` could raise `None`.** `raise last_error` ran with
+  `last_error: Exception | None`; the loop invariant made it non-`None` in practice,
+  but a future change to the loop body would have surfaced as a confusing
+  "exceptions must derive from BaseException". Now guarded explicitly. Found by
+  removing the module's stale `ignore_errors = true` mypy override.
+
+### Notes
+- Coverage 95.11% (up from ~94%), 42 new tests covering the Redis paths, their
+  fallbacks, and log sampling.
+- `LOG_SAMPLE_RATE` defaults to `1.0` — sampling is opt-in and off unless configured.
+
+---
+
 ## [v3.7.7] - 2026-08-09
 
 ### Added

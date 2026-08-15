@@ -1,11 +1,29 @@
+import re
+from pathlib import Path
+
 from app import version
 from app.database import spotify_repository
 from app.localization.languages import DEFAULT_LANGUAGE, get_language_label, is_supported_language
 from app.services import track_platform_service
 
 
-def test_version_is_370():
-    assert version.__version__ == "3.7.0"
+def test_version_is_semver():
+    """
+    Deliberately not pinned to a literal. The previous form asserted
+    == "3.7.0", so every release had to edit this test — and once it stopped
+    being edited, version.py silently sat at 3.7.0 from v3.7.1 through v3.7.7
+    while /version and the admin /maintenance report showed the stale value.
+    Agreement with CHANGELOG.md is enforced below and by check_version_sync.py.
+    """
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version.__version__)
+
+
+def test_version_matches_the_newest_changelog_entry():
+    changelog = Path(__file__).resolve().parent.parent / "CHANGELOG.md"
+    match = re.search(r"^##\s*\[v(\d+\.\d+\.\d+)\]", changelog.read_text(encoding="utf-8"), re.M)
+
+    assert match, "CHANGELOG.md has no '## [vX.Y.Z]' heading"
+    assert version.__version__ == match.group(1)
 
 
 def test_track_platform_service_facade_exports_expected_functions():
