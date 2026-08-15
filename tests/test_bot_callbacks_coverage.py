@@ -37,7 +37,7 @@ async def test_language_callback_rejects_unsupported_language(monkeypatch):
     bot = AsyncFakeBot()
     monkeypatch.setattr(language_callbacks, "is_supported_language", lambda code: False)
 
-    await language_callbacks.handle_language_callback(bot, fake_call(), "xx")
+    await language_callbacks.handle_language_callback(bot, fake_call(), "xx", "en")
 
     assert bot.answers[-1][1]["show_alert"] is True
 
@@ -50,7 +50,7 @@ async def test_language_callback_saves_supported_language(monkeypatch):
     monkeypatch.setattr(language_callbacks, "upsert_user", to_async(lambda user: saved.update(user=user.id)))
     monkeypatch.setattr(language_callbacks, "set_user_language", to_async(lambda user_id, code: saved.update(language=code)))
 
-    await language_callbacks.handle_language_callback(bot, fake_call(), "uk")
+    await language_callbacks.handle_language_callback(bot, fake_call(), "uk", "en")
 
     assert saved == {"user": 123, "language": "uk"}
     assert bot.messages
@@ -68,7 +68,7 @@ async def test_language_callback_handles_error(monkeypatch):
     )
     monkeypatch.setattr(language_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await language_callbacks.handle_language_callback(bot, fake_call(), "uk")
+    await language_callbacks.handle_language_callback(bot, fake_call(), "uk", "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -96,11 +96,10 @@ async def test_track_cache_loader_falls_back_to_deezer(monkeypatch, sample_track
 async def test_track_callback_sends_track_card(monkeypatch, sample_track):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(track_callbacks, "get_track_from_cache_or_deezer", to_async(lambda track_id: sample_track))
     monkeypatch.setattr(track_callbacks, "send_track_card", to_async(lambda **kwargs: called.update(kwargs)))
 
-    await track_callbacks.handle_track_callback(bot, fake_call(), "671298")
+    await track_callbacks.handle_track_callback(bot, fake_call(), "671298", "en")
 
     assert bot.answers
     assert called["track"] == sample_track
@@ -113,11 +112,10 @@ async def test_track_callback_handles_error(monkeypatch):
     async def failing_loader(track_id):
         raise RuntimeError("fail")
 
-    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(track_callbacks, "get_track_from_cache_or_deezer", failing_loader)
     monkeypatch.setattr(track_callbacks, "log_and_save_error", to_async(lambda *args, **kwargs: None))
 
-    await track_callbacks.handle_track_callback(bot, fake_call(), "bad")
+    await track_callbacks.handle_track_callback(bot, fake_call(), "bad", "en")
 
     assert bot.messages
 
@@ -125,11 +123,10 @@ async def test_track_callback_handles_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_lyrics_callback_sends_genius_link(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(lyrics_callbacks, "get_track", to_async(lambda track_id: {"title": "SOS", "artist": "ABBA"}))
     monkeypatch.setattr(lyrics_callbacks, "find_lyrics_url", to_async(lambda title, artist: "https://genius.com/abba-sos"))
 
-    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1", "en")
 
     assert bot.answers
     # A "searching..." status message is sent first, then edited in place with
@@ -141,11 +138,10 @@ async def test_lyrics_callback_sends_genius_link(monkeypatch):
 @pytest.mark.asyncio
 async def test_lyrics_callback_handles_missing_lyrics(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(lyrics_callbacks, "get_track", to_async(lambda track_id: {"title": "Unknown", "artist": "Unknown"}))
     monkeypatch.setattr(lyrics_callbacks, "find_lyrics_url", to_async(lambda title, artist: None))
 
-    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1", "en")
 
     assert bot.messages
     assert bot.edited_texts[-1][1]["text"] == "Lyrics page was not found."
@@ -158,11 +154,10 @@ async def test_lyrics_callback_handles_get_track_error(monkeypatch):
     async def failing_get_track(track_id):
         raise RuntimeError("api down")
 
-    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(lyrics_callbacks, "get_track", failing_get_track)
     monkeypatch.setattr(lyrics_callbacks, "log_and_save_error", to_async(lambda *args, **kwargs: None))
 
-    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1", "en")
 
     assert bot.answers
     # Exactly one send_message call — the status message. The error result
@@ -177,9 +172,8 @@ async def test_lyrics_callback_handles_get_track_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_page_callback_handles_expired_context(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(pagination_callbacks, "get_user_language", to_async(lambda user_id: "en"))
 
-    await pagination_callbacks.handle_page_callback(bot, fake_call(), 1)
+    await pagination_callbacks.handle_page_callback(bot, fake_call(), 1, "en")
 
     assert bot.answers[-1][1]["show_alert"] is True
 
@@ -187,10 +181,9 @@ async def test_page_callback_handles_expired_context(monkeypatch):
 @pytest.mark.asyncio
 async def test_page_callback_edits_current_page(monkeypatch, sample_track):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(pagination_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     await save_search_context(123, "SOS", [sample_track, sample_track | {"deezer_track_id": "2"}])
 
-    await pagination_callbacks.handle_page_callback(bot, fake_call(), 0)
+    await pagination_callbacks.handle_page_callback(bot, fake_call(), 0, "en")
 
     assert bot.edited_texts
     assert bot.answers
@@ -200,7 +193,6 @@ async def test_page_callback_edits_current_page(monkeypatch, sample_track):
 async def test_back_to_results_callback_calls_action(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(pagination_callbacks, "get_user_language", to_async(lambda user_id: "en"))
 
     import app.bot.actions as action_module
 
@@ -210,7 +202,7 @@ async def test_back_to_results_callback_calls_action(monkeypatch):
         to_async(lambda **kwargs: called.update(kwargs)),
     )
 
-    await pagination_callbacks.handle_back_to_results_callback(bot, fake_call())
+    await pagination_callbacks.handle_back_to_results_callback(bot, fake_call(), "en")
 
     assert called["user_id"] == 123
 
@@ -221,7 +213,6 @@ async def test_back_to_results_callback_calls_action(monkeypatch):
 @pytest.mark.asyncio
 async def test_favorite_callback_success(monkeypatch, sample_track):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "upsert_user", to_async(lambda user: None))
     monkeypatch.setattr(favorites_callbacks, "get_track", to_async(lambda track_id: sample_track))
     monkeypatch.setattr(favorites_callbacks, "save_track", to_async(lambda track: None))
@@ -230,7 +221,7 @@ async def test_favorite_callback_success(monkeypatch, sample_track):
         favorites_callbacks, "user_has_search_context", to_async(lambda user_id: False)
     )
 
-    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert bot.edited_markups
     assert bot.answers
@@ -239,7 +230,6 @@ async def test_favorite_callback_success(monkeypatch, sample_track):
 @pytest.mark.asyncio
 async def test_remove_favorite_callback_success(monkeypatch, sample_track):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "get_track", to_async(lambda track_id: sample_track))
     monkeypatch.setattr(favorites_callbacks, "save_track", to_async(lambda track: None))
     monkeypatch.setattr(favorites_callbacks, "remove_favorite", to_async(lambda **kwargs: None))
@@ -247,7 +237,7 @@ async def test_remove_favorite_callback_success(monkeypatch, sample_track):
         favorites_callbacks, "user_has_search_context", to_async(lambda user_id: True)
     )
 
-    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert bot.edited_markups
 
@@ -255,11 +245,10 @@ async def test_remove_favorite_callback_success(monkeypatch, sample_track):
 @pytest.mark.asyncio
 async def test_clear_favorites_request_and_confirm(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "clear_favorites", to_async(lambda user_id: None))
 
-    await favorites_callbacks.handle_clear_favorites_request_callback(bot, fake_call())
-    await favorites_callbacks.handle_clear_favorites_confirm_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_request_callback(bot, fake_call(), "en")
+    await favorites_callbacks.handle_clear_favorites_confirm_callback(bot, fake_call(), "en")
 
     assert len(bot.edited_texts) == 2
 
@@ -267,12 +256,11 @@ async def test_clear_favorites_request_and_confirm(monkeypatch):
 @pytest.mark.asyncio
 async def test_clear_favorites_cancel_handles_empty_and_non_empty(monkeypatch, sample_track):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "get_favorite_tracks", to_async(lambda user_id: []))
-    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call(), "en")
 
     monkeypatch.setattr(favorites_callbacks, "get_favorite_tracks", to_async(lambda user_id: [sample_track]))
-    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call(), "en")
 
     assert len(bot.edited_texts) == 2
 
@@ -281,7 +269,6 @@ async def test_clear_favorites_cancel_handles_empty_and_non_empty(monkeypatch, s
 async def test_favorite_callback_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "upsert_user", to_async(lambda user: None))
     monkeypatch.setattr(
         favorites_callbacks,
@@ -290,7 +277,7 @@ async def test_favorite_callback_handles_error(monkeypatch):
     )
     monkeypatch.setattr(favorites_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert calls
     assert bot.answers[-1][0][1] == "Could not add to favorites."
@@ -301,7 +288,6 @@ async def test_favorite_callback_handles_error(monkeypatch):
 async def test_remove_favorite_callback_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         favorites_callbacks,
         "get_track",
@@ -309,7 +295,7 @@ async def test_remove_favorite_callback_handles_error(monkeypatch):
     )
     monkeypatch.setattr(favorites_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert calls
     assert bot.answers[-1][0][1] == "Could not remove from favorites."
@@ -321,10 +307,9 @@ async def test_clear_favorites_request_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     bot.raise_on_edit = True
     calls = []
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await favorites_callbacks.handle_clear_favorites_request_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_request_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -334,7 +319,6 @@ async def test_clear_favorites_request_handles_error(monkeypatch):
 async def test_clear_favorites_confirm_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         favorites_callbacks,
         "clear_favorites",
@@ -342,7 +326,7 @@ async def test_clear_favorites_confirm_handles_error(monkeypatch):
     )
     monkeypatch.setattr(favorites_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await favorites_callbacks.handle_clear_favorites_confirm_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_confirm_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -352,7 +336,6 @@ async def test_clear_favorites_confirm_handles_error(monkeypatch):
 async def test_clear_favorites_cancel_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         favorites_callbacks,
         "get_favorite_tracks",
@@ -360,7 +343,7 @@ async def test_clear_favorites_cancel_handles_error(monkeypatch):
     )
     monkeypatch.setattr(favorites_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call())
+    await favorites_callbacks.handle_clear_favorites_cancel_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -372,10 +355,9 @@ async def test_clear_favorites_cancel_handles_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_history_search_callback_not_found(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "get_search_query_by_id", to_async(lambda **kwargs: None))
 
-    await history_callbacks.handle_history_search_callback(bot, fake_call(), "99")
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "99", "en")
 
     assert bot.answers[-1][1]["show_alert"] is True
 
@@ -384,14 +366,13 @@ async def test_history_search_callback_not_found(monkeypatch):
 async def test_history_search_callback_repeats_query(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "get_search_query_by_id", to_async(lambda **kwargs: "SOS"))
     monkeypatch.setattr(history_callbacks, "upsert_user", to_async(lambda user: None))
     monkeypatch.setattr(
         history_callbacks, "send_search_results", to_async(lambda **kwargs: called.update(kwargs))
     )
 
-    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1", "en")
 
     assert called["query"] == "SOS"
 
@@ -399,13 +380,12 @@ async def test_history_search_callback_repeats_query(monkeypatch):
 @pytest.mark.asyncio
 async def test_clear_history_request_confirm_and_cancel(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "clear_search_history", to_async(lambda user_id: None))
     monkeypatch.setattr(history_callbacks, "get_search_history", to_async(lambda user_id, limit: []))
 
-    await history_callbacks.handle_clear_history_request_callback(bot, fake_call())
-    await history_callbacks.handle_clear_history_confirm_callback(bot, fake_call())
-    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
+    await history_callbacks.handle_clear_history_request_callback(bot, fake_call(), "en")
+    await history_callbacks.handle_clear_history_confirm_callback(bot, fake_call(), "en")
+    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call(), "en")
 
     assert len(bot.edited_texts) == 3
 
@@ -414,7 +394,6 @@ async def test_clear_history_request_confirm_and_cancel(monkeypatch):
 async def test_history_search_callback_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         history_callbacks,
         "get_search_query_by_id",
@@ -422,7 +401,7 @@ async def test_history_search_callback_handles_error(monkeypatch):
     )
     monkeypatch.setattr(history_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1", "en")
 
     assert calls
     assert bot.messages[-1][0][1] == "Could not repeat this search."
@@ -433,10 +412,9 @@ async def test_clear_history_request_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     bot.raise_on_edit = True
     calls = []
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await history_callbacks.handle_clear_history_request_callback(bot, fake_call())
+    await history_callbacks.handle_clear_history_request_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -446,7 +424,6 @@ async def test_clear_history_request_handles_error(monkeypatch):
 async def test_clear_history_confirm_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         history_callbacks,
         "clear_search_history",
@@ -454,7 +431,7 @@ async def test_clear_history_confirm_handles_error(monkeypatch):
     )
     monkeypatch.setattr(history_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await history_callbacks.handle_clear_history_confirm_callback(bot, fake_call())
+    await history_callbacks.handle_clear_history_confirm_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -463,14 +440,13 @@ async def test_clear_history_confirm_handles_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_clear_history_cancel_shows_history_when_not_empty(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         history_callbacks,
         "get_search_history",
         to_async(lambda user_id, limit: [{"id": 1, "query": "SOS"}]),
     )
 
-    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
+    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call(), "en")
 
     assert bot.edited_texts
     assert bot.edited_texts[-1][1]["reply_markup"] is not None
@@ -480,7 +456,6 @@ async def test_clear_history_cancel_shows_history_when_not_empty(monkeypatch):
 async def test_clear_history_cancel_handles_error(monkeypatch):
     bot = AsyncFakeBot()
     calls = []
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(
         history_callbacks,
         "get_search_history",
@@ -488,7 +463,7 @@ async def test_clear_history_cancel_handles_error(monkeypatch):
     )
     monkeypatch.setattr(history_callbacks, "log_and_save_error", to_async(lambda *a, **k: calls.append(1)))
 
-    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call())
+    await history_callbacks.handle_clear_history_cancel_callback(bot, fake_call(), "en")
 
     assert calls
     assert bot.answers[-1][1]["show_alert"] is True
@@ -501,7 +476,6 @@ async def test_clear_history_cancel_handles_error(monkeypatch):
 async def test_track_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(track_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(track_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
@@ -510,7 +484,7 @@ async def test_track_callback_blocked_by_rate_limit(monkeypatch):
         to_async(lambda track_id: called.update(called=True)),
     )
 
-    await track_callbacks.handle_track_callback(bot, fake_call(), "671298")
+    await track_callbacks.handle_track_callback(bot, fake_call(), "671298", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -520,14 +494,13 @@ async def test_track_callback_blocked_by_rate_limit(monkeypatch):
 async def test_favorite_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
         favorites_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
     )
 
-    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -537,14 +510,13 @@ async def test_favorite_callback_blocked_by_rate_limit(monkeypatch):
 async def test_remove_favorite_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
         favorites_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
     )
 
-    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -554,14 +526,13 @@ async def test_remove_favorite_callback_blocked_by_rate_limit(monkeypatch):
 async def test_lyrics_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(lyrics_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(lyrics_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
         lyrics_callbacks, "get_track", to_async(lambda track_id: called.update(called=True))
     )
 
-    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -571,7 +542,6 @@ async def test_lyrics_callback_blocked_by_rate_limit(monkeypatch):
 async def test_history_search_callback_blocked_by_rate_limit(monkeypatch):
     bot = AsyncFakeBot()
     called = {}
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(history_callbacks, "should_warn_once", to_async(lambda telegram_id: True))
     monkeypatch.setattr(
@@ -580,7 +550,7 @@ async def test_history_search_callback_blocked_by_rate_limit(monkeypatch):
         to_async(lambda **kwargs: called.update(called=True)),
     )
 
-    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1", "en")
 
     assert "called" not in called
     assert bot.answers[-1][1]["show_alert"] is True
@@ -589,11 +559,10 @@ async def test_history_search_callback_blocked_by_rate_limit(monkeypatch):
 @pytest.mark.asyncio
 async def test_track_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(track_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(track_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(track_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await track_callbacks.handle_track_callback(bot, fake_call(), "671298")
+    await track_callbacks.handle_track_callback(bot, fake_call(), "671298", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -601,11 +570,10 @@ async def test_track_callback_second_block_is_silent(monkeypatch):
 @pytest.mark.asyncio
 async def test_favorite_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -613,11 +581,10 @@ async def test_favorite_callback_second_block_is_silent(monkeypatch):
 @pytest.mark.asyncio
 async def test_remove_favorite_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(favorites_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(favorites_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(favorites_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298")
+    await favorites_callbacks.handle_remove_favorite_callback(bot, fake_call(), "671298", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -625,11 +592,10 @@ async def test_remove_favorite_callback_second_block_is_silent(monkeypatch):
 @pytest.mark.asyncio
 async def test_lyrics_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(lyrics_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(lyrics_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(lyrics_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1")
+    await lyrics_callbacks.handle_lyrics_callback(bot, fake_call(), "1", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -637,11 +603,10 @@ async def test_lyrics_callback_second_block_is_silent(monkeypatch):
 @pytest.mark.asyncio
 async def test_history_search_callback_second_block_is_silent(monkeypatch):
     bot = AsyncFakeBot()
-    monkeypatch.setattr(history_callbacks, "get_user_language", to_async(lambda user_id: "en"))
     monkeypatch.setattr(history_callbacks, "check_rate_limit", to_async(lambda telegram_id: False))
     monkeypatch.setattr(history_callbacks, "should_warn_once", to_async(lambda telegram_id: False))
 
-    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1")
+    await history_callbacks.handle_history_search_callback(bot, fake_call(), "1", "en")
 
     assert bot.answers[-1] == (("call-id",), {})
 
@@ -683,72 +648,72 @@ async def test_callback_router_routes_prefixed_actions(monkeypatch):
     monkeypatch.setattr(
         callbacks,
         "handle_language_callback",
-        to_async(lambda bot, call, language_code: routed.append((CB_LANGUAGE, language_code))),
+        to_async(lambda bot, call, language_code, language: routed.append((CB_LANGUAGE, language_code))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_track_callback",
-        to_async(lambda bot, call, track_id: routed.append((CB_TRACK, track_id))),
+        to_async(lambda bot, call, track_id, language: routed.append((CB_TRACK, track_id))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_page_callback",
-        to_async(lambda bot, call, page: routed.append((CB_PAGE, page))),
+        to_async(lambda bot, call, page, language: routed.append((CB_PAGE, page))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_back_to_results_callback",
-        to_async(lambda bot, call: routed.append((ACTION_BACK_RESULTS, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_BACK_RESULTS, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_favorite_callback",
-        to_async(lambda bot, call, track_id: routed.append((CB_FAVORITE, track_id))),
+        to_async(lambda bot, call, track_id, language: routed.append((CB_FAVORITE, track_id))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_remove_favorite_callback",
-        to_async(lambda bot, call, track_id: routed.append((CB_UNFAVORITE, track_id))),
+        to_async(lambda bot, call, track_id, language: routed.append((CB_UNFAVORITE, track_id))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_lyrics_callback",
-        to_async(lambda bot, call, track_id: routed.append((CB_LYRICS, track_id))),
+        to_async(lambda bot, call, track_id, language: routed.append((CB_LYRICS, track_id))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_history_search_callback",
-        to_async(lambda bot, call, search_id: routed.append((CB_HISTORY, search_id))),
+        to_async(lambda bot, call, search_id, language: routed.append((CB_HISTORY, search_id))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_favorites_request_callback",
-        to_async(lambda bot, call: routed.append((ACTION_FAVORITES_CLEAR_REQUEST, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_FAVORITES_CLEAR_REQUEST, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_favorites_confirm_callback",
-        to_async(lambda bot, call: routed.append((ACTION_FAVORITES_CLEAR_CONFIRM, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_FAVORITES_CLEAR_CONFIRM, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_favorites_cancel_callback",
-        to_async(lambda bot, call: routed.append((ACTION_FAVORITES_CLEAR_CANCEL, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_FAVORITES_CLEAR_CANCEL, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_history_request_callback",
-        to_async(lambda bot, call: routed.append((ACTION_HISTORY_CLEAR_REQUEST, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_HISTORY_CLEAR_REQUEST, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_history_confirm_callback",
-        to_async(lambda bot, call: routed.append((ACTION_HISTORY_CLEAR_CONFIRM, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_HISTORY_CLEAR_CONFIRM, None))),
     )
     monkeypatch.setattr(
         callbacks,
         "handle_clear_history_cancel_callback",
-        to_async(lambda bot, call: routed.append((ACTION_HISTORY_CLEAR_CANCEL, None))),
+        to_async(lambda bot, call, language: routed.append((ACTION_HISTORY_CLEAR_CANCEL, None))),
     )
 
     for data in [

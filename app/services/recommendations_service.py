@@ -41,25 +41,41 @@ async def get_cached_trending(fetch_fn: Callable[[int], Awaitable[list[TrackDict
         except (RedisError, OSError):
             logger.warning("Redis trending cache read failed, using in-memory fallback")
 
+    # Held across the fetch, not just the dict read. Releasing it before
+    # fetch_fn made the lock decorative: N concurrent /trending calls on a cold
+    # cache all passed the check, all released, and all called Deezer.
     async with _trending_cache_lock:
         if time() < _trending_cache["expires_at"] and _trending_cache["tracks"]:
             logger.info("Returning trending tracks from in-memory cache")
             return list(_trending_cache["tracks"])
 
-    logger.info("Cache expired or empty — fetching trending tracks")
-    tracks = await fetch_fn(limit)
+        # Whoever queued behind the winner arrives here after it populated the
+        # cache, so re-check Redis too — the winner may have filled that tier.
+        if client is not None:
+            try:
+                cached = await client.get(_TRENDING_REDIS_KEY)
+                if cached:
+                    logger.info("Returning trending tracks from Redis cache")
+                    return json.loads(cached)
+            except (RedisError, OSError):
+                logger.warning("Redis trending cache read failed, using in-memory fallback")
 
-    if client is not None:
-        try:
-            await client.set(_TRENDING_REDIS_KEY, json.dumps(tracks), ex=_TRENDING_TTL)
-            logger.info("Trending tracks stored in Redis cache")
-            return tracks
-        except (RedisError, OSError):
-            logger.warning("Redis trending cache write failed, using in-memory fallback")
+        logger.info("Cache expired or empty — fetching trending tracks")
+        tracks = await fetch_fn(limit)
 
-    async with _trending_cache_lock:
+        # Both tiers are filled, always. Returning early after a successful
+        # Redis write left the in-memory tier permanently cold, so the moment
+        # Redis became unavailable the "fallback" was empty and every request
+        # went back to Deezer.
         _trending_cache["tracks"] = tracks
         _trending_cache["expires_at"] = time() + _TRENDING_TTL
+
+        if client is not None:
+            try:
+                await client.set(_TRENDING_REDIS_KEY, json.dumps(tracks), ex=_TRENDING_TTL)
+                logger.info("Trending tracks stored in Redis cache")
+            except (RedisError, OSError):
+                logger.warning("Redis trending cache write failed, in-memory tier still set")
 
     return tracks
 

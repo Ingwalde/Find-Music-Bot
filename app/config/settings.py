@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
@@ -47,64 +47,75 @@ def parse_ratio(value: str | None, default: float = 1.0) -> float:
 
 @dataclass
 class Settings:
-    BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
-    GENIUS_TOKEN: str | None = os.getenv("GENIUS_TOKEN") or os.getenv("GENIUS")
+    """
+    Runtime configuration read from the environment.
+
+    Every default goes through field(default_factory=...) rather than a bare
+    os.getenv() in the class body. A bare default is evaluated once, when the
+    class statement executes, so os.environ changes made afterwards are
+    invisible even to a freshly constructed Settings() — which is what forced
+    migrations/env.py to read ALEMBIC_DATABASE_URL directly instead of using
+    this class. With factories, Settings() reads the environment as it is at
+    construction time.
+
+    The module-level `settings` singleton below is still built at import, which
+    is intended: nothing should mutate configuration at runtime.
+    """
+
+    BOT_TOKEN: str | None = field(default_factory=lambda: os.getenv("BOT_TOKEN"))
+    GENIUS_TOKEN: str | None = field(default_factory=lambda: os.getenv("GENIUS_TOKEN") or os.getenv("GENIUS"))
 
     # DATABASE_PATH — migration-only; used by scripts/migrate_sqlite_to_postgres.py.
     # Remove in a later cleanup once migration has run on all environments.
-    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/music_bot.db")
+    DATABASE_PATH: str = field(default_factory=lambda: os.getenv("DATABASE_PATH", "data/music_bot.db"))
 
-    DATABASE_URL: str | None = os.getenv("DATABASE_URL")
+    DATABASE_URL: str | None = field(default_factory=lambda: os.getenv("DATABASE_URL"))
 
-    MAX_SEARCH_RESULTS: int = int(os.getenv("MAX_SEARCH_RESULTS", "15"))
-    RESULTS_PER_PAGE: int = int(os.getenv("RESULTS_PER_PAGE", "5"))
-    HISTORY_LIMIT: int = int(os.getenv("HISTORY_LIMIT", "10"))
+    MAX_SEARCH_RESULTS: int = field(default_factory=lambda: int(os.getenv("MAX_SEARCH_RESULTS", "15")))
+    RESULTS_PER_PAGE: int = field(default_factory=lambda: int(os.getenv("RESULTS_PER_PAGE", "5")))
+    HISTORY_LIMIT: int = field(default_factory=lambda: int(os.getenv("HISTORY_LIMIT", "10")))
     # Caps the /favorites keyboard. It had no limit at all: one button row per
     # favourite, unbounded, so a heavy user's list eventually produced a
     # reply_markup Telegram refuses to accept and /favorites simply broke.
-    FAVORITES_LIMIT: int = int(os.getenv("FAVORITES_LIMIT", "50"))
-    MAX_HISTORY_PER_USER: int = int(os.getenv("MAX_HISTORY_PER_USER", "100"))
+    FAVORITES_LIMIT: int = field(default_factory=lambda: int(os.getenv("FAVORITES_LIMIT", "50")))
+    MAX_HISTORY_PER_USER: int = field(default_factory=lambda: int(os.getenv("MAX_HISTORY_PER_USER", "100")))
 
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
-    LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text").lower()
-    LOG_FILE_PATH: str = os.getenv("LOG_FILE_PATH", "logs/bot.log")
+    LOG_LEVEL: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO").upper())
+    LOG_FORMAT: str = field(default_factory=lambda: os.getenv("LOG_FORMAT", "text").lower())
+    LOG_FILE_PATH: str = field(default_factory=lambda: os.getenv("LOG_FILE_PATH", "logs/bot.log"))
     # Fraction of DEBUG/INFO records kept. 1.0 = keep everything (default).
     # WARNING and above are never sampled. Lower this only if log volume is
     # an observed problem — sampled-out lines are gone with no trace.
-    LOG_SAMPLE_RATE: float = parse_ratio(os.getenv("LOG_SAMPLE_RATE"), default=1.0)
-    ERROR_HISTORY_LIMIT: int = int(os.getenv("ERROR_HISTORY_LIMIT", "10"))
-    ADMIN_ID: int | None = parse_optional_int(os.getenv("ADMIN_ID"))
+    LOG_SAMPLE_RATE: float = field(default_factory=lambda: parse_ratio(os.getenv("LOG_SAMPLE_RATE"), default=1.0))
+    ERROR_HISTORY_LIMIT: int = field(default_factory=lambda: int(os.getenv("ERROR_HISTORY_LIMIT", "10")))
+    ADMIN_ID: int | None = field(default_factory=lambda: parse_optional_int(os.getenv("ADMIN_ID")))
 
-    SPOTIFY_ENABLED: bool = parse_bool(os.getenv("SPOTIFY_ENABLED"), default=True)
-    SPOTIFY_CLIENT_ID: str | None = os.getenv("SPOTIFY_CLIENT_ID")
-    SPOTIFY_CLIENT_SECRET: str | None = os.getenv("SPOTIFY_CLIENT_SECRET")
-    SPOTIFY_MARKET: str | None = os.getenv("SPOTIFY_MARKET", "NO")
-    SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS: int = int(
-        os.getenv("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS", "3600")
-    )
+    SPOTIFY_ENABLED: bool = field(default_factory=lambda: parse_bool(os.getenv("SPOTIFY_ENABLED"), default=True))
+    SPOTIFY_CLIENT_ID: str | None = field(default_factory=lambda: os.getenv("SPOTIFY_CLIENT_ID"))
+    SPOTIFY_CLIENT_SECRET: str | None = field(default_factory=lambda: os.getenv("SPOTIFY_CLIENT_SECRET"))
+    SPOTIFY_MARKET: str | None = field(default_factory=lambda: os.getenv("SPOTIFY_MARKET", "NO"))
+    SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS: int = field(default_factory=lambda: int(os.getenv("SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS", "3600")))
 
     # Circuit breaker for network-level outages (Spotify/Deezer/Genius) —
     # separate from SPOTIFY_FORBIDDEN_COOLDOWN_SECONDS above, which only
     # covers Spotify's 403 access-restriction case.
-    EXTERNAL_SERVICE_COOLDOWN_SECONDS: int = int(
-        os.getenv("EXTERNAL_SERVICE_COOLDOWN_SECONDS", "60")
-    )
+    EXTERNAL_SERVICE_COOLDOWN_SECONDS: int = field(default_factory=lambda: int(os.getenv("EXTERNAL_SERVICE_COOLDOWN_SECONDS", "60")))
 
-    SHUTDOWN_TIMEOUT_SECONDS: int = int(os.getenv("SHUTDOWN_TIMEOUT_SECONDS", "30"))
+    SHUTDOWN_TIMEOUT_SECONDS: int = field(default_factory=lambda: int(os.getenv("SHUTDOWN_TIMEOUT_SECONDS", "30")))
 
-    RATE_LIMIT_MAX_REQUESTS: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "20"))
-    RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    RATE_LIMIT_MAX_REQUESTS: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "20")))
+    RATE_LIMIT_WINDOW_SECONDS: int = field(default_factory=lambda: int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")))
 
-    REDIS_URL: str | None = os.getenv("REDIS_URL")
+    REDIS_URL: str | None = field(default_factory=lambda: os.getenv("REDIS_URL"))
 
     # Webhook mode (v3.3.0+) — polling stays the default; only used when BOT_MODE=webhook.
-    BOT_MODE: str = os.getenv("BOT_MODE", "polling")
-    WEBHOOK_PUBLIC_URL: str | None = os.getenv("WEBHOOK_PUBLIC_URL")
-    WEBHOOK_SECRET_PATH: str | None = os.getenv("WEBHOOK_SECRET_PATH")
-    WEBHOOK_SECRET_TOKEN: str | None = os.getenv("WEBHOOK_SECRET_TOKEN")
-    WEBHOOK_CERT_PATH: str | None = os.getenv("WEBHOOK_CERT_PATH")
-    WEBHOOK_KEY_PATH: str | None = os.getenv("WEBHOOK_KEY_PATH")
-    WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8443"))
+    BOT_MODE: str = field(default_factory=lambda: os.getenv("BOT_MODE", "polling"))
+    WEBHOOK_PUBLIC_URL: str | None = field(default_factory=lambda: os.getenv("WEBHOOK_PUBLIC_URL"))
+    WEBHOOK_SECRET_PATH: str | None = field(default_factory=lambda: os.getenv("WEBHOOK_SECRET_PATH"))
+    WEBHOOK_SECRET_TOKEN: str | None = field(default_factory=lambda: os.getenv("WEBHOOK_SECRET_TOKEN"))
+    WEBHOOK_CERT_PATH: str | None = field(default_factory=lambda: os.getenv("WEBHOOK_CERT_PATH"))
+    WEBHOOK_KEY_PATH: str | None = field(default_factory=lambda: os.getenv("WEBHOOK_KEY_PATH"))
+    WEBHOOK_PORT: int = field(default_factory=lambda: int(os.getenv("WEBHOOK_PORT", "8443")))
 
     @property
     def webhook_enabled(self) -> bool:

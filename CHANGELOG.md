@@ -4,6 +4,76 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.10] - 2026-08-16
+
+### Fixed
+- **Redis credentials could reach the log.** `init_redis` logged the connection
+  URL verbatim, and Redis passwords travel inside the URL
+  (`redis://:pass@host`). Nothing has leaked — the current deployment has no
+  password — which is why this was worth fixing before a managed Redis
+  introduces one. Logs `host:port` only.
+- **`truncate_text` returned more than `max_length`.** Below the width of
+  `"..."` the negative slice ran backwards:
+  `truncate_text("abcdefghij", 0)` produced ten characters for a limit of zero.
+  The property test's `min_value=4` had been fitted to the bug; widened to 0.
+- **`get_favorite_tracks` had no `LIMIT`** and the trending lock was released
+  before the fetch — see Changed.
+- **`favorites_callbacks` ran the same track UPSERT twice** on every ⭐: it
+  called `save_track()` and then `add_favorite()`, which calls `save_track()`
+  itself.
+
+### Changed
+- **`tracks(artist, rank DESC)` index** (migration `b7d92e4f1a03`).
+  `get_tracks_by_artist` backs the "You may also like" block under every track
+  card and had no index at all. Measured on 20k rows: `4.502 ms` sequential
+  scan plus sort → `0.091 ms` index scan.
+- **Dropped `idx_users_telegram_id` and `idx_tracks_deezer_track_id`** — both
+  duplicated the index PostgreSQL already maintains for the column's `UNIQUE`
+  constraint, verified against a live database. They answered no query the
+  constraint index could not, while costing a write on every INSERT/UPDATE.
+- **The router resolves the user's language once** and passes it to the
+  delegate. Every button press previously issued two identical `SELECT`s; 14
+  redundant lookups removed.
+- **`get_menu_action_by_text` is a dict lookup** against an index built at
+  import, not a nested loop over 8 languages × 12 actions calling `t()` for
+  each pair. The worst case was the most common one — an ordinary search query
+  matches nothing and paid all 96 calls. Typical query: `75.40 µs → 0.66 µs`.
+  Equivalence checked exhaustively against the old implementation: 103 cases,
+  zero divergence.
+- **The trending lock is held across the fetch.** Released immediately after
+  the dict read, it was decorative: ten concurrent `/trending` calls on a cold
+  cache made ten Deezer requests. Now one. Both cache tiers are also filled
+  unconditionally — returning early after a successful Redis write left the
+  in-memory tier permanently cold, so the fallback was empty the moment Redis
+  became unavailable.
+- **`cleanup_search_history` runs in a transaction**, with its before/after
+  counts inside it. The only place that needed one: it issues one DELETE per
+  user, so a failure partway left the cleanup half applied.
+- **`Settings` field defaults use `field(default_factory=...)`.** A bare
+  `os.getenv()` default is evaluated once when the class body runs, so later
+  environment changes were invisible even to a fresh `Settings()` — the reason
+  `migrations/env.py` reads `ALEMBIC_DATABASE_URL` directly.
+- **Images are tagged `:sha-<commit>` as well as `:latest`**, giving an
+  immutable reference and a rollback target.
+- **`FAVORITES_LIMIT`** (default 50) caps the `/favorites` keyboard.
+- **Clean shutdown is now logged.** A task finishing without an exception is
+  the graceful SIGTERM path and still exits 0 — but it left no trace, so the
+  process stopped serving with nothing in the log saying so.
+
+### Added
+- `.pre-commit-config.yaml` mirroring the CI lint job, with `ruff` pinned to
+  the version in `requirements/dev.txt`.
+
+### Notes
+- Coverage 93.74%. Three tests were found to be passing vacuously and were
+  repaired: see the stage commits for detail. The most instructive is the
+  single-flight test, which asserted "one fetch" and passed against an
+  implementation that made ten — conftest's autouse `mock_retry_sleep` patches
+  `asyncio.sleep` globally, so the concurrent coroutines never actually
+  interleaved.
+
+---
+
 ## [v3.7.9] - 2026-08-15
 
 ### Fixed

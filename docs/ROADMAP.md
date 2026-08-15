@@ -59,6 +59,9 @@
   Trivy image scan, multi-stage Dockerfile, Dependabot on `deps/staging`, version-sync guard)
 - `v3.7.9` — Type Safety & Callback Guards (mypy over the whole package, stale-message
   crash, dead buttons, favourites cap, long-message splitting)
+- `v3.7.10` — Quality & Performance (artist index, one language query per callback,
+  precomputed menu index, real single-flight for trending, credential-safe logging,
+  pre-commit, SHA image tags)
 
 ## Planned
 

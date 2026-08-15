@@ -1,0 +1,53 @@
+# Local mirror of the CI "Lint & Static Analysis" job, minus the slow parts.
+#
+# ruff is pinned to the exact version in requirements/dev.txt so a hook cannot
+# pass locally and fail in CI over a version difference. Bump both together.
+#
+# Deliberately NOT here: pytest (needs Postgres and Redis containers) and the
+# consistency scripts that read the whole repo. Those stay in CI, where they
+# have the services; a pre-commit hook that needs docker up is a hook people
+# disable.
+#
+# No default_language_version pin. Pinning python3.12 makes the hooks
+# unrunnable for anyone whose machine has a different interpreter, and it buys
+# nothing: ruff reads target-version and mypy reads python_version from
+# pyproject.toml, so both analyse *as* 3.12 whatever Python they run on.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+        stages: [manual]  # the project does not use ruff-format; opt-in only
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.0
+    hooks:
+      - id: mypy
+        # The checked set lives in [tool.mypy] files in pyproject.toml, so the
+        # hook must not pass filenames of its own or it would check only the
+        # staged files and miss cross-module breakage.
+        pass_filenames: false
+        args: []
+        additional_dependencies:
+          - aiogram==3.30.0
+          - httpx==0.28.1
+          - fastapi==0.141.1
+          - prometheus-client==0.26.0
+          - redis>=8.1.0,<9.0.0
+          - types-python-dateutil
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      # Catches a committed .env or key long before check_release_clean.py does.
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=512]

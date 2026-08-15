@@ -51,6 +51,12 @@ async def test_redis_trending_cache_hit_skips_fetch_fn(live_redis):
 
 @pytest.mark.asyncio
 async def test_redis_trending_cache_stores_after_fetch(live_redis):
+    # Required since v3.7.10: get_cached_trending now fills the in-memory tier
+    # as well as Redis. This test used to pass without a reset only because
+    # that tier was never populated — the bug it now guards against. A warm
+    # in-memory entry from an earlier test would short-circuit before Redis.
+    invalidate_trending_cache()
+
     async def fetch_fn(limit):
         return _make_tracks(limit)
 

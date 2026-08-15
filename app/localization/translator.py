@@ -54,30 +54,54 @@ def t(key: str, language: str = DEFAULT_LANGUAGE, **kwargs) -> str:
     return text
 
 
+MENU_ACTIONS = {
+    "btn_music": "music",
+    "btn_favorites": "favorites",
+    "btn_history": "history",
+    "btn_language": "language",
+    "btn_main_menu": "main_menu",
+    "btn_admin": "admin",
+    "btn_admin_stats": "admin_stats",
+    "btn_admin_maintenance": "admin_maintenance",
+    "btn_admin_cleanup_errors": "admin_cleanup_errors",
+    "btn_admin_cleanup_history": "admin_cleanup_history",
+    "btn_admin_health": "admin_health",
+    "btn_admin_reload_admins": "admin_reload_admins",
+}
+
+
+def _build_menu_action_index() -> dict[str, str]:
+    """
+    Builds the button-text -> action lookup once, at import.
+
+    This used to be a nested loop over every language and every action,
+    calling t() for each pair — up to 8 x 12 = 96 t() calls for a single
+    message. The worst case was also the most common one: an ordinary search
+    query matches nothing, so it paid the full 96 before returning None.
+
+    TRANSLATIONS is assembled from static locale dicts at import and is never
+    mutated afterwards (verified: nothing assigns into it at runtime), so a
+    precomputed index cannot go stale.
+
+    Insertion order reproduces the old traversal — languages in TRANSLATIONS
+    order, actions in MENU_ACTIONS order — and setdefault keeps the first
+    binding, so a text shared by two locales resolves to the same action the
+    nested loop would have returned.
+    """
+    index: dict[str, str] = {}
+
+    for language in TRANSLATIONS:
+        for key, action in MENU_ACTIONS.items():
+            index.setdefault(t(key, language).lower(), action)
+
+    return index
+
+
+MENU_ACTION_INDEX = _build_menu_action_index()
+
+
 def get_menu_action_by_text(text: str) -> str | None:
     """
     Detects bottom menu action by translated button text.
     """
-    normalized = text.strip().lower()
-
-    actions = {
-        "btn_music": "music",
-        "btn_favorites": "favorites",
-        "btn_history": "history",
-        "btn_language": "language",
-        "btn_main_menu": "main_menu",
-        "btn_admin": "admin",
-        "btn_admin_stats": "admin_stats",
-        "btn_admin_maintenance": "admin_maintenance",
-        "btn_admin_cleanup_errors": "admin_cleanup_errors",
-        "btn_admin_cleanup_history": "admin_cleanup_history",
-        "btn_admin_health": "admin_health",
-        "btn_admin_reload_admins": "admin_reload_admins",
-    }
-
-    for language in TRANSLATIONS:
-        for key, action in actions.items():
-            if normalized == t(key, language).lower():
-                return action
-
-    return None
+    return MENU_ACTION_INDEX.get(text.strip().lower())

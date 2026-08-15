@@ -26,7 +26,7 @@ async def test_language_change_keeps_admin_button_for_admin_user(monkeypatch):
     monkeypatch.setattr("app.bot.language_callbacks.set_user_language", to_async(lambda user_id, language: None))
     monkeypatch.setattr("app.bot.language_callbacks.is_admin_user", lambda user_id: user_id == 123)
 
-    await handle_language_callback(bot, fake_call(user_id=123), "uk")
+    await handle_language_callback(bot, fake_call(user_id=123), "uk", "en")
 
     assert bot.messages[-1][0][1] == t("language_changed", "uk")
     assert t("btn_admin", "uk") in reply_button_texts(bot.messages[-1][1]["reply_markup"])
@@ -40,7 +40,7 @@ async def test_language_change_hides_admin_button_for_regular_user(monkeypatch):
     monkeypatch.setattr("app.bot.language_callbacks.set_user_language", to_async(lambda user_id, language: None))
     monkeypatch.setattr("app.bot.language_callbacks.is_admin_user", lambda user_id: False)
 
-    await handle_language_callback(bot, fake_call(user_id=999), "uk")
+    await handle_language_callback(bot, fake_call(user_id=999), "uk", "en")
 
     assert t("btn_admin", "uk") not in reply_button_texts(bot.messages[-1][1]["reply_markup"])
 

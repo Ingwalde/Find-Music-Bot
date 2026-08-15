@@ -75,70 +75,70 @@ async def callback_router(call: CallbackQuery, bot: Bot) -> None:
     try:
         if data.startswith(f"{CB_LANGUAGE}:"):
             language_code = data.split(":", 1)[1]
-            await handle_language_callback(bot, call, language_code)
+            await handle_language_callback(bot, call, language_code, language)
             return
 
         if data.startswith(f"{CB_TRACK}:"):
             track_id = data.split(":", 1)[1]
-            await handle_track_callback(bot, call, track_id)
+            await handle_track_callback(bot, call, track_id, language)
             return
 
         if data.startswith(f"{CB_PAGE}:"):
             page = int(data.split(":", 1)[1])
-            await handle_page_callback(bot, call, page)
+            await handle_page_callback(bot, call, page, language)
             return
 
         if data == ACTION_BACK_RESULTS:
-            await handle_back_to_results_callback(bot, call)
+            await handle_back_to_results_callback(bot, call, language)
             return
 
         if data.startswith(f"{CB_FAVORITE}:"):
             track_id = data.split(":", 1)[1]
-            await handle_favorite_callback(bot, call, track_id)
+            await handle_favorite_callback(bot, call, track_id, language)
             return
 
         if data.startswith(f"{CB_UNFAVORITE}:"):
             track_id = data.split(":", 1)[1]
-            await handle_remove_favorite_callback(bot, call, track_id)
+            await handle_remove_favorite_callback(bot, call, track_id, language)
             return
 
         if data == ACTION_FAVORITES_CLEAR_REQUEST:
-            await handle_clear_favorites_request_callback(bot, call)
+            await handle_clear_favorites_request_callback(bot, call, language)
             return
 
         if data == ACTION_FAVORITES_CLEAR_CONFIRM:
-            await handle_clear_favorites_confirm_callback(bot, call)
+            await handle_clear_favorites_confirm_callback(bot, call, language)
             return
 
         if data == ACTION_FAVORITES_CLEAR_CANCEL:
-            await handle_clear_favorites_cancel_callback(bot, call)
+            await handle_clear_favorites_cancel_callback(bot, call, language)
             return
 
         if data.startswith(f"{CB_LYRICS}:"):
             track_id = data.split(":", 1)[1]
-            await handle_lyrics_callback(bot, call, track_id)
+            await handle_lyrics_callback(bot, call, track_id, language)
             return
 
         if data.startswith(f"{CB_SIMILAR}:"):
             track_id = data.split(":", 1)[1]
-            await handle_similar_callback(bot, call, track_id)
+            await handle_similar_callback(bot, call, track_id, language)
             return
 
         if data.startswith(f"{CB_HISTORY}:"):
             search_id = data.split(":", 1)[1]
-            await handle_history_search_callback(bot, call, search_id)
+            await handle_history_search_callback(bot, call, search_id, language)
             return
 
         if data == ACTION_HISTORY_CLEAR_REQUEST:
-            await handle_clear_history_request_callback(bot, call)
+            await handle_clear_history_request_callback(bot, call, language)
             return
 
         if data == ACTION_HISTORY_CLEAR_CONFIRM:
-            await handle_clear_history_confirm_callback(bot, call)
+            await handle_clear_history_confirm_callback(bot, call, language)
             return
 
         if data == ACTION_HISTORY_CLEAR_CANCEL:
-            await handle_clear_history_cancel_callback(bot, call)
+            await handle_clear_history_cancel_callback(bot, call, language)
             return
 
         if data == ACTION_MAIN_MENU:

@@ -145,10 +145,30 @@ def test_format_track_card_empty_dict_uses_fallbacks():
 
 @given(
     text=st.text(max_size=200),
-    max_length=st.integers(min_value=4, max_value=128),
+    # Was min_value=4, which started just above the range where the negative
+    # slice made the result LONGER than max_length — the bound had been fitted
+    # to the bug rather than to any real precondition.
+    max_length=st.integers(min_value=0, max_value=128),
 )
 def test_truncate_text_never_exceeds_max_length(text, max_length):
     assert len(truncate_text(text, max_length)) <= max_length
+
+
+@given(text=st.text(min_size=1, max_size=200))
+def test_truncate_text_to_zero_is_empty(text):
+    assert truncate_text(text, 0) == ""
+
+
+@given(
+    text=st.text(min_size=10, max_size=200),
+    max_length=st.integers(min_value=1, max_value=3),
+)
+def test_truncate_text_below_ellipsis_width_drops_the_marker(text, max_length):
+    """No room for '...' means a plain cut, not an over-length string."""
+    result = truncate_text(text, max_length)
+
+    assert len(result) == max_length
+    assert "..." not in result
 
 
 @given(
