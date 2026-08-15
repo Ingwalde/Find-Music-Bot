@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.9] - 2026-08-15
+
+### Fixed
+- **Every inline button broke on messages older than ~48 hours.** Telegram omits
+  `CallbackQuery.message` once the message carrying the button is that old, and
+  all seven callback modules read `call.message.chat.id` with no guard — 37 call
+  sites, zero checks. The resulting `AttributeError` was swallowed by each
+  handler's own `except Exception`, written to the errors table, and shown to the
+  user as a generic failure. The router now rejects such callbacks once, up
+  front, telling the user the session expired.
+- **Dead buttons on tracks without an ID.** `lyrics:None` / `fav:None` /
+  `track:None` / `hist:None` rendered as normal buttons that matched no handler
+  and did nothing when tapped. The Similar button already guarded against this;
+  the others did not. All keyboards now skip entries they cannot build a working
+  callback for.
+- **`/favorites` had no cap.** `get_favorite_tracks` had no `LIMIT` and the
+  keyboard rendered one row per favourite, so a long enough list produced a
+  `reply_markup` Telegram refuses. Bounded by the new `FAVORITES_LIMIT`
+  (default 50).
+- **`split_long_message` was never called.** Written and unit-tested from the
+  day it was added, but no production code used it, so any report exceeding
+  Telegram's 4096-character limit failed instead of splitting. Admin reports —
+  `/errors` in particular, whose content is arbitrary exception text — now go
+  through `send_long_message`.
+
+### Changed
+- **mypy now checks the whole package: 25 modules → 87.** The 61 modules outside
+  the old explicit list carried **91 real type errors** that nothing ran,
+  including every one of the None-dereferences above. `[tool.mypy] files` is now
+  just `["app"]`, so a new module cannot be added without passing.
+- `TrackDict` propagated through the keyboard, repository and callback
+  signatures that still took bare `dict`.
+- `settings.webhook_cert_path` / `webhook_key_path` — narrowed accessors that
+  raise with a clear message rather than passing `None` into ssl/aiogram.
+
+### Notes
+- No new features. Coverage 93.44% (from 94.98%): the added guards are
+  deliberately unreachable once the router rejects the bad case up front, so
+  covering them would mean constructing states the code prevents.
+
+---
+
 ## [v3.7.8] - 2026-08-15
 
 ### Added

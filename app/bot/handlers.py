@@ -13,6 +13,7 @@ from app.admin_tools import (
 )
 from app.bot.actions import (
     ask_for_music,
+    send_long_message,
     send_search_results,
     show_main_menu,
 )
@@ -38,6 +39,7 @@ from app.database.repositories import (
     upsert_user,
 )
 from app.health import format_health_report
+from app.localization.languages import DEFAULT_LANGUAGE
 from app.localization.translations import get_menu_action_by_text, t
 from app.services.deezer_service import get_track as deezer_get_track
 from app.services.deezer_service import get_trending_tracks
@@ -64,8 +66,16 @@ async def is_admin(user_id: int | None) -> bool:
 
 
 async def get_user_context(message: Message) -> str:
-    await upsert_user(message.from_user)
-    return await get_user_language(message.from_user.id)
+    # from_user is Optional on the aiogram type (absent for channel posts,
+    # which route elsewhere). With no user there is nobody to upsert and no
+    # stored preference to read, so fall back to the default language rather
+    # than inventing one.
+    user = message.from_user
+    if user is None:
+        return DEFAULT_LANGUAGE
+
+    await upsert_user(user)
+    return await get_user_language(user.id)
 
 
 async def require_admin(
@@ -81,12 +91,18 @@ async def require_admin(
     command that uses this gate, so a new admin command cannot silently skip
     it — pass `action` to name it.
     """
-    if not await is_admin(message.from_user.id):
+    # from_user is Optional on the aiogram type (absent for channel posts).
+    # No identifiable user means no admin — deny, never fall through.
+    user = message.from_user
+    if user is None:
+        return False
+
+    if not await is_admin(user.id):
         await bot.send_message(message.chat.id, t("admin_only", language))
         return False
 
     if action:
-        await save_admin_audit(message.from_user.id, action)
+        await save_admin_audit(user.id, action)
 
     return True
 
@@ -119,9 +135,15 @@ async def send_admin_only_message(bot: Bot, message: Message, language: str) -> 
 
 
 async def show_admin_menu(bot: Bot, message: Message) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
 
-    if not await is_admin(message.from_user.id):
+    if not await is_admin(user.id):
         await send_admin_only_message(bot, message, language)
         return
 
@@ -133,45 +155,41 @@ async def show_admin_menu(bot: Bot, message: Message) -> None:
 
 
 async def handle_admin_action(bot: Bot, message: Message, action: str) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
-    admin_id = message.from_user.id
+    admin_id = user.id
 
     if not await is_admin(admin_id):
         await send_admin_only_message(bot, message, language)
         return
 
     if action == "admin_stats":
-        await bot.send_message(
-            message.chat.id, await format_stats_report(language)
-        )
+        await send_long_message(bot, message.chat.id, await format_stats_report(language))
         await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_maintenance":
-        await bot.send_message(
-            message.chat.id, await format_maintenance_report(language)
-        )
+        await send_long_message(bot, message.chat.id, await format_maintenance_report(language))
         await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_cleanup_errors":
-        await bot.send_message(
-            message.chat.id, await cleanup_errors_report(language)
-        )
+        await send_long_message(bot, message.chat.id, await cleanup_errors_report(language))
         await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_cleanup_history":
-        await bot.send_message(
-            message.chat.id, await cleanup_history_report(language)
-        )
+        await send_long_message(bot, message.chat.id, await cleanup_history_report(language))
         await save_admin_audit(admin_id, action)
         return
 
     if action == "admin_health":
-        await bot.send_message(
-            message.chat.id, await format_health_report()
-        )
+        await send_long_message(bot, message.chat.id, await format_health_report())
         await save_admin_audit(admin_id, action)
         return
 
@@ -192,11 +210,17 @@ async def show_language_menu(bot: Bot, message: Message) -> None:
 
 
 async def process_music_search(bot: Bot, message: Message) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
 
     if not message.text:
         await bot.send_message(message.chat.id, t("please_send_text", language))
-        await ask_for_music(bot, message.chat.id, message.from_user.id)
+        await ask_for_music(bot, message.chat.id, user.id)
         return
 
     text = message.text.strip()
@@ -204,9 +228,9 @@ async def process_music_search(bot: Bot, message: Message) -> None:
     if text.startswith("/"):
         return
 
-    user_is_admin = await is_admin(message.from_user.id)
-    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
-        if await should_warn_once(message.from_user.id):
+    user_is_admin = await is_admin(user.id)
+    if not await check_rate_limit(user.id, is_admin=user_is_admin):
+        if await should_warn_once(user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
 
@@ -214,7 +238,7 @@ async def process_music_search(bot: Bot, message: Message) -> None:
         await send_search_results(
             bot=bot,
             chat_id=message.chat.id,
-            user_id=message.from_user.id,
+            user_id=user.id,
             query=text,
             save_to_history=True,
         )
@@ -222,7 +246,7 @@ async def process_music_search(bot: Bot, message: Message) -> None:
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=message.from_user.id,
+            telegram_id=user.id,
             source="music_search",
             error=error,
         )
@@ -230,6 +254,12 @@ async def process_music_search(bot: Bot, message: Message) -> None:
 
 
 async def show_favorites(bot: Bot, message: Message) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     try:
         language = await get_user_context(message)
 
@@ -239,7 +269,7 @@ async def show_favorites(bot: Bot, message: Message) -> None:
             reply_markup=search_mode_keyboard(language),
         )
 
-        tracks = await get_favorite_tracks(message.from_user.id)
+        tracks = await get_favorite_tracks(user.id)
 
         if not tracks:
             await bot.send_message(message.chat.id, t("favorites_empty", language))
@@ -256,15 +286,21 @@ async def show_favorites(bot: Bot, message: Message) -> None:
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=message.from_user.id,
+            telegram_id=user.id,
             source="favorites",
             error=error,
         )
-        language = await get_user_language(message.from_user.id)
+        language = await get_user_language(user.id)
         await bot.send_message(message.chat.id, t("could_not_load_favorites", language))
 
 
 async def show_history(bot: Bot, message: Message) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     try:
         language = await get_user_context(message)
 
@@ -275,7 +311,7 @@ async def show_history(bot: Bot, message: Message) -> None:
         )
 
         history = await get_search_history(
-            message.from_user.id,
+            user.id,
             limit=settings.HISTORY_LIMIT,
         )
 
@@ -294,11 +330,11 @@ async def show_history(bot: Bot, message: Message) -> None:
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=message.from_user.id,
+            telegram_id=user.id,
             source="history",
             error=error,
         )
-        language = await get_user_language(message.from_user.id)
+        language = await get_user_language(user.id)
         await bot.send_message(message.chat.id, t("could_not_load_history", language))
 
 
@@ -307,12 +343,18 @@ async def show_history(bot: Bot, message: Message) -> None:
 
 @router.message(Command("start"))
 async def start_handler(message: Message, bot: Bot) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
 
     await bot.send_message(
         message.chat.id,
         t("welcome", language),
-        reply_markup=main_menu_keyboard(language, is_admin=await is_admin(message.from_user.id)),
+        reply_markup=main_menu_keyboard(language, is_admin=await is_admin(user.id)),
     )
 
 
@@ -358,7 +400,7 @@ async def errors_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_errors"):
         return
 
-    await bot.send_message(message.chat.id, await format_recent_errors(language))
+    await send_long_message(bot, message.chat.id, await format_recent_errors(language))
 
 
 @router.message(Command("clear_errors"))
@@ -379,7 +421,7 @@ async def health_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_health"):
         return
 
-    await bot.send_message(message.chat.id, await format_health_report())
+    await send_long_message(bot, message.chat.id, await format_health_report())
 
 
 @router.message(Command("stats"))
@@ -389,7 +431,7 @@ async def stats_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_stats"):
         return
 
-    await bot.send_message(message.chat.id, await format_stats_report(language))
+    await send_long_message(bot, message.chat.id, await format_stats_report(language))
 
 
 @router.message(Command("maintenance"))
@@ -399,9 +441,7 @@ async def maintenance_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_maintenance"):
         return
 
-    await bot.send_message(
-        message.chat.id, await format_maintenance_report(language)
-    )
+    await send_long_message(bot, message.chat.id, await format_maintenance_report(language))
 
 
 @router.message(Command("cleanup_errors"))
@@ -411,9 +451,7 @@ async def cleanup_errors_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_cleanup_errors"):
         return
 
-    await bot.send_message(
-        message.chat.id, await cleanup_errors_report(language)
-    )
+    await send_long_message(bot, message.chat.id, await cleanup_errors_report(language))
 
 
 @router.message(Command("cleanup_history"))
@@ -423,9 +461,7 @@ async def cleanup_history_handler(message: Message, bot: Bot) -> None:
     if not await require_admin(bot, message, language, "cmd_cleanup_history"):
         return
 
-    await bot.send_message(
-        message.chat.id, await cleanup_history_report(language)
-    )
+    await send_long_message(bot, message.chat.id, await cleanup_history_report(language))
 
 
 @router.message(Command("reload_admins"))
@@ -443,17 +479,23 @@ async def reload_admins_handler(message: Message, bot: Bot) -> None:
 
 @router.message(Command("similar"))
 async def similar_handler(message: Message, bot: Bot) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
 
-    last_track_id = await get_last_track_id(message.from_user.id)
+    last_track_id = await get_last_track_id(user.id)
 
     if not last_track_id:
         await bot.send_message(message.chat.id, t("similar_no_context", language))
         return
 
-    user_is_admin = await is_admin(message.from_user.id)
-    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
-        if await should_warn_once(message.from_user.id):
+    user_is_admin = await is_admin(user.id)
+    if not await check_rate_limit(user.id, is_admin=user_is_admin):
+        if await should_warn_once(user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
 
@@ -484,7 +526,7 @@ async def similar_handler(message: Message, bot: Bot) -> None:
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=message.from_user.id,
+            telegram_id=user.id,
             source="similar_handler",
             error=error,
         )
@@ -493,11 +535,17 @@ async def similar_handler(message: Message, bot: Bot) -> None:
 
 @router.message(Command("trending"))
 async def trending_handler(message: Message, bot: Bot) -> None:
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
+        return
+
     language = await get_user_context(message)
 
-    user_is_admin = await is_admin(message.from_user.id)
-    if not await check_rate_limit(message.from_user.id, is_admin=user_is_admin):
-        if await should_warn_once(message.from_user.id):
+    user_is_admin = await is_admin(user.id)
+    if not await check_rate_limit(user.id, is_admin=user_is_admin):
+        if await should_warn_once(user.id):
             await bot.send_message(message.chat.id, t("rate_limit_exceeded", language))
         return
 
@@ -520,7 +568,7 @@ async def trending_handler(message: Message, bot: Bot) -> None:
     except Exception as error:
         await log_and_save_error(
             logger=logger,
-            telegram_id=message.from_user.id,
+            telegram_id=user.id,
             source="trending_handler",
             error=error,
         )
@@ -532,19 +580,32 @@ async def trending_handler(message: Message, bot: Bot) -> None:
 
 @router.message(F.text)
 async def text_handler(message: Message, bot: Bot) -> None:
-    await upsert_user(message.from_user)
-
-    if message.text and message.text.strip().startswith("/"):
+    # from_user is Optional on the aiogram type (absent for channel
+    # posts, which route elsewhere). Narrow once rather than per use.
+    user = message.from_user
+    if user is None:
         return
 
-    action = get_menu_action_by_text(message.text)
+    await upsert_user(user)
+
+    # Registered as @router.message(F.text), so text is present by the time
+    # this runs — the filter is what guarantees it, not this check. Bind it so
+    # the guarantee is visible to the type system too.
+    text = message.text
+    if not text:
+        return
+
+    if text.strip().startswith("/"):
+        return
+
+    action = get_menu_action_by_text(text)
 
     if action == "main_menu":
-        await show_main_menu(bot, message.chat.id, message.from_user.id)
+        await show_main_menu(bot, message.chat.id, user.id)
         return
 
     if action == "music":
-        await ask_for_music(bot, message.chat.id, message.from_user.id)
+        await ask_for_music(bot, message.chat.id, user.id)
         return
 
     if action == "favorites":

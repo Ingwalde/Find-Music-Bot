@@ -25,7 +25,16 @@ MONITORING_PORT = 9090
 
 def create_bot() -> Bot:
     settings.validate()
-    return Bot(token=settings.BOT_TOKEN)
+
+    # validate() raises when BOT_TOKEN is unset, so this cannot be None here.
+    # Re-checking rather than casting keeps the guarantee real: if someone ever
+    # reorders these two lines, this raises with a clear message instead of
+    # handing None to aiogram and failing somewhere deeper.
+    token = settings.BOT_TOKEN
+    if token is None:
+        raise RuntimeError("BOT_TOKEN is unset after settings.validate() passed.")
+
+    return Bot(token=token)
 
 
 async def handle_dispatcher_error(event: ErrorEvent) -> bool:
@@ -122,7 +131,7 @@ async def run_bot() -> None:
         if settings.webhook_enabled:
             await bot.set_webhook(
                 webhook_url(),
-                certificate=FSInputFile(settings.WEBHOOK_CERT_PATH),
+                certificate=FSInputFile(settings.webhook_cert_path),
                 secret_token=settings.WEBHOOK_SECRET_TOKEN,
                 drop_pending_updates=True,
             )

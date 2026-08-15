@@ -59,6 +59,10 @@ class Settings:
     MAX_SEARCH_RESULTS: int = int(os.getenv("MAX_SEARCH_RESULTS", "15"))
     RESULTS_PER_PAGE: int = int(os.getenv("RESULTS_PER_PAGE", "5"))
     HISTORY_LIMIT: int = int(os.getenv("HISTORY_LIMIT", "10"))
+    # Caps the /favorites keyboard. It had no limit at all: one button row per
+    # favourite, unbounded, so a heavy user's list eventually produced a
+    # reply_markup Telegram refuses to accept and /favorites simply broke.
+    FAVORITES_LIMIT: int = int(os.getenv("FAVORITES_LIMIT", "50"))
     MAX_HISTORY_PER_USER: int = int(os.getenv("MAX_HISTORY_PER_USER", "100"))
 
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -109,6 +113,27 @@ class Settings:
         value (including unset) keeps the default polling behavior.
         """
         return self.BOT_MODE == "webhook"
+
+    @property
+    def webhook_cert_path(self) -> str:
+        """
+        WEBHOOK_CERT_PATH, guaranteed non-None.
+
+        validate() already refuses to start in webhook mode without it, so
+        reaching the raise means the caller ran before validation or outside
+        webhook mode — both bugs worth a clear message rather than passing
+        None into ssl/aiogram and failing somewhere less obvious.
+        """
+        if not self.WEBHOOK_CERT_PATH:
+            raise RuntimeError("WEBHOOK_CERT_PATH is required in webhook mode.")
+        return self.WEBHOOK_CERT_PATH
+
+    @property
+    def webhook_key_path(self) -> str:
+        """WEBHOOK_KEY_PATH, guaranteed non-None. See webhook_cert_path."""
+        if not self.WEBHOOK_KEY_PATH:
+            raise RuntimeError("WEBHOOK_KEY_PATH is required in webhook mode.")
+        return self.WEBHOOK_KEY_PATH
 
     @property
     def spotify_enabled(self) -> bool:

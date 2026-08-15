@@ -23,27 +23,12 @@ python_version = "3.12"
 ignore_missing_imports = true
 strict = false
 check_untyped_defs = true
-# The modules mypy checks by default, so `python -m mypy` with no arguments
-# does the right thing locally and in CI. Keep in sync with the strict
-# overrides below — same set, one place to edit.
-files = [
-    "app/utils/types.py",
-    "app/utils/http_client.py",
-    "app/utils/http_retry.py",
-    "app/services/deezer_service.py",
-    "app/services/lyrics_service.py",
-    "app/services/search_cache_service.py",
-    "app/platforms/aggregator.py",
-    "app/platforms/spotify/client.py",
-    "app/services/track_formatter.py",
-    "app/services/recommendations_service.py",
-    "app/bot/rate_limit.py",
-    "app/bot/context.py",
-    "app/config/settings.py",
-    "app/database/repository_modules/",
-    "app/health.py",
-    "app/monitoring.py",
-]
+# The whole package is checked. It used to be an explicit 25-module list; the
+# 61 modules outside it carried 91 real type errors that nobody ran, including
+# the None-dereference that crashed every callback on a message older than 48h.
+# Checking everything makes that class of drift structurally impossible — a new
+# module cannot be added without passing.
+files = ["app"]
 
 [[tool.mypy.overrides]]
 module = [

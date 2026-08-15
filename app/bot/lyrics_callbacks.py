@@ -21,10 +21,18 @@ async def handle_lyrics_callback(
     """
     Finds Genius lyrics page for selected track.
     """
-    language = await get_user_language(call.from_user.id)
+    # Narrowed once. The router rejects any callback whose message or
+    # from_user is absent, so neither can be None here — binding them
+    # keeps that in the type system instead of re-asserting per use.
+    message = call.message
+    user = call.from_user
+    if message is None or user is None:
+        return
 
-    if not await check_rate_limit(call.from_user.id):
-        if await should_warn_once(call.from_user.id):
+    language = await get_user_language(user.id)
+
+    if not await check_rate_limit(user.id):
+        if await should_warn_once(user.id):
             await bot.answer_callback_query(call.id, t("rate_limit_exceeded", language), show_alert=True)
         else:
             await bot.answer_callback_query(call.id)
@@ -32,7 +40,7 @@ async def handle_lyrics_callback(
 
     await bot.answer_callback_query(call.id)
 
-    status_message = await bot.send_message(call.message.chat.id, t("searching_lyrics", language))
+    status_message = await bot.send_message(message.chat.id, t("searching_lyrics", language))
 
     try:
         track = await get_track(track_id)
@@ -41,9 +49,9 @@ async def handle_lyrics_callback(
             artist=track["artist"],
         )
     except Exception as error:
-        await log_and_save_error(logger, call.from_user.id, "lyrics_callback", error)
+        await log_and_save_error(logger, user.id, "lyrics_callback", error)
         await bot.edit_message_text(
-            chat_id=call.message.chat.id,
+            chat_id=message.chat.id,
             message_id=status_message.message_id,
             text=t("genius_error", language),
         )
@@ -51,14 +59,14 @@ async def handle_lyrics_callback(
 
     if not lyrics_url:
         await bot.edit_message_text(
-            chat_id=call.message.chat.id,
+            chat_id=message.chat.id,
             message_id=status_message.message_id,
             text=t("lyrics_not_found", language),
         )
         return
 
     await bot.edit_message_text(
-        chat_id=call.message.chat.id,
+        chat_id=message.chat.id,
         message_id=status_message.message_id,
         text=t("lyrics_page_found", language),
         reply_markup=genius_url_keyboard(lyrics_url, language),

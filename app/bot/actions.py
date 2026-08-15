@@ -31,8 +31,24 @@ from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
+from app.utils.text import split_long_message
+from app.utils.types import TrackDict
 
 logger = setup_logger(__name__)
+
+
+async def send_long_message(bot: Bot, chat_id: int, text: str) -> None:
+    """
+    Sends text that may exceed Telegram's 4096-character message limit.
+
+    split_long_message() existed and was tested from the day it was written,
+    but was never called from production code — so any report long enough to
+    need it hit the API limit instead. The admin reports are the realistic
+    case: /errors renders up to ERROR_HISTORY_LIMIT entries whose text comes
+    from arbitrary exception messages, with nothing bounding the total.
+    """
+    for chunk in split_long_message(text):
+        await bot.send_message(chat_id, chunk)
 
 
 async def user_has_search_context(user_id: int) -> bool:
@@ -176,7 +192,7 @@ async def send_track_card(
     bot: Bot,
     chat_id: int,
     telegram_id: int,
-    track: dict,
+    track: TrackDict,
 ) -> None:
     language = await get_user_language(telegram_id)
 

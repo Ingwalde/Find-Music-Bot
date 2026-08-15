@@ -20,6 +20,14 @@ async def handle_language_callback(
     """
     Saves selected language for current user.
     """
+    # Narrowed once. The router rejects any callback whose message or
+    # from_user is absent, so neither can be None here — binding them
+    # keeps that in the type system instead of re-asserting per use.
+    message = call.message
+    user = call.from_user
+    if message is None or user is None:
+        return
+
     try:
         if not is_supported_language(language_code):
             await bot.answer_callback_query(
@@ -29,20 +37,20 @@ async def handle_language_callback(
             )
             return
 
-        await upsert_user(call.from_user)
-        await set_user_language(call.from_user.id, language_code)
+        await upsert_user(user)
+        await set_user_language(user.id, language_code)
 
         await bot.answer_callback_query(call.id)
 
         await bot.send_message(
-            call.message.chat.id,
+            message.chat.id,
             t("language_changed", language_code),
             reply_markup=main_menu_keyboard(
                 language_code,
-                is_admin=is_admin_user(call.from_user.id),
+                is_admin=is_admin_user(user.id),
             ),
         )
 
     except Exception as error:
-        await log_and_save_error(logger, call.from_user.id, "language_callback", error)
+        await log_and_save_error(logger, user.id, "language_callback", error)
         await bot.answer_callback_query(call.id, t("unknown_action", "en"), show_alert=True)

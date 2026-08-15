@@ -11,10 +11,11 @@ from app.bot.constants import (
     make_callback,
 )
 from app.localization.translations import t
+from app.utils.types import TrackDict
 
 
 def track_actions_keyboard(
-    track: dict,
+    track: TrackDict,
     is_favorite: bool = False,
     show_back_to_results: bool = False,
     language: str = "en",
@@ -67,24 +68,22 @@ def track_actions_keyboard(
             )
         )
 
-    if is_favorite:
-        favorite_button = InlineKeyboardButton(
-            text=t("btn_remove_favorites", language),
-            callback_data=make_callback(CB_UNFAVORITE, track_id),
+    # All three track-scoped buttons need an ID. The Similar button above
+    # already checked; lyrics and favourite did not, and rendered as
+    # "lyrics:None" / "favorite:None" — visible, tappable, matching no handler.
+    if track_id:
+        builder.row(
+            InlineKeyboardButton(
+                text=t("btn_lyrics", language),
+                callback_data=make_callback(CB_LYRICS, track_id),
+            ),
+            InlineKeyboardButton(
+                text=t("btn_remove_favorites" if is_favorite else "btn_add_favorites", language),
+                callback_data=make_callback(
+                    CB_UNFAVORITE if is_favorite else CB_FAVORITE, track_id
+                ),
+            ),
         )
-    else:
-        favorite_button = InlineKeyboardButton(
-            text=t("btn_add_favorites", language),
-            callback_data=make_callback(CB_FAVORITE, track_id),
-        )
-
-    builder.row(
-        InlineKeyboardButton(
-            text=t("btn_lyrics", language),
-            callback_data=make_callback(CB_LYRICS, track_id),
-        ),
-        favorite_button,
-    )
 
     builder.row(
         InlineKeyboardButton(

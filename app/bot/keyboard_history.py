@@ -25,6 +25,10 @@ def history_keyboard(
         search_id = item.get("id")
         query = item.get("query", "Unknown query")
 
+        # "history:None" matches no handler — a dead button. Skip instead.
+        if search_id is None:
+            continue
+
         builder.row(
             InlineKeyboardButton(
                 text=truncate_text(f"🔎 {query}", 64),
