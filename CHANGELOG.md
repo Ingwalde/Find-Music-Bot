@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.9] - 2026-08-15
+
+### Fixed
+- **Production had been running stale code since v3.7.7 (2026-08-09), with every
+  deploy reporting success.** `docker compose pull` was failing on the server with
+  `error from registry: denied`, compose silently fell back to the locally cached
+  image, the old container started, and `/ready` answered from it — so the health
+  check passed. Three deploys shipped nothing while reporting green.
+  - Root cause of the `denied`: a stale credential left in the server's
+    `~/.docker/config.json` by the `docker login` step that v3.7.7 removed. The
+    daemon kept sending the expired token instead of pulling the (public) package
+    anonymously. `deploy.yml` now runs `docker logout ghcr.io` before pulling.
+  - Root cause of the silence: a failed pull was not fatal. The deploy script now
+    runs under `set -euo pipefail`, aborts on a failed `docker compose pull` rather
+    than restarting the old image, and then asserts the running container's image
+    ID matches the one just pulled.
+- `deploy.yml` dumped logs for a service named `bot` on failure; the compose service
+  is `music-bot`, so the diagnostic output was never produced.
+
+### Notes
+- No application code changed. This release exists solely to make deploys real and
+  to make a failed deploy fail loudly.
+
+---
+
 ## [v3.7.8] - 2026-08-15
 
 ### Added

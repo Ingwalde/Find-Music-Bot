@@ -297,10 +297,21 @@ Triggers automatically after the Tests workflow completes successfully on `main`
 (`workflow_run` event — guarantees the GHCR image is pushed before deploy runs):
 
 1. Copies `docker-compose.yml` to the server via SCP.
-2. SSHs in, runs `docker compose pull --quiet` to fetch the new image.
-3. Restarts the stack with `docker compose up -d --remove-orphans`.
-4. Polls `http://localhost:9090/ready` every 3 s (up to 60 s). Fails the job and
-   dumps 50 lines of container logs if the bot does not become ready in time.
+2. SSHs in and runs `docker logout ghcr.io` — the package is public, and a stale
+   credential would make the daemon send an expired token instead of pulling
+   anonymously.
+3. `docker compose pull`. **A failed pull aborts the deploy.** It must: compose
+   otherwise falls back to the locally cached image and the old container starts,
+   and `/ready` then answers from stale code, turning a failed deploy green. That
+   is exactly what happened between v3.7.7 and v3.7.9 — three deploys shipped
+   nothing while reporting success.
+4. Restarts the stack with `docker compose up -d --remove-orphans`, then asserts
+   the running container's image ID equals the one just pulled.
+5. Polls `http://localhost:9090/ready` every 3 s (up to 60 s). Fails the job and
+   dumps 50 lines of `music-bot` logs if the bot does not become ready in time.
+
+The whole script runs under `set -euo pipefail`, so any unhandled command failure
+fails the deploy rather than being stepped over.
 
 The server pulls the image anonymously from GHCR (the package is public — no
 `docker login` required on the server).
