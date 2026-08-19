@@ -23,7 +23,7 @@ repos:
         stages: [manual]  # the project does not use ruff-format; opt-in only
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.0
+    rev: v2.3.1
     hooks:
       - id: mypy
         # The checked set lives in [tool.mypy] files in pyproject.toml, so the
