@@ -16,3 +16,14 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+
+  # .pre-commit-config.yaml pins ruff to the exact version in
+  # requirements/dev.txt so a hook cannot pass locally and fail in CI. Without
+  # this ecosystem Dependabot only sees requirements/, so a ruff bump broke that
+  # pairing silently and the rev had to be chased by hand every time.
+  - package-ecosystem: pre-commit
+    directory: /
+    target-branch: deps/staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
