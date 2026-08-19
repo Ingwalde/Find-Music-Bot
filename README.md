@@ -1,5 +1,6 @@
 # Telegram Music Finder Bot
 
+[![Try it on Telegram](https://img.shields.io/badge/try%20it-%40botforfindmusicbot-2CA5E0?logo=telegram&logoColor=white)](https://t.me/botforfindmusicbot)
 [![Tests](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml/badge.svg)](https://github.com/Ingwalde/Find-Music-Bot/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![aiogram](https://img.shields.io/badge/aiogram-3.x-2CA5E0?logo=telegram&logoColor=white)
@@ -13,6 +14,9 @@ Under the interface it is an async backend service: PostgreSQL with versioned mi
 caching with in-memory fallback, a circuit breaker on every third-party call, Prometheus metrics
 and graceful shutdown.
 
+**Running live at [@botforfindmusicbot](https://t.me/botforfindmusicbot)** — send it a song title
+and see the track card, or try `/trending`. Deployed from `main` on every green build.
+
 ```text
 Telegram → aiogram handlers → services → Deezer / Spotify / Genius
                                    ↓
@@ -23,7 +27,10 @@ Telegram → aiogram handlers → services → Deezer / Spotify / Genius
 
 ## Screenshots
 
-> **TODO:** add real screenshots to `screenshots/` and link them here.
+The quickest look is the bot itself: [@botforfindmusicbot](https://t.me/botforfindmusicbot).
+
+> **TODO:** add real screenshots to `screenshots/` and link them here, so the
+> product is visible without leaving the page.
 > See [`screenshots/README.md`](screenshots/README.md) for the recommended shots
 > (start menu, search results, track card, favorites, history) and the rules on
 > scrubbing tokens and personal data first.

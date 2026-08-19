@@ -2,6 +2,9 @@
 
 This guide explains how to run Telegram Music Finder Bot locally and with Docker.
 
+The production instance runs at [@botforfindmusicbot](https://t.me/botforfindmusicbot),
+deployed from `main` by the workflow described under [GitHub Actions](#github-actions) below.
+
 ## Requirements
 
 - Python 3.12+
