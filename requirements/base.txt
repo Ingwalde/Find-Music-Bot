@@ -5,7 +5,7 @@ asyncpg==0.31.0
 alembic==1.19.1
 # Alembic dependency only — schema is raw SQL via op.execute(); the app
 # runtime uses asyncpg, no ORM/Core models.
-sqlalchemy==2.0.51
+sqlalchemy==2.0.52
 fastapi==0.141.1
 uvicorn==0.52.1
 prometheus-client==0.26.0
