@@ -6,6 +6,13 @@ on:
     types: [completed]
     branches: [main]
 
+# Two merges landing close together used to start two deploys against the same
+# server. cancel-in-progress stays false on purpose: a deploy interrupted
+# midway through `up -d` leaves the stack in a worse state than one that waits.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy to Production
@@ -18,6 +25,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # The commit Tests actually validated. Without this, checkout takes
+          # whatever main points at when Deploy runs, so a second merge landing
+          # during the first deploy shipped its docker-compose.yml alongside the
+          # earlier commit's image.
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Copy docker-compose.yml to server
         uses: appleboy/scp-action@v1.0.0
@@ -30,14 +43,31 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 5m
+          envs: DEPLOY_SHA
           script: |
             set -euo pipefail
             cd ~/Find-Music-Bot
+
+            # Refuse to deploy something we cannot name. An empty DEPLOY_SHA
+            # would silently fall back to :latest — the exact non-determinism
+            # the sha- tags exist to remove.
+            : "${DEPLOY_SHA:?workflow_run did not supply head_sha; refusing to deploy}"
+
+            # Tests pushes both :latest and :sha-<commit>. Deploying by SHA means
+            # the server runs the image built from the commit CI validated, not
+            # whatever :latest happens to point at by the time this step runs.
+            # Compose reads variables from the shell before .env, so exporting is
+            # enough to override the ${IMAGE_TAG:-latest} default.
+            export IMAGE_TAG="sha-${DEPLOY_SHA}"
+            IMAGE="ghcr.io/ingwalde/find-music-bot:${IMAGE_TAG}"
+            echo "Deploying ${IMAGE}"
 
             # The GHCR package is public, but a stale credential left in
             # ~/.docker/config.json by the pre-v3.7.7 `docker login` step makes
@@ -51,7 +81,7 @@ jobs:
             # passes while nothing was actually deployed. This silently shipped
             # nothing from v3.7.7 (2026-08-09) until v3.7.8 caught it.
             if ! docker compose pull; then
-              echo "ERROR: could not pull ghcr.io/ingwalde/find-music-bot:latest."
+              echo "ERROR: could not pull ${IMAGE}."
               echo "Refusing to restart — that would relaunch the previous image"
               echo "and report a successful deploy for code that never shipped."
               exit 1
@@ -61,7 +91,6 @@ jobs:
 
             # Belt and braces: confirm the running container is actually the
             # image we just pulled, not a survivor of a failed recreate.
-            IMAGE="ghcr.io/ingwalde/find-music-bot:latest"
             want=$(docker image inspect "$IMAGE" --format '{{.Id}}')
             got=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q music-bot)")
             if [ "$want" != "$got" ]; then

@@ -288,23 +288,33 @@ Runs on every push and pull request:
 
 ### Image tags and rolling back
 
-`:latest` is what `docker-compose.yml` pulls and is reassigned on every push to
-`main`. `:sha-<commit>` is immutable — it is the only way to name a specific
-build after `:latest` has moved on.
+Every push to `main` publishes two tags: `:latest`, which is reassigned each
+time, and `:sha-<commit>`, which is immutable and is the only way to name a
+specific build after `:latest` has moved on.
+
+`docker-compose.yml` resolves the tag from `IMAGE_TAG`, defaulting to `:latest`:
+
+```yaml
+image: ghcr.io/ingwalde/find-music-bot:${IMAGE_TAG:-latest}
+```
+
+The deploy workflow sets `IMAGE_TAG=sha-<commit>` for the commit the Tests
+workflow validated, so production always runs a named build. Locally the
+variable is unset and everything behaves as before.
 
 To roll back to a known-good build without reverting the commit:
 
 ```bash
-# on the server, find the commit you want from the GHCR package page or git log
-docker pull ghcr.io/ingwalde/find-music-bot:sha-<commit>
-docker tag ghcr.io/ingwalde/find-music-bot:sha-<commit> \
-           ghcr.io/ingwalde/find-music-bot:latest
-docker compose up -d --remove-orphans
+# on the server; find the commit from the GHCR package page or git log
+IMAGE_TAG=sha-<commit> docker compose up -d --remove-orphans
 ```
 
-The next successful deploy overwrites the local `:latest` again, so this is a
-stopgap that buys time to fix forward — not a substitute for reverting the
-commit if the build is genuinely bad.
+Two caveats. The next successful deploy overrides this, so it buys time to fix
+forward rather than replacing a revert. And it rolls back **code only** —
+migrations already applied stay applied, because the container runs
+`alembic upgrade head` at start and nothing downgrades automatically. Rolling
+back across a migration is only safe when that migration was additive; if it
+dropped or rewrote anything, revert forward instead.
 
 CI provisions a `postgres:16-alpine` service container
 (`testuser`/`testpass`/`testdb`, port 5432) and injects
@@ -315,12 +325,22 @@ integration tests run against it — the same credentials as the local
 ### Deploy workflow (`.github/workflows/deploy.yml`)
 
 Triggers automatically after the Tests workflow completes successfully on `main`
-(`workflow_run` event — guarantees the GHCR image is pushed before deploy runs):
+(`workflow_run` event — guarantees the GHCR image is pushed before deploy runs).
 
-1. Copies `docker-compose.yml` to the server via SCP.
-2. SSHs in and runs `docker logout ghcr.io` — the package is public, and a stale
-   credential would make the daemon send an expired token instead of pulling
-   anonymously.
+The workflow runs under a `deploy-production` concurrency group with
+`cancel-in-progress: false`, so two merges landing close together deploy one
+after the other instead of racing. Cancelling is deliberately not an option: a
+deploy interrupted midway through `up -d` leaves the stack worse off than one
+that waits.
+
+1. Checks out `workflow_run.head_sha` — the commit Tests validated, not whatever
+   `main` points at by the time Deploy runs — and copies its
+   `docker-compose.yml` to the server via SCP.
+2. SSHs in with `DEPLOY_SHA` in the environment and refuses to continue if it is
+   empty, then exports `IMAGE_TAG=sha-$DEPLOY_SHA` so compose resolves the exact
+   validated build. Runs `docker logout ghcr.io` — the package is public, and a
+   stale credential would make the daemon send an expired token instead of
+   pulling anonymously.
 3. `docker compose pull`. **A failed pull aborts the deploy.** It must: compose
    otherwise falls back to the locally cached image and the old container starts,
    and `/ready` then answers from stale code, turning a failed deploy green. That
