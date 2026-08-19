@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.12] - 2026-08-19
+
+### Changed
+- Dependency refresh from `deps/staging`. Runtime: uvicorn 0.52.1 → 0.52.3,
+  sqlalchemy 2.0.51 → 2.0.52. Tooling: ruff 0.16.2 → 0.16.3, mypy >=2.3.0 →
+  >=2.3.1, hypothesis >=6.165.2 → >=6.165.9, actions/github-script 7 → 9,
+  pre-commit-hooks 5.0.0 → 6.0.0, the pre-commit mypy mirror 2.3.0 → 2.3.1.
+- Each bump was merged on its own green CI run rather than as a batch, which is
+  what surfaced the `requirements/dev.txt` conflict between the ruff, hypothesis
+  and mypy branches instead of letting it land unexamined.
+
+### Fixed
+- The pre-commit ruff `rev` and `requirements/dev.txt` had drifted apart.
+  `.pre-commit-config.yaml` requires them to move together — a hook must not
+  pass locally and fail in CI over a version difference — but Dependabot only
+  watched `requirements/`. Both are now at 0.16.3, and the `pre-commit`
+  ecosystem added in v3.7.11 keeps them paired from here on.
+
 ## [v3.7.11] - 2026-08-19
 
 ### Fixed
