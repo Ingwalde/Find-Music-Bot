@@ -19,6 +19,17 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Apply Debian security updates on top of the base image. python:3.12-slim is
+# rebuilt on its own schedule, so between rebuilds it ships OS packages with
+# published fixes — CVE-2026-53615 in util-linux/libblkid1 blocked every build
+# for exactly that reason. The Trivy gate runs with ignore-unfixed, meaning
+# only CVEs the project *can* act on fail the build; upgrading here is that
+# action. Without it the only options are pinning a base digest that ages the
+# same way, or ignoring a fixable HIGH.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Only the installed packages come across — no pip cache, no build wheels.

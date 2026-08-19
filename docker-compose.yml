@@ -35,7 +35,10 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    image: ghcr.io/ingwalde/find-music-bot:latest
+    # Deploy sets IMAGE_TAG to sha-<commit> so the server runs the exact image
+    # CI validated. Unset — local `docker compose up --build`, the test profile
+    # — it falls back to :latest, which is the previous behaviour.
+    image: ghcr.io/ingwalde/find-music-bot:${IMAGE_TAG:-latest}
     container_name: telegram-music-finder-bot
     restart: unless-stopped
     env_file:
