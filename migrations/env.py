@@ -34,11 +34,21 @@ def _alembic_database_url() -> str:
     Derives the SQLAlchemy async engine URL.
 
     Prefers ALEMBIC_DATABASE_URL when explicitly set. This exists for the
-    live_pg test fixture: settings.DATABASE_URL is a dataclass default
-    evaluated once at module-import time, so setting os.environ["DATABASE_URL"]
-    later in the same pytest process would NOT change it. ALEMBIC_DATABASE_URL
-    is read fresh on every call, so the fixture can point Alembic at the
-    testcontainers instance without restarting the process.
+    live_pg test fixture, which needs to point Alembic at a testcontainers
+    instance after the process has already started.
+
+    v3.7.10 moved Settings to field(default_factory=...), so a *freshly
+    constructed* Settings() now does read a late os.environ["DATABASE_URL"]
+    (tests/test_stage1_quality.py pins that). This module does not construct
+    one: it imports the module-level `settings` singleton, and that is built
+    once when app.config.settings is imported. So a DATABASE_URL set later in
+    the same pytest process still would not reach it, and the override is still
+    load-bearing — for the singleton's lifetime, not for the reason the
+    original comment gave.
+
+    Making it a genuine convenience rather than a necessity means reading a
+    fresh Settings() here instead of the singleton. That is a change to the
+    migration path and belongs in its own release.
 
     Falls back to the app's DATABASE_URL setting otherwise — the normal
     CLI/deploy path (Stage 1/2 verification, production migrations).

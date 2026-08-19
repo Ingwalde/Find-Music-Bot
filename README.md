@@ -72,9 +72,9 @@ and opens per-service with a single-probe half-open state.
   reaches Python.
 - **Alembic owns the schema.** 4 versioned migrations applied on container start; the runtime
   uses raw asyncpg with no ORM.
-- **533 tests against real infrastructure.** 60 test files, ~93% coverage against an 85% gate.
-  Integration tests build the schema *through Alembic* on a real PostgreSQL and flush a real
-  Redis — the SQL is tested, not mocked. Plus Hypothesis property tests and concurrency scenarios.
+- **Tested against real infrastructure, not mocks.** Integration tests build the schema
+  *through Alembic* on a real PostgreSQL and flush a real Redis, so the SQL is exercised rather
+  than stubbed. Plus Hypothesis property tests and concurrency scenarios. Coverage gate: 85%.
 - **Deploys are verified, not assumed.** After a silent stale-image deploy in v3.7.8, the deploy
   workflow now aborts on a failed `compose pull` and compares the running container's image
   digest against the pulled one before polling `/ready`.
@@ -256,10 +256,10 @@ app/
 migrations/        # Alembic — schema source of truth
 deploy/            # Dockerfile, Prometheus alerts, Grafana dashboard
 docs/              # architecture, deployment, metrics, roadmap
-tests/             # 533 tests, 60 files
+tests/             # unit, integration (real Postgres/Redis) and property tests
 ```
 
-86 modules · 7 440 lines in `app/` · 9 086 lines of tests.
+Test code outweighs application code, roughly 1.2 : 1.
 
 ---
 

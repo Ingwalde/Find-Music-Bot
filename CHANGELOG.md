@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.11] - 2026-08-19
+
+### Fixed
+- **The deploy did not run the commit CI validated.** v3.7.10 started publishing
+  an immutable `:sha-<commit>` tag alongside `:latest`, but nothing consumed it:
+  `docker-compose.yml` and the deploy script were still pinned to `:latest`, so
+  the server pulled whatever that pointed at when the deploy happened to run —
+  which is not necessarily the build that passed Tests. A tag nothing deploys by
+  is worse than no tag at all, because it reads as determinism that isn't there.
+  `docker-compose.yml` now resolves `${IMAGE_TAG:-latest}`, and deploy exports
+  `IMAGE_TAG=sha-<commit>` from `workflow_run.head_sha`, refusing to run if that
+  value is missing rather than silently falling back.
+- **`docker-compose.yml` could come from a different commit than the image.**
+  `actions/checkout` took the default ref, so a second merge landing during a
+  deploy shipped its compose file next to the earlier commit's image. Checkout
+  now pins `workflow_run.head_sha`.
+- **Two deploys could run at once.** Added a `deploy-production` concurrency
+  group with `cancel-in-progress: false` — a deploy interrupted midway through
+  `up -d` is worse than one that waits its turn.
+
+### Changed
+- Rollback is now `IMAGE_TAG=sha-<commit> docker compose up -d` instead of
+  retagging `:latest` locally. `docs/DEPLOYMENT.md` documents it, including that
+  it rolls back code only: migrations already applied stay applied, so crossing
+  a non-additive migration means fixing forward.
+
+### Documentation
+- `migrations/env.py` explained the `ALEMBIC_DATABASE_URL` override with a
+  mechanism v3.7.10 removed (dataclass defaults evaluated at class definition).
+  The override is still load-bearing, but for a different reason: this module
+  imports the module-level `settings` singleton, which is constructed once at
+  import, so a late `DATABASE_URL` still cannot reach it. Corrected, and noted
+  what reading a fresh `Settings()` here would buy.
+- README no longer hardcodes test and line counts. They were accurate when
+  written and stale one release later; nothing checked them.
+
 ## [v3.7.10] - 2026-08-16
 
 ### Fixed
