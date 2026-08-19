@@ -366,6 +366,16 @@ conflict; on a merge conflict it opens an issue labelled `deps-sync` instead of
 failing silently. Review and merge dependency PRs into `deps/staging`, then open
 one PR from `deps/staging` to `main`.
 
+The Tests workflow runs on PRs targeting `deps/staging` as well as `main`, so
+each bump is validated on its own before it is merged. It is not in the `push`
+trigger for that branch: re-running the suite for the daily sync merge and for
+each deps PR merge validates nothing the PR run did not already cover.
+
+Three ecosystems are watched — `pip` (`/requirements`), `github-actions`, and
+`pre-commit`. The last one matters because `.pre-commit-config.yaml` pins ruff to
+the same version as `requirements/dev.txt`; without it Dependabot bumps one and
+leaves the other behind.
+
 ## Security Notes
 
 Never commit or publish:

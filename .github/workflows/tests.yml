@@ -5,10 +5,17 @@ on:
     branches:
       - main
       - master
+  # deps/staging is in the pull_request list but deliberately not in push:
+  # Dependabot targets that branch, so without it here its PRs merged with no
+  # checks at all and the first validation happened on the promotion PR to main,
+  # with every bump landing at once. On push it would only re-run the same suite
+  # for the daily sync merge and for each deps PR merge, which validates nothing
+  # new.
   pull_request:
     branches:
       - main
       - master
+      - deps/staging
 
 jobs:
   lint:
