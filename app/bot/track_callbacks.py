@@ -3,9 +3,12 @@ from aiogram.types import CallbackQuery
 
 from app.bot.actions import send_track_card
 from app.bot.rate_limit import check_rate_limit, should_warn_once
-from app.database.repositories import get_track_by_deezer_id, save_track
 from app.localization.translations import t
 from app.services.deezer_service import get_track
+from app.services.track_service import (
+    get_track_by_deezer_id,
+    save_track,
+)
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.utils.types import TrackDict

@@ -8,16 +8,16 @@ from app.bot.keyboards import (
     track_actions_keyboard,
 )
 from app.bot.rate_limit import check_rate_limit, should_warn_once
-from app.database.repositories import (
+from app.localization.translations import t
+from app.services.deezer_service import get_track
+from app.services.favorites_service import (
     add_favorite,
     clear_favorites,
     get_favorite_tracks,
     remove_favorite,
-    save_track,
-    upsert_user,
 )
-from app.localization.translations import t
-from app.services.deezer_service import get_track
+from app.services.track_service import save_track
+from app.services.user_service import upsert_user
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 

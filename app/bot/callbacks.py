@@ -43,8 +43,8 @@ from app.bot.pagination_callbacks import (
 )
 from app.bot.similar_callbacks import handle_similar_callback
 from app.bot.track_callbacks import handle_track_callback
-from app.database.repositories import get_user_language
 from app.localization.translations import t
+from app.services.user_service import get_user_language
 
 router = Router(name="callbacks")
 

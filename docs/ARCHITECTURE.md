@@ -52,10 +52,15 @@ flowchart TD
 The bot is split into layers. Each layer below names the modules that
 implement it, so a box in the diagram maps to concrete files:
 
+The direction `bot → services → database` is enforced by
+`tests/test_architecture_imports.py`, which fails the build if any module
+under `app/bot` imports `app.database` directly. Services own storage access;
+the bot layer never reaches past them.
+
 | Layer | Modules |
 |-------|---------|
 | Bot | `app/bot/handlers.py`, `callbacks.py`, `actions.py`, `context.py`, `rate_limit.py`, `keyboard_*.py`, `*_middleware.py` |
-| Services | `app/services/deezer_service.py`, `lyrics_service.py`, `recommendations_service.py`, `search_cache_service.py`, `redis_client.py`, `track_formatter.py` |
+| Services | `app/services/deezer_service.py`, `lyrics_service.py`, `recommendations_service.py`, `search_cache_service.py`, `redis_client.py`, `track_formatter.py`, and the storage-owning `user_service.py`, `favorites_service.py`, `history_service.py`, `admin_service.py`, `track_service.py` |
 | Platform | `app/platforms/aggregator.py`, `spotify/auth.py`, `spotify/client.py`, `spotify/matcher.py` |
 | Database | `app/database/db.py`, `maintenance.py`, `repositories.py` (facade), `repository_modules/*.py` |
 | Localization | `app/localization/translator.py`, `locales/*.py` |

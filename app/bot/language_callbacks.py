@@ -3,9 +3,12 @@ from aiogram.types import CallbackQuery
 
 from app.bot.keyboards import main_menu_keyboard
 from app.config.admins import is_admin_user
-from app.database.repositories import set_user_language, upsert_user
 from app.localization.languages import is_supported_language
 from app.localization.translations import t
+from app.services.user_service import (
+    set_user_language,
+    upsert_user,
+)
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 

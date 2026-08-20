@@ -28,26 +28,28 @@ from app.bot.keyboards import (
 from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.config.admins import is_admin_user
 from app.config.settings import settings
-from app.database.repositories import (
-    clear_errors,
-    get_favorite_tracks,
-    get_last_track_id,
-    get_recent_errors,
-    get_search_history,
-    get_user_language,
-    save_admin_audit,
-    upsert_user,
-)
 from app.health import format_health_report
 from app.localization.languages import DEFAULT_LANGUAGE
 from app.localization.translations import get_menu_action_by_text, t
+from app.services.admin_service import (
+    clear_errors,
+    get_recent_errors,
+    save_admin_audit,
+)
 from app.services.deezer_service import get_track as deezer_get_track
 from app.services.deezer_service import get_trending_tracks
+from app.services.favorites_service import get_favorite_tracks
+from app.services.history_service import get_search_history
 from app.services.recommendations_service import (
     format_recommendations_text,
     format_similar_text,
     get_cached_trending,
     get_similar_by_genre,
+)
+from app.services.user_service import (
+    get_last_track_id,
+    get_user_language,
+    upsert_user,
 )
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
