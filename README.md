@@ -44,10 +44,9 @@ Full diagrams and layer responsibilities: [`docs/ARCHITECTURE.md`](docs/ARCHITEC
 ```mermaid
 flowchart LR
     TG["Telegram API"] --> BOT["aiogram 3 dispatcher<br/>handlers · callbacks · middlewares"]
-    BOT --> SVC["Services<br/>Deezer · recommendations · cache"]
+    BOT --> SVC["Services<br/>Deezer · recommendations · cache · user · favorites · history"]
     SVC --> PLAT["Platforms<br/>Spotify · aggregator"]
-    BOT --> REPO["Repositories<br/>(asyncpg)"]
-    SVC --> REPO
+    SVC --> REPO["Repositories<br/>(asyncpg)"]
     REPO --> PG[("PostgreSQL")]
     SVC --> RD[("Redis")]
     BOT -.-> MON["FastAPI :9090<br/>/health /ready /metrics"]
@@ -89,13 +88,13 @@ and opens per-service with a single-probe half-open state.
   hit/miss, rate-limit blocks, TLS expiry), correlation IDs through every handler, four alert
   rules and a Grafana dashboard in `deploy/`.
 
-### Honest scope note
+### Enforced layering
 
-The layering is a convention, not a compiler-enforced boundary: `app/bot` modules currently call
-`app.database.repositories` directly for lightweight lookups such as the user's language, and two
-services read from the cache tables. Tightening this — and adding an import-direction check to
-`tests/test_architecture_imports.py` so it is enforced rather than intended — is tracked in
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+The direction `bot → services → database` is checked, not just documented:
+`tests/test_architecture_imports.py` fails the build if any module under `app/bot`
+imports `app.database` directly. Storage is reached through the service layer —
+`user_service`, `favorites_service`, `history_service`, `admin_service`,
+`track_service`.
 
 ---
 

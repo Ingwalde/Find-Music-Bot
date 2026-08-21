@@ -18,17 +18,17 @@ from app.bot.keyboards import (
 )
 from app.config.admins import is_admin_user
 from app.config.settings import settings
-from app.database.repositories import (
-    get_user_language,
-    is_track_favorite,
-    save_last_track_id,
-    save_search,
-)
 from app.localization.translations import t
+from app.services.favorites_service import is_track_favorite
+from app.services.history_service import save_search
 from app.services.recommendations_service import format_recommendations_text, get_db_recommendations
 from app.services.search_cache_service import search_tracks_cached
 from app.services.track_formatter import format_track_card
 from app.services.track_platform_service import enrich_track_with_spotify_link
+from app.services.user_service import (
+    get_user_language,
+    save_last_track_id,
+)
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 from app.utils.text import split_long_message

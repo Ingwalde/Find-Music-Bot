@@ -5,13 +5,13 @@ from app.bot.actions import send_search_results
 from app.bot.keyboards import confirm_clear_history_keyboard, history_keyboard
 from app.bot.rate_limit import check_rate_limit, should_warn_once
 from app.config.settings import settings
-from app.database.repositories import (
+from app.localization.translations import t
+from app.services.history_service import (
     clear_search_history,
     get_search_history,
     get_search_query_by_id,
-    upsert_user,
 )
-from app.localization.translations import t
+from app.services.user_service import upsert_user
 from app.utils.error_logger import log_and_save_error
 from app.utils.logger import setup_logger
 

@@ -62,6 +62,7 @@
 - `v3.7.10` — Quality & Performance (artist index, one language query per callback,
   precomputed menu index, real single-flight for trending, credential-safe logging,
   pre-commit, SHA image tags)
+- `v3.7.11` — Portfolio Polish (screenshots, enforced layer boundary, handlers split)
 
 ## Planned
 

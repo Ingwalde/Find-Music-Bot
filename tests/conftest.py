@@ -352,3 +352,35 @@ async def live_redis(monkeypatch):
 
     await client.flushdb()
     await client.aclose()
+
+
+def patch_handler_dep(monkeypatch, name: str, value):
+    """
+    Patches a handler dependency across every handlers submodule that imports it.
+
+    app/bot/handlers used to be one module, so `monkeypatch.setattr(handlers,
+    "upsert_user", ...)` hit the single binding the handlers used. After the
+    split, each domain module has its own binding and six names live in more
+    than one — patching the package would silently affect nothing.
+
+    Patching every location keeps the tests decoupled from the module layout:
+    moving a handler between domain modules does not break them. The assertion
+    is the important part — a typo would otherwise patch nothing and let the
+    test pass while exercising the real dependency.
+    """
+    import app.bot.handlers as handlers_pkg
+
+    submodules = (
+        handlers_pkg._shared,
+        handlers_pkg.common,
+        handlers_pkg.search,
+        handlers_pkg.library,
+        handlers_pkg.admin,
+        handlers_pkg.menu,
+    )
+
+    patched = [m for m in submodules if hasattr(m, name)]
+    assert patched, f"no app/bot/handlers submodule imports {name!r} — typo?"
+
+    for module in patched:
+        monkeypatch.setattr(module, name, value)
