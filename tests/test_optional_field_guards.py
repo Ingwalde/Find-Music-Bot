@@ -18,7 +18,7 @@ from app.bot.keyboard_history import history_keyboard
 from app.bot.keyboard_search import search_results_keyboard
 from app.bot.keyboard_track import track_actions_keyboard
 from app.localization.languages import DEFAULT_LANGUAGE
-from tests.conftest import AsyncFakeBot, fake_call, fake_message, to_async
+from tests.conftest import AsyncFakeBot, fake_call, fake_message, patch_handler_dep, to_async
 
 # ── callback_router: the 48h-old message case ────────────────────────────────
 
@@ -77,9 +77,7 @@ async def test_router_answers_and_stops_without_a_from_user(monkeypatch):
 async def test_user_context_falls_back_to_the_default_language(monkeypatch):
     """No from_user means nothing to upsert and no stored preference."""
     upserted = {"called": False}
-    monkeypatch.setattr(
-        handlers, "upsert_user", to_async(lambda user: upserted.update(called=True))
-    )
+    patch_handler_dep(monkeypatch, "upsert_user", to_async(lambda user: upserted.update(called=True)))
 
     message = fake_message(user_id=1)
     message.from_user = None
