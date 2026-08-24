@@ -59,7 +59,7 @@ the bot layer never reaches past them.
 
 | Layer | Modules |
 |-------|---------|
-| Bot | `app/bot/handlers.py`, `callbacks.py`, `actions.py`, `context.py`, `rate_limit.py`, `keyboard_*.py`, `*_middleware.py` |
+| Bot | `app/bot/handlers/` (package), `callbacks.py`, `actions.py`, `context.py`, `rate_limit.py`, `keyboard_*.py`, `*_middleware.py` |
 | Services | `app/services/deezer_service.py`, `lyrics_service.py`, `recommendations_service.py`, `search_cache_service.py`, `redis_client.py`, `track_formatter.py`, and the storage-owning `user_service.py`, `favorites_service.py`, `history_service.py`, `admin_service.py`, `track_service.py` |
 | Platform | `app/platforms/aggregator.py`, `spotify/auth.py`, `spotify/client.py`, `spotify/matcher.py` |
 | Database | `app/database/db.py`, `maintenance.py`, `repositories.py` (facade), `repository_modules/*.py` |
@@ -76,7 +76,27 @@ app/bot/
 
 Contains Telegram handlers, callbacks and keyboard builders.
 
-Admin-only commands are registered in `app/bot/handlers.py` and use `ADMIN_ID` from settings.
+Message handlers live in the `app/bot/handlers/` package, split by domain. It was a single
+638-line module — the largest in `app/`, and the only one that had grown into a
+god-module while `app/database/repository_modules/` stayed partitioned:
+
+```text
+handlers/_shared.py   admin gate, user context, error formatting — used by every domain
+handlers/common.py    /start /help /language /version
+handlers/search.py    /similar /trending and free-text search
+handlers/library.py   /favorites /history
+handlers/admin.py     the admin menu and its eight commands
+handlers/menu.py      the reply-keyboard dispatcher
+```
+
+Each domain module owns a `Router`; `handlers/__init__.py` assembles them into the single
+`router` that `app/main.py` includes, so the registration point outside the package is
+unchanged. `menu` is separate — and included last — because `text_handler` fans out to every
+other domain and matches on `F.text`, so it would otherwise swallow text a more specific
+router should see.
+
+Admin-only commands use `ADMIN_ID` from settings, gated by `require_admin()` in `_shared`,
+which also writes the audit entry.
 
 `app/bot/rate_limit.py` (v3.1.2+) provides a per-user sliding-window rate limiter, applied at the
 top of every handler/callback that calls an external API. Backed by Redis when available, with an
