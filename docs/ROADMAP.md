@@ -62,7 +62,12 @@
 - `v3.7.10` — Quality & Performance (artist index, one language query per callback,
   precomputed menu index, real single-flight for trending, credential-safe logging,
   pre-commit, SHA image tags)
-- `v3.7.11` — Portfolio Polish (screenshots, enforced layer boundary, handlers split)
+- `v3.7.11` — Deterministic Deploy (deploy the commit CI validated, head_sha pin,
+  concurrency group, rollback by SHA tag)
+- `v3.7.12` — Dependency Refresh (each bump on its own green run; pre-commit ecosystem
+  added so the ruff rev and requirements stay paired)
+- `v3.7.13` — Portfolio Polish (README screenshots, enforced layer boundary,
+  handlers split into domain modules)
 
 ## Planned
 
