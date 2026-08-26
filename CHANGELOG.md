@@ -4,6 +4,63 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.13] - 2026-08-26
+
+### Added
+- **Screenshots in the README.** Three shots in a table — paginated search, a
+  full track card, and the admin `/health` output. The section had carried a
+  TODO since the repository was made public, which is the first thing a reader
+  met after the badges.
+
+### Changed
+- **The layering is enforced, not merely documented.** `app/bot` imported
+  `app.database.repositories` directly in 7 modules for 19 symbols; those now
+  route through five storage-owning services — `user_service`,
+  `favorites_service`, `history_service`, `admin_service`, `track_service`.
+  `tests/test_architecture_imports.py` fails the build if a module under
+  `app/bot` imports `app.database` again. The README's "Honest scope note",
+  which admitted the boundary was a convention, is gone because the claim it
+  made is now true.
+
+  The service functions are re-exported rather than wrapped: a single-row
+  lookup has no business logic to add, and a forwarding wrapper would claim an
+  encapsulation that is not there. Each module's docstring says so. Names are
+  unchanged, so bot modules changed only their import line.
+
+  One correction while removing that note: it also confessed that "two services
+  read from the cache tables", as though that were a violation too. Reaching
+  storage is the service layer's job. A test now pins that services *may*
+  import `app.database`, so a future tightening cannot forbid it by mistake.
+
+- **`app/bot/handlers.py` is a package.** 638 lines — the largest module in
+  `app/`, and the only one that had grown into a god-module while
+  `app/database/repository_modules/` stayed partitioned. Now six files, the
+  largest 171: `_shared`, `common`, `search`, `library`, `admin`, `menu`.
+
+  Each domain owns a `Router`; `__init__` assembles them into the single
+  `router` that `app/main.py` includes, so nothing outside the package changed.
+  `menu` is separate — and included last — because `text_handler` fans out to
+  every other domain and matches on `F.text`, so it would otherwise swallow
+  text a more specific router should see.
+
+  Behaviour-preserving, verified by counting rather than assuming: 17 message
+  handlers before, 17 after.
+
+- `docs/ARCHITECTURE.md` described `handlers.py` as a single module three
+  commits after it stopped being one. Found by rebuilding the project's
+  knowledge graph, which reported it could not extract nodes for submodules the
+  document never named.
+
+### Notes
+- Tests: `conftest` gains `patch_handler_dep()`, which patches a dependency
+  across every handlers submodule that imports it. 102 call sites rewritten.
+  Six names now live in more than one module (`is_admin` in four), so pinning
+  each patch to one submodule would be brittle — and the tests are now
+  independent of the module layout, which is the coupling that made the split
+  painful in the first place.
+
+---
+
 ## [v3.7.12] - 2026-08-19
 
 ### Changed

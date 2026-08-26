@@ -1,52 +1,33 @@
-# Screenshots Guide
+# Screenshots
 
-This folder is prepared for Telegram bot screenshots.
-
-Do not include screenshots with private tokens, user data or personal messages.
-
-## Recommended Screenshots
-
-Add these images later:
+Three shots, linked from the root `README.md`:
 
 ```text
-start.png
-search-results.png
-track-card.png
-favorites.png
-history.png
-errors-admin.png
+search-results.jpg   paginated search — the page indicator and Next control must be visible
+track-card.jpg       cover art plus the full metadata block
+health-admin.jpg     /health, admin-only, every dependency reporting
 ```
 
-## Suggested README Usage
+Three rather than a longer set on purpose: favourites and history render the
+same list-of-buttons layout that `search-results.jpg` already shows, so extra
+shots dilute rather than add.
 
-```md
-## Screenshots
+## Retaking them
 
-### Start Menu
+Order matters. `/health` reports Spotify's cooldown state, and a track search
+trips that cooldown for an hour when Spotify returns 403 — which it does when
+the app owner has no active Premium subscription. So:
 
-![Start menu](screenshots/start.png)
+1. Restart the bot (the cooldown lives in process memory), wait for `/ready`
+2. `/health` — before searching anything
+3. Search, then open a track
 
-### Search Results
+Doing it the other way round is why an earlier attempt caught Spotify with a
+warning icon.
 
-![Search results](screenshots/search-results.png)
+## Rules
 
-### Track Card
-
-![Track card](screenshots/track-card.png)
-
-### Favorites
-
-![Favorites](screenshots/favorites.png)
-
-### History
-
-![History](screenshots/history.png)
-```
-
-## Tips
-
-- Use clean test data.
-- Hide private Telegram account details.
-- Do not show `.env` values.
-- Do not show bot tokens.
-- Prefer screenshots from a test chat.
+- Test chat only — no personal username, avatar or other chats in frame
+- Crop to the message; no Telegram chrome, no compose box
+- One theme across all three, and the same width, or the README table skews
+- Never capture `.env` values or a bot token

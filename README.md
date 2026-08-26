@@ -29,11 +29,13 @@ Telegram → aiogram handlers → services → Deezer / Spotify / Genius
 
 The quickest look is the bot itself: [@botforfindmusicbot](https://t.me/botforfindmusicbot).
 
-> **TODO:** add real screenshots to `screenshots/` and link them here, so the
-> product is visible without leaving the page.
-> See [`screenshots/README.md`](screenshots/README.md) for the recommended shots
-> (start menu, search results, track card, favorites, history) and the rules on
-> scrubbing tokens and personal data first.
+| Search — paginated results | Track card — full metadata | Health — admin diagnostics |
+| --- | --- | --- |
+| ![Search results for "Abba": 30 tracks found, five track buttons, and a 1/6 page indicator beside a Next control](screenshots/search-results.jpg) | ![Track card for Gimme! Gimme! Gimme!: ABBA Gold cover art above artist, album, duration, release date, popularity and Deezer rank](screenshots/track-card.jpg) | ![Admin /health output listing Bot, Database, Deezer, Spotify, Genius and Redis, each reporting OK](screenshots/health-admin.jpg) |
+
+Pagination is served from the search context in Redis, so paging back and forth
+never re-queries Deezer. `/health` is admin-only and reports every dependency
+separately — the bot keeps serving when any single one of them is down.
 
 ---
 
