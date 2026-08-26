@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 import httpx
@@ -11,6 +12,10 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
+
+# The reason string is surfaced to admins via /health and carried for the whole
+# cooldown, so a long body would push the rest of the readout out of view.
+_MAX_ERROR_DETAIL_CHARS = 200
 
 _access_token: str | None = None
 _token_expires_at: float = 0
@@ -80,6 +85,65 @@ def reset_spotify_runtime_state() -> None:
     _spotify_access_block_reason = None
 
 
+def _spotify_error_detail(response: httpx.Response | None) -> str | None:
+    """
+    Extracts the human-readable half of a Spotify error body, if there is one.
+
+    Spotify does not answer errors consistently. A 403 from the token endpoint
+    arrives as bare text with no Content-Type header at all -- the common one
+    being "Active premium subscription required for the owner of the app." --
+    while Web API errors use {"error": {"message": ...}} and the token endpoint's
+    auth failures use {"error": "...", "error_description": "..."}. Sniffing the
+    body instead of trusting the header is what makes all three readable.
+
+    Returns None when there is nothing worth showing, so the caller can fall
+    back to generic guidance rather than print an empty or raw-JSON reason.
+    """
+    if response is None:
+        return None
+
+    try:
+        body = response.text.strip()
+    except (UnicodeDecodeError, httpx.ResponseNotRead):
+        return None
+
+    if not body:
+        return None
+
+    # `[` as well as `{`: a body that is structured data is never shown raw,
+    # whether or not we can find a message inside it.
+    if body[0] in "{[":
+        try:
+            payload = json.loads(body)
+        except ValueError:
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+
+        error = payload.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+        else:
+            # Token endpoint: the description carries the detail, the code alone
+            # ("invalid_client") is what we already knew from the status.
+            message = payload.get("error_description") or error
+
+        if not isinstance(message, str) or not message.strip():
+            return None
+
+        body = message.strip()
+
+    # Collapses the newlines Spotify puts in plain-text bodies; the reason goes
+    # into a single log line and a single Telegram message.
+    body = " ".join(body.split())
+
+    if len(body) > _MAX_ERROR_DETAIL_CHARS:
+        body = body[: _MAX_ERROR_DETAIL_CHARS - 1].rstrip() + "…"
+
+    return body or None
+
+
 def handle_spotify_http_error(error: httpx.HTTPStatusError, source: str) -> None:
     """
     Handles Spotify HTTP errors and converts known access errors to clearer exceptions.
@@ -93,9 +157,15 @@ def handle_spotify_http_error(error: httpx.HTTPStatusError, source: str) -> None
         ) from error
 
     if status_code == 403:
-        reason = (
-            f"Spotify returned 403 Forbidden during {source}. "
-            "Check Web API access, app mode, account permissions, Premium requirement, or Spotify Developer settings."
+        # Spotify's own wording is far more actionable than the generic list
+        # when it bothers to send one -- "Active premium subscription required
+        # for the owner of the app" names the actual cause, whereas the list
+        # below leaves the admin to guess which of five things went wrong.
+        detail = _spotify_error_detail(response)
+        reason = f"Spotify returned 403 Forbidden during {source}. " + (
+            detail
+            or "Check Web API access, app mode, account permissions, "
+            "Premium requirement, or Spotify Developer settings."
         )
         disable_spotify_temporarily(reason)
         raise SpotifyForbiddenError(reason) from error

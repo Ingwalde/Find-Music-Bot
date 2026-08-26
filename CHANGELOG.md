@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v3.7.14] - 2026-08-26
+
+### Fixed
+- **A Spotify 403 now says what Spotify said.** Every 403 produced the same
+  five-item checklist — "Check Web API access, app mode, account permissions,
+  Premium requirement, or Spotify Developer settings" — and the response body
+  was discarded. Spotify usually names the actual cause: the common one is
+  "Active premium subscription required for the owner of the app." That string
+  is now carried into the raised error and into the cooldown reason `/health`
+  reports, so an admin reading the readout an hour later sees the cause instead
+  of five things to guess between.
+
+  Parsing it takes sniffing the body, not the header: the token endpoint sends
+  that message as bare text with **no `Content-Type` at all**, while Web API
+  errors use `{"error": {"message": ...}}` and token auth failures use
+  `{"error": ..., "error_description": ...}`. All three are handled; anything
+  else — empty, malformed, or structured with no message — falls back to the
+  old guidance rather than printing a raw body. The detail is collapsed to one
+  line and capped at 200 characters, since it goes into a single log line and a
+  single Telegram message.
+
+---
+
 ## [v3.7.13] - 2026-08-26
 
 ### Added

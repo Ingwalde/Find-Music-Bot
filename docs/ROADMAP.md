@@ -68,6 +68,8 @@
   added so the ruff rev and requirements stay paired)
 - `v3.7.13` — Portfolio Polish (README screenshots, enforced layer boundary,
   handlers split into domain modules)
+- `v3.7.14` — Spotify 403 Detail (surface Spotify's own reason in the error and
+  in the /health cooldown readout instead of a generic checklist)
 
 ## Planned
 
