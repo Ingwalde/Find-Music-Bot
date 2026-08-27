@@ -1,156 +1,115 @@
 # Release Workflow
 
-This project uses version tags and GitHub Releases.
+`main` is protected. Direct pushes are rejected, so every release reaches
+`main` through a pull request that passes the required CI checks. Tags are cut
+after the merge, never before.
 
-## Version Format
+## Version format
 
-The project uses semantic-style version names:
+Semantic versioning, `vMAJOR.MINOR.PATCH`. The full history lives in
+[`CHANGELOG.md`](../CHANGELOG.md) and [`ROADMAP.md`](ROADMAP.md) — this file
+deliberately does not keep its own copy of the list, which is how the previous
+version of this document ended up three years of releases out of date.
 
-```text
-v1.0.0
-v1.1.0
-v2.0.0
-v2.1.0
-v2.2.0
-v2.2.1
-v2.3.0
-v2.4.0
-v2.4.1
-v2.5.0
-v2.5.1
-v2.5.2
-v2.6.0
-v2.6.1
-```
+Versioned release or chore? A change that alters runtime behaviour a user or
+admin can observe gets a version, a CHANGELOG entry and a tag. A change to CI,
+docs or tooling alone is a chore: PR and merge, no version bump, no tag.
 
-## Before Creating a Release
+## Before opening the release PR
+
+Work on a feature or chore branch, never on `main`.
 
 1. Update `app/version.py`.
-2. Update `README.md`.
-3. Update `CHANGELOG.md`.
-4. Update `docs/ROADMAP.md`.
-5. Update release text directly in GitHub Releases.
-6. Run Ruff:
+2. Add the `CHANGELOG.md` entry — heading `## [vX.Y.Z] - YYYY-MM-DD`.
+3. Add the `ROADMAP.md` line under **Completed**.
+4. Update `README.md` if the release changes something it describes.
+
+Then run the local gate. This mirrors the three CI jobs; the `quality-gate`
+skill runs the whole sequence in order.
 
 ```bash
 python -m ruff check .
-```
-
-7. Run tests with coverage:
-
-```bash
-python -m pytest
-```
-
-8. Run the release cleanup check:
-
-```bash
+python -m mypy
+python -m pip_audit -r requirements/base.txt
 python scripts/check_release_clean.py
-```
-
-9. For Docker releases, verify Docker build:
-
-```bash
+python scripts/check_version_sync.py
+python scripts/check_env_example.py
+python scripts/check_locale_coverage.py
+python -m pre_commit run --all-files
 docker build -f deploy/Dockerfile -t find-music-bot:test .
 ```
 
-10. Check that local/private files are not staged or tracked:
+`mypy` takes no arguments on purpose — the checked file list lives in
+`pyproject.toml`, and passing paths narrows the check and hides failures CI
+will catch anyway.
 
-```text
-.env
-.git/
-data/
-logs/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-.vscode/
-*.db
-*.log
-*.zip
-coverage.xml
-htmlcov/
-```
-
-## Commit Message Format
-
-Use clear release commits:
-
-```text
-Release v2.5.2: small cleanup and runtime polish
-```
-
-## Create Git Tag
+Tests need PostgreSQL and Redis. Without `DATABASE_URL` and `REDIS_URL` the
+integration fixtures fail at setup, and the coverage number from such a run is
+not comparable to the ~94% baseline:
 
 ```bash
-git tag v2.5.2
-git push origin v2.5.2
-v2.5.2
+docker compose up -d --wait test-postgres test-redis
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb \
+  REDIS_URL=redis://localhost:6380 \
+  alembic upgrade head
+DATABASE_URL=postgresql://testuser:testpass@localhost:5433/testdb \
+  REDIS_URL=redis://localhost:6380 \
+  python -m pytest
+docker compose stop test-postgres test-redis
 ```
 
-## Release Title Format
+Coverage floor is 85% (`pyproject.toml`); below it is a hard stop, not a
+warning.
+
+## Merging
+
+1. Push the branch and open a PR: base `main` ← compare the branch.
+2. If GitHub reports the branch is behind, use **Merge latest changes from
+   main into this branch**. Do not merge `main` locally — branch protection
+   rejects the resulting push.
+3. Wait for all required checks: Lint & Static Analysis, Pytest Coverage,
+   Docker Build.
+4. Merge with GitHub's **Merge pull request** button.
+
+Never `git push origin main` and never force-push.
+
+## After the merge
+
+```bash
+git checkout main
+git pull
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+Tags are for versioned releases only, not chores.
+
+The tag matters beyond bookkeeping: `scripts/check_version_sync.py` uses it to
+detect changes under `app/` that reached `main` with no CHANGELOG entry. Until
+the tag exists that check reports "skipped".
+
+Deployment is automatic. The merge triggers Tests; on success the Deploy
+workflow fires via `workflow_run`, pulls the new GHCR image, restarts the
+stack and polls `/ready`. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+If CI does not fire for a merge — it has happened — re-run Tests manually from
+the Actions tab (`workflow_dispatch`). A dispatch on `main` publishes the image
+exactly as a push does.
+
+## GitHub Release
+
+Create the release from the tag. Title format:
 
 ```text
-v2.5.2 - Small Cleanup & Runtime Polish Update
+v3.7.13 - Portfolio Polish
 ```
 
-## Release Notes Template
-
-```md
-## Overview
-
-Short explanation of this release.
-
-## Added
-
-- New files or features
-
-## Changed
-
-- Updated behavior or structure
-
-## Fixed
-
-- Bug fixes
-
-## Quality Checks
-
-- Ruff
-- Pytest
-- Coverage
-- Release cleanup check
-- Docker build
-
-## Notes
-
-Additional technical notes.
-```
-
-## Current Releases
-
-```text
-v1.0.0 - Deezer MVP
-v1.1.0 - Pagination and History Update
-v1.2.0 - UX Improvements
-v1.3.0 - Track Metadata Update
-v1.4.0 - Logging Update
-v1.5.0 - Project Refactoring Update
-v1.6.0 - Database Optimization Update
-v1.7.0 - Tests Update
-v1.8.0 - GitHub Polish Update
-v1.9.0 - Multi-Language Update
-v2.0.0 - Spotify API Integration
-v2.1.0 - Architecture Cleanup Update
-v2.2.0 - Stability, Testing & GitHub CI Update
-v2.2.1 - GitHub Actions Runtime Update
-v2.3.0 - Docker & Deployment Update
-v2.4.0 - Quality, Coverage & Release Cleanup Update
-v2.4.1 - Coverage Expansion Update
-v2.5.2 - Small Cleanup & Runtime Polish Update
-v2.6.1 - Localization & Error Logging Fixes Update
-```
-
+Body: reuse the CHANGELOG entry for that version rather than writing a second
+description that can drift from it.
 
 ## Admin access configuration
 
-Admin menu visibility is controlled by local admin IDs from `config/admins.json` or the legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local and is ignored by Git.
+Admin menu visibility comes from local admin IDs in `config/admins.json` or the
+legacy `ADMIN_ID` environment variable. `config/admins.json` must stay local
+and is ignored by Git; `scripts/check_release_clean.py` fails the build if it
+is ever tracked.

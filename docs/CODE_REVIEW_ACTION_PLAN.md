@@ -1,6 +1,18 @@
-# Code Review Action Plan
+# Code Review Action Plan (historical record — frozen at v2.5.2)
 
-This document tracks improvement items identified during the external review of the v2.5 codebase.
+> **This document is closed.** It tracked improvement items from an external
+> review of the **v2.5** codebase and was last updated at v2.5.2, in the run-up
+> to the aiogram 3 migration. Everything listed below has either shipped or
+> been superseded — the "Planned for v3.0.0" section is the aiogram migration
+> that landed in v3.0.0.
+>
+> It is kept because it is the record of how that migration was planned, which
+> [`CHANGELOG.md`](../CHANGELOG.md) shows only the outcome of. It is **not** a
+> live TODO list: current plans live in [`ROADMAP.md`](ROADMAP.md), and later
+> reviews are recorded in the CHANGELOG entry for the release that acted on
+> them. Nothing here should be treated as outstanding work — some of it
+> describes code that no longer exists, such as SQLite table discovery, removed
+> when the project moved to PostgreSQL in v3.1.0.
 
 ## Addressed in v2.5.1
 

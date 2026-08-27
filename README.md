@@ -64,8 +64,8 @@ and opens per-service with a single-probe half-open state.
 
 - **Two migrations carried out on a running project.** The bot moved from the synchronous
   pyTelegramBotAPI to async **aiogram 3**, and from SQLite to **PostgreSQL** — the trail is in
-  [`docs/CODE_REVIEW_ACTION_PLAN.md`](docs/CODE_REVIEW_ACTION_PLAN.md) and
-  [`CHANGELOG.md`](CHANGELOG.md).
+  [`CHANGELOG.md`](CHANGELOG.md), with the aiogram migration planned in advance in the archived
+  [`docs/CODE_REVIEW_ACTION_PLAN.md`](docs/CODE_REVIEW_ACTION_PLAN.md).
 - **Type checking that found real bugs.** mypy used to run on a hand-picked list of 25 modules.
   Extending it to the whole `app` package surfaced **91 genuine type errors** in the modules
   nobody was checking — including a `None` dereference that crashed every callback on a message
