@@ -33,8 +33,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # fetch-depth: 0 for the tags and history. check_version_sync.py's second
+      # check asks git whether app/ has moved since the last released tag; on
+      # the default shallow clone there are no tags, so it would skip on every
+      # run and report a pass for a check that never executed.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7
