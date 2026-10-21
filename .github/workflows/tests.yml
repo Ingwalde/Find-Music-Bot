@@ -71,6 +71,11 @@ jobs:
       - name: Check env example coverage
         run: python scripts/check_env_example.py
 
+      # Every version in .pre-commit-config.yaml is a second copy of one in
+      # requirements/, and Dependabot opens a separate PR for each copy.
+      - name: Check pre-commit pins match requirements
+        run: python scripts/check_precommit_pins.py
+
       - name: Check locale coverage
         run: python scripts/check_locale_coverage.py
 

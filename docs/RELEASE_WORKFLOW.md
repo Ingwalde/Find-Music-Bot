@@ -34,6 +34,7 @@ python -m pip_audit -r requirements/base.txt
 python scripts/check_release_clean.py
 python scripts/check_version_sync.py
 python scripts/check_env_example.py
+python scripts/check_precommit_pins.py
 python scripts/check_locale_coverage.py
 python -m pre_commit run --all-files
 docker build -f deploy/Dockerfile -t find-music-bot:test .
