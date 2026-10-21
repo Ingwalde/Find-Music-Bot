@@ -33,14 +33,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # fetch-depth: 0 for the tags and history. check_version_sync.py's second
-      # check asks git whether app/ has moved since the last released tag; on
-      # the default shallow clone there are no tags, so it would skip on every
-      # run and report a pass for a check that never executed.
+      # check_version_sync.py's second check asks git whether app/ has moved
+      # since the last released tag, so it needs both the history and the tags.
+      #
+      # fetch-tags is not redundant with fetch-depth: checkout passes --no-tags
+      # unless fetch-tags is true, whatever the depth. With depth alone the
+      # check logged "tag v3.7.14 not found" on every run and reported a pass
+      # for something that never executed.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python
         uses: actions/setup-python@v7
