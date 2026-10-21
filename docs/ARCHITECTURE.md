@@ -505,6 +505,22 @@ into a new `alembic_version` table — it runs no DDL and never touches existing
 `get_schema_version()` (`app/database/maintenance.py`) now returns the running app version
 directly — see "Schema Version Visibility" above.
 
+**Downgrade coverage:**
+
+`tests/test_migrations_pg.py` runs every revision down to `base` and back up
+against a real PostgreSQL, on its own throwaway database, and compares the
+schema before and after. `downgrade()` is otherwise never executed by anything
+-- it is hand-written raw SQL whose only use is a rollback, the worst moment to
+find out one is wrong. The revision that motivates it is `b7d92e4f1a03`: four
+of the five downgrades are plain DROPs, but that one *recreates* the two
+indexes its upgrade dropped as redundant, and must recreate them exactly as the
+baseline declared them.
+
+This is not an endorsement of `alembic downgrade` as the rollback path -- three
+downgrades drop tables holding live user data. Production rollback is the
+pinned `sha-` image tag. The tests check the mechanism is sound, not that it
+should be used.
+
 **Data migration script:**
 
 `scripts/migrate_sqlite_to_postgres.py` now bootstraps its target schema via
