@@ -31,8 +31,13 @@ BASE_REQUIREMENTS = PROJECT_ROOT / "requirements" / "base.txt"
 DEV_REQUIREMENTS = PROJECT_ROOT / "requirements" / "dev.txt"
 
 # `- repo: https://github.com/astral-sh/ruff-pre-commit` followed by its rev.
+# The lookahead stops the search at the next `- repo:` line. Without it, a ruff
+# block that had lost its rev would silently match the *following* repo's rev
+# and compare mirrors-mypy's version against requirements' ruff pin.
 RUFF_REV_PATTERN = re.compile(
-    r"^\s*-\s*repo:\s*\S*ruff-pre-commit\s*$\n(?:.*\n)*?\s*rev:\s*v?([^\s#]+)",
+    r"^\s*-\s*repo:\s*\S*ruff-pre-commit\s*$\n"
+    r"(?:(?!\s*-\s*repo:).*\n)*?"
+    r"\s*rev:\s*v?([^\s#]+)",
     re.MULTILINE,
 )
 

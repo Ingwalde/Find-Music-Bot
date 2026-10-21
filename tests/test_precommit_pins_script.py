@@ -144,6 +144,28 @@ def test_missing_ruff_hook_is_reported_not_skipped(project, capsys, monkeypatch)
     assert "needs updating, not skipping" in capsys.readouterr().out
 
 
+def test_ruff_rev_search_does_not_leak_into_the_next_repo(project, capsys):
+    """
+    A ruff block with no rev must report that, not borrow the next repo's.
+
+    The first version of the pattern spanned lines with `(?:.*\\n)*?`, so it
+    matched mirrors-mypy's rev and compared v2.4.0 against requirements' ruff
+    pin — a wrong answer dressed as a real finding.
+    """
+    project()
+    config = checker.PRECOMMIT_FILE
+    config.write_text(
+        config.read_text(encoding="utf-8").replace("    rev: v0.16.3\n", "", 1),
+        encoding="utf-8",
+    )
+
+    assert checker.main() == 1
+
+    output = capsys.readouterr().out
+    assert "needs updating, not skipping" in output
+    assert "2.3.1" not in output, "it picked up the mypy hook's rev instead"
+
+
 def test_missing_additional_dependencies_block_is_reported(project, capsys):
     project()
     config = checker.PRECOMMIT_FILE
