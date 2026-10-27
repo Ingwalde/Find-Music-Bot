@@ -2,7 +2,7 @@ python-dotenv==1.2.3
 aiogram==3.31.0
 httpx==0.28.1
 asyncpg==0.31.0
-alembic==1.19.1
+alembic==1.20.1
 # Alembic dependency only — schema is raw SQL via op.execute(); the app
 # runtime uses asyncpg, no ORM/Core models.
 sqlalchemy==2.0.52
