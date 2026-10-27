@@ -34,7 +34,7 @@ repos:
         additional_dependencies:
           - aiogram==3.31.0
           - httpx==0.28.1
-          - fastapi==0.143.5
+          - fastapi==0.162.0
           - prometheus-client==0.26.0
           - redis>=8.1.0,<9.0.0
           - types-python-dateutil
